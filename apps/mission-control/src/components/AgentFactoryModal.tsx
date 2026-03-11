@@ -1,6 +1,6 @@
 'use client';
 
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Bot, CheckCircle2, Sparkles, Wand2, X } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import type { Agent } from '@/lib/types';
@@ -92,6 +92,13 @@ interface InterviewQuestion {
   question: string;
   why: string;
 }
+
+const REQUEST_TIMEOUTS = {
+  interviewNext: 32000,
+  interviewProfile: 150000,
+  profileBackfill: 110000,
+  generate: 30000,
+};
 
 const DEFAULT_FORM: FactoryFormState = {
   name: '',
@@ -398,6 +405,8 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
   const [operationStartedAt, setOperationStartedAt] = useState<number | null>(null);
   const [operationElapsedSec, setOperationElapsedSec] = useState(0);
   const [logicTrace, setLogicTrace] = useState<string[]>([]);
+  const [operationRetryCount, setOperationRetryCount] = useState(0);
+  const progressHeartbeatBucketRef = useRef(0);
 
   const [aiBootstrapDone, setAiBootstrapDone] = useState(false);
   const [manualFallbackEnabled, setManualFallbackEnabled] = useState(false);
@@ -411,6 +420,9 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
   const isLastSection = currentSection === SECTIONS.length - 1;
   const sectionCompletionPct = Math.round(((currentSection + 1) / SECTIONS.length) * 100);
   const bootstrapReady = aiBootstrapDone || manualFallbackEnabled;
+  const interviewComplete = !currentInterviewQuestion && interviewHistory.length > 0;
+  const answeredInterviewCount = interviewHistory.filter((q) => q.answer.trim().length >= 4).length;
+  const canBuildFromInterview = interviewComplete && answeredInterviewCount >= 3;
 
   const canProceedSection = useMemo(
     () => section.fields.every((fieldKey) => isFieldSatisfied(form, fieldKey)),
@@ -427,6 +439,7 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
   useEffect(() => {
     if (!operationStartedAt) {
       setOperationElapsedSec(0);
+      progressHeartbeatBucketRef.current = 0;
       return;
     }
     const tick = () => setOperationElapsedSec(Math.max(0, Math.floor((Date.now() - operationStartedAt) / 1000)));
@@ -434,6 +447,14 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [operationStartedAt]);
+
+  useEffect(() => {
+    if (!operationStartedAt || !operationKind || operationElapsedSec < 15) return;
+    const bucket = Math.floor(operationElapsedSec / 15);
+    if (bucket <= progressHeartbeatBucketRef.current) return;
+    progressHeartbeatBucketRef.current = bucket;
+    pushTrace(`Still running (${operationElapsedSec}s elapsed)`);
+  }, [operationElapsedSec, operationKind, operationStartedAt]);
 
   function pushTrace(message: string) {
     const stamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -444,6 +465,7 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
     setOperationKind(kind);
     setOperationStage(stage);
     setOperationStartedAt(Date.now());
+    setOperationRetryCount(0);
     setLogicTrace([]);
     pushTrace(`${kind.toUpperCase()} started`);
     pushTrace(stage);
@@ -462,12 +484,46 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
   }
 
   async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('request_timeout')), timeoutMs);
-    });
-    const res = (await Promise.race([fetch(url, init), timeoutPromise])) as Response;
-    const data = await res.json().catch(() => ({}));
-    return { res, data };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('request_timeout');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  function isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    return (
+      error.message === 'request_timeout' ||
+      error.message.toLowerCase().includes('network') ||
+      error.message.toLowerCase().includes('fetch')
+    );
+  }
+
+  async function withRetries<T>(label: string, maxAttempts: number, fn: () => Promise<T>): Promise<T> {
+    let attempt = 1;
+    while (true) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (attempt >= maxAttempts || !isRetryableError(error)) {
+          throw error;
+        }
+        attempt += 1;
+        setOperationRetryCount(attempt - 1);
+        updateOperationStage(`${label} retry ${attempt - 1}/${maxAttempts - 1}`);
+        pushTrace(`Retrying after transient error (${error instanceof Error ? error.message : 'unknown error'})`);
+      }
+    }
   }
 
   function csvToArray(input: string): string[] {
@@ -495,7 +551,7 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
           interview_answers: answers,
         }),
       },
-      30000,
+      REQUEST_TIMEOUTS.interviewNext,
     );
 
     const payload = data as {
@@ -535,16 +591,18 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
     startOperation('interview', 'Generating first interview question');
     setIsInterviewing(true);
     setError(null);
+    setContextSheet('');
+    setCurrentSection(0);
 
     try {
-      const first = await requestNextInterviewQuestion([]);
+      const first = await withRetries('Interview question request', 2, () => requestNextInterviewQuestion([]));
       setInterviewHistory([]);
       setCurrentInterviewAnswer('');
       setCurrentInterviewQuestion(first.question);
       setTargetInterviewCount(first.target_count);
       setAiBootstrapDone(false);
       setManualFallbackEnabled(false);
-      finishOperation('Interview started');
+      finishOperation(first.done ? 'Interview completed' : 'Interview started');
     } catch (err) {
       const message =
         err instanceof Error && err.message === 'request_timeout'
@@ -577,7 +635,7 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
         { id: currentInterviewQuestion.id, question: currentInterviewQuestion.question, answer },
       ];
 
-      const next = await requestNextInterviewQuestion(nextAnswers);
+      const next = await withRetries('Interview continuation', 2, () => requestNextInterviewQuestion(nextAnswers));
       setInterviewHistory((prev) => [
         ...prev,
         { ...currentInterviewQuestion, answer },
@@ -603,6 +661,10 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
 
   async function buildFromInterview() {
     if (isGenerating || isDrafting || isInterviewing) return;
+    if (!interviewComplete && !manualFallbackEnabled) {
+      setError('Complete the AI interview before building the context sheet.');
+      return;
+    }
     const answered = interviewHistory.filter((q) => q.answer.trim().length >= 4);
     if (answered.length < 3) {
       setError('Answer at least 3 AI interview questions before generating the context sheet.');
@@ -614,26 +676,28 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
     setError(null);
 
     try {
-      const { res, data } = await fetchJsonWithTimeout(
-        '/api/agents/factory/suggest',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mode: 'interview_profile',
-            workspace_id: workspaceId || 'default',
-            name: form.name,
-            role: form.role,
-            objective: form.objective,
-            specialization: form.specialization,
-            interview_answers: answered.map((q) => ({
-              id: q.id,
-              question: q.question,
-              answer: q.answer,
-            })),
-          }),
-        },
-        140000,
+      const { res, data } = await withRetries('Context sheet build', 2, () =>
+        fetchJsonWithTimeout(
+          '/api/agents/factory/suggest',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'interview_profile',
+              workspace_id: workspaceId || 'default',
+              name: form.name,
+              role: form.role,
+              objective: form.objective,
+              specialization: form.specialization,
+              interview_answers: answered.map((q) => ({
+                id: q.id,
+                question: q.question,
+                answer: q.answer,
+              })),
+            }),
+          },
+          REQUEST_TIMEOUTS.interviewProfile,
+        ),
       );
 
       const payload = data as {
@@ -660,21 +724,23 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
           firstPass.objective.trim() ||
           firstContextSheet.slice(0, 180) ||
           'Define mission objective from interview responses';
-        const secondPassRes = await fetchJsonWithTimeout(
-          '/api/agents/factory/suggest',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mode: 'profile',
-              workspace_id: workspaceId || 'default',
-              name: firstPass.name,
-              role: firstPass.role,
-              objective: fallbackObjective,
-              specialization: firstPass.specialization,
-            }),
-          },
-          100000,
+        const secondPassRes = await withRetries('Required-field backfill', 2, () =>
+          fetchJsonWithTimeout(
+            '/api/agents/factory/suggest',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mode: 'profile',
+                workspace_id: workspaceId || 'default',
+                name: firstPass.name,
+                role: firstPass.role,
+                objective: fallbackObjective,
+                specialization: firstPass.specialization,
+              }),
+            },
+            REQUEST_TIMEOUTS.profileBackfill,
+          ),
         );
 
         const secondPayload = secondPassRes.data as {
@@ -713,6 +779,10 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
           : err instanceof Error
             ? err.message
             : 'Failed to build AI profile';
+      if (answered.length >= 3) {
+        setManualFallbackEnabled(true);
+        pushTrace('Enabled manual fallback automatically after draft failure.');
+      }
       setError(message);
       finishOperation(`Draft failed: ${message}`);
     } finally {
@@ -728,26 +798,29 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
 
     try {
       updateOperationStage('Submitting generation request');
-      const { res, data } = await fetchJsonWithTimeout(
-        '/api/agents/factory',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspace_id: workspaceId || 'default',
-            ...form,
-            tool_stack: csvToArray(form.tool_stack),
-            handoff_targets: csvToArray(form.handoff_targets),
-            approval_required_actions: csvToArray(form.approval_required_actions),
-            competency_profile: csvToArray(form.competency_profile),
-            knowledge_sources: csvToArray(form.knowledge_sources),
-            kpi_targets: csvToArray(form.kpi_targets),
-            expertise_primary_skills: csvToArray(form.expertise_primary_skills),
-            expertise_secondary_skills: csvToArray(form.expertise_secondary_skills),
-            factory_context_sheet: contextSheet,
-          }),
-        },
-        25000,
+      const { res, data } = await withRetries('Generate request', 2, () =>
+        fetchJsonWithTimeout(
+          '/api/agents/factory',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              workspace_id: workspaceId || 'default',
+              ...form,
+              objective: form.objective.trim() || contextSheet.split(/[.!?]/).map((s) => s.trim()).find((s) => s.length > 12) || '',
+              tool_stack: csvToArray(form.tool_stack),
+              handoff_targets: csvToArray(form.handoff_targets),
+              approval_required_actions: csvToArray(form.approval_required_actions),
+              competency_profile: csvToArray(form.competency_profile),
+              knowledge_sources: csvToArray(form.knowledge_sources),
+              kpi_targets: csvToArray(form.kpi_targets),
+              expertise_primary_skills: csvToArray(form.expertise_primary_skills),
+              expertise_secondary_skills: csvToArray(form.expertise_secondary_skills),
+              factory_context_sheet: contextSheet,
+            }),
+          },
+          REQUEST_TIMEOUTS.generate,
+        ),
       );
 
       if (!res.ok) {
@@ -886,6 +959,9 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                 <p className="text-sm text-mc-text-secondary">
                   AI asks role-specific questions first, then generates a context sheet and uses that sheet to populate profile fields.
                 </p>
+                <div className="rounded border border-mc-border bg-mc-bg-secondary p-2 text-xs text-mc-text-secondary">
+                  Stage A flow: Start interview -&gt; one adaptive question at a time -&gt; AI marks interview complete -&gt; build context sheet.
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={startAIInterview}
@@ -901,7 +977,7 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                       isInterviewing ||
                       isDrafting ||
                       isGenerating ||
-                      (interviewHistory.length < 3 && !manualFallbackEnabled)
+                      (!canBuildFromInterview && !manualFallbackEnabled)
                     }
                     className="inline-flex items-center gap-2 px-3 py-2 border border-mc-border rounded text-sm hover:bg-mc-bg-tertiary disabled:opacity-50"
                   >
@@ -909,10 +985,10 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                   </button>
                   <button
                     onClick={enableManualFallback}
-                    disabled={isInterviewing || isDrafting || isGenerating}
+                    disabled={isInterviewing || isDrafting || isGenerating || (interviewHistory.length === 0 && !error)}
                     className="inline-flex items-center gap-2 px-3 py-2 border border-mc-border rounded text-sm hover:bg-mc-bg-tertiary disabled:opacity-50"
                   >
-                    Manual Fallback
+                    Continue Manually
                   </button>
                 </div>
                 <p className="text-xs text-mc-text-secondary">
@@ -933,7 +1009,9 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">AI Interview</h3>
                   <p className="text-xs text-mc-text-secondary">
-                    Question {Math.min(interviewHistory.length + 1, targetInterviewCount)} of ~{targetInterviewCount}
+                    {interviewComplete
+                      ? `Interview complete (${interviewHistory.length} answered)`
+                      : `Question ${Math.min(interviewHistory.length + 1, targetInterviewCount)} of ~${targetInterviewCount}`}
                   </p>
                 </div>
 
@@ -964,6 +1042,11 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                         Questions adapt from your previous answer.
                       </p>
                     </div>
+                  </div>
+                )}
+                {interviewComplete && (
+                  <div className="rounded border border-mc-border bg-mc-bg-secondary p-2 text-xs text-mc-text-secondary">
+                    AI interview is complete. Build the context sheet now, or continue manually with existing answers.
                   </div>
                 )}
 
@@ -1033,6 +1116,9 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
                   ? `${operationKind === 'interview' ? 'Interview' : operationKind === 'draft' ? 'AI Draft' : 'Generate'} · ${operationStage || 'Running...'}`
                   : 'No active operation'}
               </p>
+              {operationRetryCount > 0 && (
+                <p className="text-xs text-mc-text-secondary">Automatic retries used: {operationRetryCount}</p>
+              )}
               <div className="rounded border border-mc-border bg-mc-bg-secondary p-2 min-h-[86px]">
                 <p className="text-xs uppercase tracking-wider text-mc-text-secondary mb-1">Logic Trace</p>
                 {logicTrace.length === 0 ? (
@@ -1119,6 +1205,14 @@ export function AgentFactoryModal({ onClose, workspaceId }: AgentFactoryModalPro
 
           <div className="p-5 overflow-y-auto bg-mc-bg space-y-4">
             <h3 className="text-sm uppercase tracking-wider text-mc-text-secondary">Onboarding Summary</h3>
+            <div className="rounded-xl border border-mc-border bg-mc-bg-secondary p-3 space-y-2 text-xs">
+              <p className="text-mc-text-secondary">Stage progression</p>
+              <p>{currentInterviewQuestion || interviewHistory.length > 0 ? '1. Interview started' : '1. Interview pending'}</p>
+              <p>{interviewComplete ? '2. Interview completed' : '2. Complete adaptive interview'}</p>
+              <p>{aiBootstrapDone ? '3. Context sheet ready' : '3. Build context sheet'}</p>
+              <p>{bootstrapReady ? '4. Profile pages unlocked' : '4. Unlock profile pages'}</p>
+              <p>{canGenerate ? '5. Ready to generate' : '5. Complete required fields + generate'}</p>
+            </div>
             {bootstrapReady ? (
               <div className="rounded-xl border border-mc-border bg-mc-bg-secondary p-3 space-y-2 text-sm">
                 {sectionStatuses.map((s, idx) => (

@@ -169,6 +169,24 @@ CREATE TABLE IF NOT EXISTS agent_reference_sheets (
   version INTEGER NOT NULL,
   title TEXT NOT NULL,
   markdown TEXT NOT NULL,
+  lifecycle_state TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_state IN ('draft', 'active', 'archived')),
+  lifecycle_action TEXT NOT NULL DEFAULT 'create' CHECK (lifecycle_action IN ('create', 'version', 'revise')),
+  parent_sheet_id TEXT REFERENCES agent_reference_sheets(id) ON DELETE SET NULL,
+  archived_at TEXT,
+  metadata TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS agent_reference_sheet_transitions (
+  id TEXT PRIMARY KEY,
+  sheet_id TEXT NOT NULL REFERENCES agent_reference_sheets(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  transition_type TEXT NOT NULL CHECK (transition_type IN ('create', 'version', 'revise', 'archive')),
+  from_state TEXT CHECK (from_state IN ('draft', 'active', 'archived')),
+  to_state TEXT NOT NULL CHECK (to_state IN ('draft', 'active', 'archived')),
+  actor TEXT,
+  reason TEXT,
   metadata TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -213,6 +231,8 @@ CREATE INDEX IF NOT EXISTS idx_deliverables_task ON task_deliverables(task_id);
 CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_task ON openclaw_sessions(task_id);
 CREATE INDEX IF NOT EXISTS idx_planning_questions_task ON planning_questions(task_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_agent_reference_sheets_agent ON agent_reference_sheets(agent_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_reference_sheets_agent_state ON agent_reference_sheets(agent_id, lifecycle_state, version DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_reference_sheet_transitions_sheet ON agent_reference_sheet_transitions(sheet_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_operator_profiles_workspace ON operator_profiles(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_app_settings_updated ON app_settings(updated_at DESC);
 

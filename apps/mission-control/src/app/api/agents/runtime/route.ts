@@ -229,8 +229,14 @@ export async function GET(request: NextRequest) {
       SELECT ars.agent_id, ars.metadata
       FROM agent_reference_sheets ars
       INNER JOIN (
-        SELECT agent_id, MAX(version) as max_version
+        SELECT
+          agent_id,
+          COALESCE(
+            MAX(CASE WHEN COALESCE(lifecycle_state, 'active') = 'active' THEN version END),
+            MAX(version)
+          ) as max_version
         FROM agent_reference_sheets
+        WHERE COALESCE(lifecycle_state, 'active') != 'archived'
         GROUP BY agent_id
       ) latest
       ON latest.agent_id = ars.agent_id AND latest.max_version = ars.version

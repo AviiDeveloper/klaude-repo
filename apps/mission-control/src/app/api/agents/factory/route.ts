@@ -21,11 +21,23 @@ function readOptionalText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function resolveObjective(objective: string, contextSheet: string): string {
+  if (objective.length >= 8) return objective;
+  if (!contextSheet) return objective;
+  const fromContext = contextSheet
+    .split(/[.!?]/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 20);
+  return fromContext || objective;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Partial<AgentFactoryRequest>;
+    const contextSheet = readOptionalText(body.factory_context_sheet);
+    const resolvedObjective = resolveObjective(readOptionalText(body.objective), contextSheet);
 
-    if (!body.name || !body.role || !body.objective || !body.specialization || !body.output_contract) {
+    if (!body.name || !body.role || !body.specialization || !body.output_contract || resolvedObjective.length < 8) {
       return NextResponse.json(
         { error: 'name, role, objective, specialization, and output_contract are required' },
         { status: 400 },
@@ -36,7 +48,8 @@ export async function POST(request: NextRequest) {
       workspace_id: body.workspace_id || 'default',
       name: body.name.trim(),
       role: body.role.trim(),
-      objective: body.objective.trim(),
+      objective: resolvedObjective,
+      factory_context_sheet: contextSheet,
       specialization: body.specialization.trim(),
       autonomy_level:
         body.autonomy_level === 'assisted' || body.autonomy_level === 'autonomous'
@@ -111,6 +124,16 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (!artifacts.templateCompleteness.ready) {
+      return NextResponse.json(
+        {
+          error: `Reference template incomplete: missing deterministic sections (${artifacts.templateCompleteness.missing.join(
+            ', ',
+          )})`,
+        },
+        { status: 500 },
+      );
+    }
 
     transaction(() => {
       run(
@@ -133,16 +156,21 @@ export async function POST(request: NextRequest) {
       );
 
       run(
-        `INSERT INTO agent_reference_sheets (id, agent_id, version, title, markdown, metadata, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO agent_reference_sheets (id, agent_id, version, title, markdown, lifecycle_state, lifecycle_action, parent_sheet_id, archived_at, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           referenceId,
           agentId,
           1,
           `${payload.name} Reference Sheet`,
           artifacts.referenceSheet,
+          'active',
+          'create',
+          null,
+          null,
           JSON.stringify({
             objective: payload.objective,
+            factory_context_sheet: payload.factory_context_sheet,
             specialization: payload.specialization,
             autonomy_level: payload.autonomy_level,
             risk_tolerance: payload.risk_tolerance,
@@ -163,6 +191,36 @@ export async function POST(request: NextRequest) {
             learning_loop: payload.learning_loop,
             professional_standard: artifacts.professionalStandard,
             professional_standard_readiness: artifacts.readiness,
+            template_completeness: artifacts.templateCompleteness,
+            lifecycle: {
+              state: 'active',
+              action: 'create',
+              actor: 'agent_factory_generate',
+              transitioned_at: now,
+            },
+          }),
+          now,
+          now,
+        ],
+      );
+
+      run(
+        `INSERT INTO agent_reference_sheet_transitions
+         (id, sheet_id, agent_id, transition_type, from_state, to_state, actor, reason, metadata, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          referenceId,
+          agentId,
+          'create',
+          null,
+          'active',
+          'agent_factory_generate',
+          'Initial factory generation',
+          JSON.stringify({
+            source: 'agent_factory',
+            readiness: artifacts.readiness,
+            template_completeness: artifacts.templateCompleteness,
           }),
           now,
         ],

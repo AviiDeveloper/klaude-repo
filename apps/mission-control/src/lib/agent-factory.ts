@@ -8,6 +8,37 @@ function normalizeList(values: string[]): string[] {
   return values.map((v) => v.trim()).filter((v) => v.length > 0);
 }
 
+const REQUIRED_TEMPLATE_MARKERS = [
+  '## Page 1: Identity and Strategic Charter',
+  '## Page 2: Competency and Knowledge Baseline',
+  '## Page 3: Execution Operating System',
+  '## Page 4: Collaboration, Handoffs, and Escalation',
+  '## Page 5: Performance and Continuous Improvement',
+  '## Page 6: Agent Context & Identity Standard (Mandatory Runtime Contract)',
+  '### 1) Identity',
+  '### 2) Expertise',
+  '### 3) Operating Context',
+  '### 4) Current Situation (loaded each cycle)',
+  '### 5) Memory (semantic retrieval each run)',
+  '### 6) Tools & Capabilities',
+  '### 7) Communication Standard',
+  '### 8) Authority & Limits',
+  '### 9) Professional Standards',
+  '### 10) Heartbeat Behaviour',
+  '### Readiness',
+];
+
+export function validateReferenceTemplateCompleteness(markdown: string): {
+  ready: boolean;
+  missing: string[];
+} {
+  const missing = REQUIRED_TEMPLATE_MARKERS.filter((marker) => !markdown.includes(marker));
+  return {
+    ready: missing.length === 0,
+    missing,
+  };
+}
+
 export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
   soulMd: string;
   userMd: string;
@@ -15,6 +46,7 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
   referenceSheet: string;
   professionalStandard: ReturnType<typeof buildProfessionalStandardFromFactory>;
   readiness: { ready: boolean; missing: string[] };
+  templateCompleteness: { ready: boolean; missing: string[] };
 } {
   const tools = normalizeList(input.tool_stack);
   const handoffs = normalizeList(input.handoff_targets);
@@ -23,6 +55,7 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
   const knowledgeSources = normalizeList(input.knowledge_sources || []);
   const kpiTargets = normalizeList(input.kpi_targets || []);
   const generatedAt = new Date().toISOString();
+  const factoryContextSheet = (input.factory_context_sheet || '').trim();
   const industryContext = input.industry_context || 'General digital operations and automation';
   const qualityBar =
     input.quality_bar ||
@@ -125,6 +158,9 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
     '',
     `### Mission Objective`,
     input.objective,
+    '',
+    `### Objective/Context Handoff`,
+    factoryContextSheet || 'No AI context sheet was attached at generation time.',
     '',
     `### Executive Intent`,
     '- Function as a high-accountability specialist equivalent to an experienced industry contributor.',
@@ -296,5 +332,6 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
       : `- NOT READY: missing sections -> ${readiness.missing.join(', ')}`,
   ].join('\n');
 
-  return { soulMd, userMd, agentsMd, referenceSheet, professionalStandard, readiness };
+  const templateCompleteness = validateReferenceTemplateCompleteness(referenceSheet);
+  return { soulMd, userMd, agentsMd, referenceSheet, professionalStandard, readiness, templateCompleteness };
 }

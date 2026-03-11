@@ -1,0 +1,43 @@
+{
+  "change_id": "2026-03-11_081_agent-factory-lifecycle-completion",
+  "created_at": "2026-03-11T20:25:00Z",
+  "summary": "Completed EXP-008 lifecycle hardening with deterministic template completeness checks and audited reference-sheet lifecycle transitions.",
+  "why": [
+    "EXP-008 required completion of template generation and reference-sheet lifecycle handling.",
+    "Generation success needed deterministic template completeness enforcement.",
+    "Reference-sheet transitions required explicit state guards and audit traceability."
+  ],
+  "files": [
+    "apps/mission-control/src/app/api/agents/[id]/reference-sheet/route.ts",
+    "apps/mission-control/src/app/api/agents/factory/route.ts",
+    "apps/mission-control/src/app/api/agents/runtime/route.ts",
+    "apps/mission-control/src/app/api/tasks/[id]/dispatch/route.ts",
+    "apps/mission-control/src/lib/agent-factory.ts",
+    "apps/mission-control/src/lib/db/migrations.ts",
+    "apps/mission-control/src/lib/db/schema.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/lib/reference-sheet-lifecycle.ts",
+    "apps/mission-control/src/lib/reference-sheet-lifecycle.test.ts",
+    "apps/mission-control/src/lib/agent-factory.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "validation": [
+    {
+      "command": "npx tsx --test src/lib/reference-sheet-lifecycle.test.ts src/lib/agent-factory.test.ts",
+      "workdir": "apps/mission-control",
+      "result": "pass (5/5)"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "pass"
+    },
+    {
+      "command": "npm run mc:build",
+      "result": "pass"
+    }
+  ],
+  "risks": [
+    "Lifecycle action UI controls are not included; lifecycle operations are API-level in this change.",
+    "Existing non-blocking lint warnings remain outside this scope."
+  ]
+}
