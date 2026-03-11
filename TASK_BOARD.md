@@ -4,7 +4,7 @@
 - [ ] EXP-004: platform webhook adapter hardening + delivery policy enforcement
 - [ ] EXP-005: phase-2 content quality tuning (source quality, scoring balance, dedupe depth)
 - [ ] EXP-007: Telegram control bridge (task updates + command relay for Mission Control/OpenClaw)
-- [ ] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle)
+- [x] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle) — completed Wave 1 Thread B: deterministic template checks + reference-sheet lifecycle transitions/audit guards
 - [x] EXP-011a: Add estimated cost observability page + agent-level cost breakdown in Mission Control
 - [x] EXP-011b: Add exact OpenClaw request telemetry capture + actual-vs-estimated cost comparison surfaces
 - [ ] EXP-010i: Harden learning scorer against keyword stuffing, contradiction, and shallow restatement before trusting learning-driven delegation tuning
