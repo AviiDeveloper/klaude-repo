@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreLearningAnswer } from '@/lib/learning';
+import { getLearningSignal } from '@/lib/memory/packet';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,10 +28,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       operatorId: body.operator_id,
       answerText: body.answer_text,
     });
+    const learningSignal = getLearningSignal(body.workspace_id || 'default');
 
     return NextResponse.json(
       {
         result_record: result,
+        learning_signal: learningSignal,
         ...result,
       },
       { status: 201 },

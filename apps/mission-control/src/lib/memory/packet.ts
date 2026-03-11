@@ -10,6 +10,7 @@ interface BuildMemoryPacketParams {
 type LearningAnswerRow = {
   score: number;
   grade: 'good' | 'partial' | 'wrong';
+  confidence?: number | null;
   concept_tag?: string | null;
 };
 
@@ -44,7 +45,7 @@ export function getLearningSignal(workspaceId: string): MemoryPacket['learning_c
   }
 
   const learningRows = queryAll<LearningAnswerRow>(
-    `SELECT a.score, a.grade, q.concept_tag
+    `SELECT a.score, a.grade, a.confidence, q.concept_tag
      FROM learning_answers a
      LEFT JOIN learning_questions q ON q.id = a.question_id
      WHERE a.workspace_id = ?
@@ -56,6 +57,15 @@ export function getLearningSignal(workspaceId: string): MemoryPacket['learning_c
   const sampleCount = learningRows.length;
   const scores = learningRows.map((row) => row.score);
   const avgScore = scores.reduce((sum, score) => sum + score, 0) / sampleCount;
+  const avgConfidence =
+    learningRows.reduce((sum, row) => {
+      if (typeof row.confidence === 'number' && row.confidence > 0) {
+        return sum + row.confidence;
+      }
+      if (row.grade === 'good') return sum + 0.8;
+      if (row.grade === 'partial') return sum + 0.6;
+      return sum + 0.42;
+    }, 0) / sampleCount;
   const latestScore = sampleCount > 0 ? learningRows[0].score : null;
   const goodCount = learningRows.filter((row) => row.grade === 'good').length;
   const partialCount = learningRows.filter((row) => row.grade === 'partial').length;
@@ -65,17 +75,33 @@ export function getLearningSignal(workspaceId: string): MemoryPacket['learning_c
   const wrongRate = wrongCount / sampleCount;
   const trend = getLearningTrend(scores);
 
+  const trustReasons: string[] = [];
+  if (sampleCount < 6) trustReasons.push('insufficient_samples');
+  if (avgConfidence < 0.68) trustReasons.push('low_confidence');
+  if (wrongRate > 0.3) trustReasons.push('high_wrong_rate');
+  const tuningEnabled = trustReasons.length === 0;
+
+  const trustState: 'trusted' | 'insufficient_samples' | 'low_confidence' | 'high_wrong_rate' = trustReasons.includes('insufficient_samples')
+    ? 'insufficient_samples'
+    : trustReasons.includes('low_confidence')
+    ? 'low_confidence'
+    : trustReasons.includes('high_wrong_rate')
+    ? 'high_wrong_rate'
+    : 'trusted';
+
   let delegationMode: 'conservative' | 'balanced' | 'exploratory' = 'balanced';
-  if (sampleCount >= 3) {
+  if (tuningEnabled && sampleCount >= 3) {
     if (avgScore < 55 || wrongRate >= 0.5 || trend === 'declining') {
       delegationMode = 'conservative';
-    } else if (avgScore >= 80 && goodRate >= 0.6) {
+    } else if (avgScore >= 82 && goodRate >= 0.65 && avgConfidence >= 0.76 && wrongRate <= 0.2) {
       delegationMode = 'exploratory';
     }
   }
 
   let coachingFocus = 'Keep balanced delegation and include explicit rationale in operator updates.';
-  if (delegationMode === 'conservative') {
+  if (!tuningEnabled) {
+    coachingFocus = 'Learning tuning held at balanced until confidence, sample size, and wrong-rate trust gate is met.';
+  } else if (delegationMode === 'conservative') {
     coachingFocus = 'Favor proven workers and request tighter evidence before side-effect approvals.';
   } else if (delegationMode === 'exploratory') {
     coachingFocus = 'Introduce controlled experimentation and capture lessons in lead memory journal.';
@@ -87,12 +113,16 @@ export function getLearningSignal(workspaceId: string): MemoryPacket['learning_c
     sample_count: answers,
     recent_answer_count: sampleCount,
     avg_score: round(avgScore),
+    avg_confidence: round(avgConfidence),
     latest_score: latestScore,
     good_rate: round(goodRate),
     partial_rate: round(partialRate),
     wrong_rate: round(wrongRate),
     trend,
     delegation_mode: delegationMode,
+    tuning_enabled: tuningEnabled,
+    trust_state: trustState,
+    trust_reasons: trustReasons,
     coaching_focus: coachingFocus,
     latest_concept_tag: latestConcept,
   };
@@ -193,7 +223,10 @@ export function formatMemoryPacketForPrompt(packet: MemoryPacket): string {
   if (packet.learning_context) {
     const learning = packet.learning_context;
     lines.push(
-      `- Learning signal: mode=${learning.delegation_mode}, avg_score=${learning.avg_score}, trend=${learning.trend}, samples=${learning.recent_answer_count}`,
+      `- Learning signal: mode=${learning.delegation_mode}, avg_score=${learning.avg_score}, avg_confidence=${learning.avg_confidence}, trend=${learning.trend}, samples=${learning.recent_answer_count}`,
+    );
+    lines.push(
+      `- Learning trust gate: state=${learning.trust_state}, tuning_enabled=${learning.tuning_enabled}, reasons=${learning.trust_reasons.join('|') || 'trusted'}`,
     );
     lines.push(`- Learning coaching focus: ${learning.coaching_focus}`);
     if (learning.latest_concept_tag) {

@@ -1,13 +1,13 @@
 # Task Board
 
 ## Active
-- [ ] EXP-004: platform webhook adapter hardening + delivery policy enforcement
+- [x] EXP-004: platform webhook adapter hardening + delivery policy enforcement (done: signed webhook policy, idempotency checks, retry/backoff + dead-letter reason codes)
 - [ ] EXP-005: phase-2 content quality tuning (source quality, scoring balance, dedupe depth)
 - [ ] EXP-007: Telegram control bridge (task updates + command relay for Mission Control/OpenClaw)
 - [ ] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle)
 - [x] EXP-011a: Add estimated cost observability page + agent-level cost breakdown in Mission Control
 - [x] EXP-011b: Add exact OpenClaw request telemetry capture + actual-vs-estimated cost comparison surfaces
-- [ ] EXP-010i: Harden learning scorer against keyword stuffing, contradiction, and shallow restatement before trusting learning-driven delegation tuning
+- [x] EXP-010i: Harden learning scorer against keyword stuffing, contradiction, and shallow restatement before trusting learning-driven delegation tuning (done: coverage/reasoning split, confidence gate, trust-state outputs, adversarial tests)
 - [x] EXP-010a: Eval layer schema + migration + typed contracts (agent_eval_specs, agent_eval_runs, agent_performance_profiles)
 - [x] EXP-010b: Charlie eval execution path + fault attribution + eval-informed delegation weighting
 - [x] EXP-010c: Mission Control evaluation UI (Lead eval chips, Task Evaluation tab, Agent Performance tab)

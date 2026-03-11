@@ -9,6 +9,16 @@ interface ExpectedAnswerSpec {
   concept: string;
 }
 
+interface ScorerSignals {
+  key_ratio: number;
+  tradeoff_hit: boolean;
+  risk_hit: boolean;
+  low_structure: boolean;
+  keyword_stuffing: boolean;
+  shallow_restatement: boolean;
+  contradiction_detected: boolean;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -40,6 +50,99 @@ function containsKeywords(answer: string, keywords: string[]): number {
     if (parts.some((part) => text.includes(part))) matches += 1;
   }
   return matches;
+}
+
+function strictPhraseHit(answer: string, phrase: string): boolean {
+  const parts = tokenize(phrase).filter((token) => token.length >= 4);
+  if (parts.length === 0) return false;
+  const text = answer.toLowerCase();
+  const hitCount = parts.reduce((count, part) => count + (text.includes(part) ? 1 : 0), 0);
+  return hitCount >= Math.min(2, parts.length);
+}
+
+function unique<T>(values: T[]): T[] {
+  return Array.from(new Set(values));
+}
+
+function normalizeText(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function clamp(min: number, max: number, value: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sentenceCount(input: string): number {
+  const parts = input
+    .split(/[.!?;\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length;
+}
+
+function hasReasoningConnectors(answer: string): boolean {
+  return /\b(because|therefore|thus|which avoids|which prevents|so that|so |tradeoff|risk|if|unless)\b/i.test(
+    answer,
+  );
+}
+
+function hasLowStructure(answer: string): boolean {
+  const sentenceTotal = sentenceCount(answer);
+  const words = tokenize(answer);
+  const uniqueRatio = words.length === 0 ? 0 : unique(words).length / words.length;
+  return sentenceTotal < 2 || uniqueRatio < 0.52;
+}
+
+function keywordDensity(answer: string, expectedTokens: string[]): number {
+  const answerTokens = tokenize(answer);
+  if (answerTokens.length === 0 || expectedTokens.length === 0) return 0;
+  const expectedSet = new Set(expectedTokens);
+  const hits = answerTokens.reduce((sum, token) => sum + (expectedSet.has(token) ? 1 : 0), 0);
+  return hits / answerTokens.length;
+}
+
+function detectKeywordStuffing(answer: string, expectedTokens: string[]): boolean {
+  const density = keywordDensity(answer, expectedTokens);
+  const words = tokenize(answer);
+  const uniqueRatio = words.length === 0 ? 0 : unique(words).length / words.length;
+  return density >= 0.32 && uniqueRatio < 0.72;
+}
+
+function detectShallowRestatement(answer: string, expected: ExpectedAnswerSpec): boolean {
+  const answerTokens = unique(tokenize(answer));
+  const expectedTokens = unique(
+    tokenize(`${expected.key_points.join(' ')} ${expected.tradeoff} ${expected.risk_if_changed}`),
+  );
+  if (answerTokens.length === 0 || expectedTokens.length === 0) return false;
+  const overlap = answerTokens.filter((token) => expectedTokens.includes(token)).length;
+  const overlapRatio = overlap / answerTokens.length;
+  const reasoningSignals = hasReasoningConnectors(answer);
+  return overlapRatio >= 0.58 && !reasoningSignals;
+}
+
+function detectContradiction(answer: string, expected: ExpectedAnswerSpec): boolean {
+  const normalized = normalizeText(answer);
+  const contradictionPatterns = [
+    /\b(not required|unnecessary|no need)\b.{0,40}\b(approval|gate|mediation)\b/,
+    /\b(random assignment|assign randomly|any agent)\b.{0,40}\b(better|best|fine)\b/,
+    /\b(no risk|zero risk|nothing breaks|won't break|does not break)\b/,
+    /\b(should bypass|can bypass|ignore)\b.{0,40}\b(approval|control|operator)\b/,
+  ];
+  if (contradictionPatterns.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  const expectedTokens = tokenize(
+    `${expected.key_points.join(' ')} ${expected.tradeoff} ${expected.risk_if_changed}`,
+  ).filter((token) => token.length >= 6);
+  const criticalHit = expectedTokens.some(
+    (token) => normalized.includes(`not ${token}`) || normalized.includes(`no ${token}`),
+  );
+  return criticalHit;
 }
 
 function suggestResource(concept: string): string {
@@ -202,6 +305,10 @@ export function scoreLearningAnswer(input: {
   grade: 'good' | 'partial' | 'wrong';
   feedback: string;
   next_resource: string;
+  coverage_score: number;
+  reasoning_score: number;
+  confidence: number;
+  scorer_flags: ScorerSignals;
 } {
   const question = queryOne<LearningQuestion>(
     `SELECT * FROM learning_questions WHERE id = ? AND workspace_id = ?`,
@@ -225,19 +332,87 @@ export function scoreLearningAnswer(input: {
 
   const keyMatches = containsKeywords(answer, expected.key_points);
   const keyRatio = expected.key_points.length === 0 ? 0 : keyMatches / expected.key_points.length;
-  const tradeoffHit = containsKeywords(answer, [expected.tradeoff]) > 0 ? 1 : 0;
-  const riskHit = containsKeywords(answer, [expected.risk_if_changed]) > 0 ? 1 : 0;
-  const score = Math.max(0, Math.min(100, Math.round(keyRatio * 60 + tradeoffHit * 20 + riskHit * 20)));
+  const answerWordCount = tokenize(answer).length;
+  const tradeoffHit = strictPhraseHit(answer, expected.tradeoff) ? 1 : 0;
+  const riskHit = strictPhraseHit(answer, expected.risk_if_changed) ? 1 : 0;
+  const expectedTokens = unique(
+    tokenize(`${expected.key_points.join(' ')} ${expected.tradeoff} ${expected.risk_if_changed}`).filter(
+      (token) => token.length >= 4,
+    ),
+  );
+  const lowStructure = hasLowStructure(answer);
+  const keywordStuffing = detectKeywordStuffing(answer, expectedTokens);
+  const shallowRestatement = detectShallowRestatement(answer, expected);
+  const contradictionDetected = detectContradiction(answer, expected);
 
-  const grade: 'good' | 'partial' | 'wrong' = score >= 75 ? 'good' : score >= 45 ? 'partial' : 'wrong';
+  let coverageScore = Math.round(keyRatio * 55 + tradeoffHit * 20 + riskHit * 25);
+  if (keywordStuffing) coverageScore = Math.round(coverageScore * 0.8);
+  if (contradictionDetected) coverageScore = Math.round(coverageScore * 0.55);
+  coverageScore = clamp(0, 100, coverageScore);
+
+  let reasoningScore = 18;
+  if (hasReasoningConnectors(answer)) reasoningScore += 20;
+  if (/\b(not sure|unclear|unsure)\b/i.test(answer)) reasoningScore += 8;
+  if (tradeoffHit) reasoningScore += 15;
+  if (riskHit) reasoningScore += 15;
+  if (keyRatio >= 0.6) reasoningScore += 15;
+  if (sentenceCount(answer) >= 2) reasoningScore += 10;
+  if (/\b(however|but|while|instead)\b/i.test(answer)) reasoningScore += 7;
+  if (lowStructure) reasoningScore -= 18;
+  if (keywordStuffing) reasoningScore -= 20;
+  if (shallowRestatement) reasoningScore -= 20;
+  if (contradictionDetected) reasoningScore -= 45;
+  reasoningScore = clamp(0, 100, Math.round(reasoningScore));
+
+  let confidence =
+    0.38 +
+    coverageScore / 100 * 0.24 +
+    reasoningScore / 100 * 0.24 +
+    (lowStructure ? -0.1 : 0.08) +
+    (keywordStuffing ? -0.11 : 0) +
+    (shallowRestatement ? -0.08 : 0) +
+    (contradictionDetected ? -0.24 : 0);
+  confidence = clamp(0.05, 0.98, Number(confidence.toFixed(2)));
+
+  const score = clamp(0, 100, Math.round(coverageScore * 0.5 + reasoningScore * 0.5));
+
+  const hardFail =
+    contradictionDetected ||
+    keywordStuffing ||
+    (lowStructure && shallowRestatement) ||
+    (shallowRestatement && reasoningScore < 65);
+
+  let grade: 'good' | 'partial' | 'wrong' = 'wrong';
+  if (
+    !hardFail &&
+    coverageScore >= 72 &&
+    reasoningScore >= 70 &&
+    confidence >= 0.7
+  ) {
+    grade = 'good';
+  } else if (
+    !hardFail &&
+    confidence >= 0.34 &&
+    (score >= 35 ||
+      (answerWordCount >= 14 &&
+        keyRatio >= 0.55 &&
+        (tradeoffHit === 1 || /\b(not sure|unclear|unsure)\b/i.test(answer))))
+  ) {
+    grade = 'partial';
+  }
   const missing: string[] = [];
-  if (keyRatio < 0.6) missing.push('core decision reasoning');
+  if (coverageScore < 60) missing.push('decision coverage');
+  if (reasoningScore < 60) missing.push('reasoning quality');
   if (!tradeoffHit) missing.push('tradeoff explanation');
   if (!riskHit) missing.push('failure/risk implication');
+  if (lowStructure) missing.push('structured argument flow');
+  if (keywordStuffing) missing.push('original reasoning (avoid keyword stuffing)');
+  if (shallowRestatement) missing.push('deeper analysis beyond restating prompts');
+  if (contradictionDetected) missing.push('internal consistency (contradictions detected)');
 
   const feedback =
     grade === 'good'
-      ? 'Strong answer: you explained why the decision exists and what breaks if it changes.'
+      ? 'Strong answer: coverage and reasoning quality both met trust thresholds.'
       : grade === 'partial'
       ? `Partially correct: strengthen ${missing.join(', ')}.`
       : `Reasoning gap detected: missing ${missing.join(', ')}. Revisit the architecture rationale.`;
@@ -246,8 +421,8 @@ export function scoreLearningAnswer(input: {
   const id = uuidv4();
   run(
     `INSERT INTO learning_answers
-      (id, question_id, workspace_id, operator_id, answer_text, score, grade, feedback, next_resource, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, question_id, workspace_id, operator_id, answer_text, score, grade, feedback, next_resource, coverage_score, reasoning_score, confidence, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       question.id,
@@ -258,9 +433,22 @@ export function scoreLearningAnswer(input: {
       grade,
       feedback,
       nextResource,
+      coverageScore,
+      reasoningScore,
+      confidence,
       nowIso(),
     ],
   );
+
+  const scorerFlags: ScorerSignals = {
+    key_ratio: Number(keyRatio.toFixed(2)),
+    tradeoff_hit: tradeoffHit === 1,
+    risk_hit: riskHit === 1,
+    low_structure: lowStructure,
+    keyword_stuffing: keywordStuffing,
+    shallow_restatement: shallowRestatement,
+    contradiction_detected: contradictionDetected,
+  };
 
   return {
     id,
@@ -269,6 +457,10 @@ export function scoreLearningAnswer(input: {
     grade,
     feedback,
     next_resource: nextResource,
+    coverage_score: coverageScore,
+    reasoning_score: reasoningScore,
+    confidence,
+    scorer_flags: scorerFlags,
   };
 }
 
@@ -280,6 +472,9 @@ export function listLearningHistory(workspaceId: string): Array<{
   answer_id?: string | null;
   score?: number | null;
   grade?: 'good' | 'partial' | 'wrong' | null;
+  confidence?: number | null;
+  coverage_score?: number | null;
+  reasoning_score?: number | null;
   feedback?: string | null;
   answer_created_at?: string | null;
 }> {
@@ -291,6 +486,9 @@ export function listLearningHistory(workspaceId: string): Array<{
     answer_id?: string | null;
     score?: number | null;
     grade?: 'good' | 'partial' | 'wrong' | null;
+    confidence?: number | null;
+    coverage_score?: number | null;
+    reasoning_score?: number | null;
     feedback?: string | null;
     answer_created_at?: string | null;
   }>(
@@ -302,6 +500,9 @@ export function listLearningHistory(workspaceId: string): Array<{
        a.id as answer_id,
        a.score,
        a.grade,
+       a.confidence,
+       a.coverage_score,
+       a.reasoning_score,
        a.feedback,
        a.created_at as answer_created_at
      FROM learning_questions q
