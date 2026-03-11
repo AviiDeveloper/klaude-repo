@@ -23,6 +23,7 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
   const knowledgeSources = normalizeList(input.knowledge_sources || []);
   const kpiTargets = normalizeList(input.kpi_targets || []);
   const generatedAt = new Date().toISOString();
+  const factoryContextSheet = (input.factory_context_sheet || '').trim();
   const industryContext = input.industry_context || 'General digital operations and automation';
   const qualityBar =
     input.quality_bar ||
@@ -125,6 +126,9 @@ export function buildAgentFactoryArtifacts(input: AgentFactoryRequest): {
     '',
     `### Mission Objective`,
     input.objective,
+    '',
+    `### Objective/Context Handoff`,
+    factoryContextSheet || 'No AI context sheet was attached at generation time.',
     '',
     `### Executive Intent`,
     '- Function as a high-accountability specialist equivalent to an experienced industry contributor.',

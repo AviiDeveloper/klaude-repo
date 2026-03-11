@@ -427,6 +427,7 @@ export interface AgentFactoryRequest {
   name: string;
   role: string;
   objective: string;
+  factory_context_sheet?: string;
   specialization: string;
   autonomy_level: 'assisted' | 'semi-autonomous' | 'autonomous';
   risk_tolerance: 'low' | 'medium' | 'high';

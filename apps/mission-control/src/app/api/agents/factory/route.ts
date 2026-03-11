@@ -21,11 +21,23 @@ function readOptionalText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function resolveObjective(objective: string, contextSheet: string): string {
+  if (objective.length >= 8) return objective;
+  if (!contextSheet) return objective;
+  const fromContext = contextSheet
+    .split(/[.!?]/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 20);
+  return fromContext || objective;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Partial<AgentFactoryRequest>;
+    const contextSheet = readOptionalText(body.factory_context_sheet);
+    const resolvedObjective = resolveObjective(readOptionalText(body.objective), contextSheet);
 
-    if (!body.name || !body.role || !body.objective || !body.specialization || !body.output_contract) {
+    if (!body.name || !body.role || !body.specialization || !body.output_contract || resolvedObjective.length < 8) {
       return NextResponse.json(
         { error: 'name, role, objective, specialization, and output_contract are required' },
         { status: 400 },
@@ -36,7 +48,8 @@ export async function POST(request: NextRequest) {
       workspace_id: body.workspace_id || 'default',
       name: body.name.trim(),
       role: body.role.trim(),
-      objective: body.objective.trim(),
+      objective: resolvedObjective,
+      factory_context_sheet: contextSheet,
       specialization: body.specialization.trim(),
       autonomy_level:
         body.autonomy_level === 'assisted' || body.autonomy_level === 'autonomous'
@@ -143,6 +156,7 @@ export async function POST(request: NextRequest) {
           artifacts.referenceSheet,
           JSON.stringify({
             objective: payload.objective,
+            factory_context_sheet: payload.factory_context_sheet,
             specialization: payload.specialization,
             autonomy_level: payload.autonomy_level,
             risk_tolerance: payload.risk_tolerance,
