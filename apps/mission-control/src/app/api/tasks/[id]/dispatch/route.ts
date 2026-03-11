@@ -196,7 +196,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       `SELECT metadata
        FROM agent_reference_sheets
        WHERE agent_id = ?
-       ORDER BY version DESC
+         AND COALESCE(lifecycle_state, 'active') != 'archived'
+       ORDER BY
+         CASE WHEN COALESCE(lifecycle_state, 'active') = 'active' THEN 0 ELSE 1 END,
+         version DESC
        LIMIT 1`,
       [agent.id],
     );

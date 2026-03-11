@@ -522,6 +522,63 @@ const migrations: Migration[] = [
         ON ai_request_telemetry(model, created_at DESC)
       `);
     }
+  },
+  {
+    id: '011',
+    name: 'add_reference_sheet_lifecycle',
+    up: (db) => {
+      console.log('[Migration 011] Adding reference sheet lifecycle columns and transitions...');
+
+      const columns = db.prepare(`PRAGMA table_info(agent_reference_sheets)`).all() as Array<{ name: string }>;
+      const hasColumn = (name: string) => columns.some((col) => col.name === name);
+
+      if (!hasColumn('lifecycle_state')) {
+        db.exec(`ALTER TABLE agent_reference_sheets ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_state IN ('draft', 'active', 'archived'))`);
+      }
+      if (!hasColumn('lifecycle_action')) {
+        db.exec(`ALTER TABLE agent_reference_sheets ADD COLUMN lifecycle_action TEXT NOT NULL DEFAULT 'create' CHECK (lifecycle_action IN ('create', 'version', 'revise'))`);
+      }
+      if (!hasColumn('parent_sheet_id')) {
+        db.exec(`ALTER TABLE agent_reference_sheets ADD COLUMN parent_sheet_id TEXT REFERENCES agent_reference_sheets(id) ON DELETE SET NULL`);
+      }
+      if (!hasColumn('archived_at')) {
+        db.exec(`ALTER TABLE agent_reference_sheets ADD COLUMN archived_at TEXT`);
+      }
+      if (!hasColumn('updated_at')) {
+        db.exec(`ALTER TABLE agent_reference_sheets ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))`);
+      }
+
+      db.exec(`
+        UPDATE agent_reference_sheets
+        SET lifecycle_state = COALESCE(lifecycle_state, 'active'),
+            lifecycle_action = COALESCE(lifecycle_action, 'create'),
+            updated_at = COALESCE(updated_at, created_at, datetime('now'))
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_reference_sheet_transitions (
+          id TEXT PRIMARY KEY,
+          sheet_id TEXT NOT NULL REFERENCES agent_reference_sheets(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          transition_type TEXT NOT NULL CHECK (transition_type IN ('create', 'version', 'revise', 'archive')),
+          from_state TEXT CHECK (from_state IN ('draft', 'active', 'archived')),
+          to_state TEXT NOT NULL CHECK (to_state IN ('draft', 'active', 'archived')),
+          actor TEXT,
+          reason TEXT,
+          metadata TEXT,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_agent_reference_sheets_agent_state
+        ON agent_reference_sheets(agent_id, lifecycle_state, version DESC)
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_agent_reference_sheet_transitions_sheet
+        ON agent_reference_sheet_transitions(sheet_id, created_at DESC)
+      `);
+    }
   }
 ];
 

@@ -124,6 +124,16 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (!artifacts.templateCompleteness.ready) {
+      return NextResponse.json(
+        {
+          error: `Reference template incomplete: missing deterministic sections (${artifacts.templateCompleteness.missing.join(
+            ', ',
+          )})`,
+        },
+        { status: 500 },
+      );
+    }
 
     transaction(() => {
       run(
@@ -146,14 +156,18 @@ export async function POST(request: NextRequest) {
       );
 
       run(
-        `INSERT INTO agent_reference_sheets (id, agent_id, version, title, markdown, metadata, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO agent_reference_sheets (id, agent_id, version, title, markdown, lifecycle_state, lifecycle_action, parent_sheet_id, archived_at, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           referenceId,
           agentId,
           1,
           `${payload.name} Reference Sheet`,
           artifacts.referenceSheet,
+          'active',
+          'create',
+          null,
+          null,
           JSON.stringify({
             objective: payload.objective,
             factory_context_sheet: payload.factory_context_sheet,
@@ -177,6 +191,36 @@ export async function POST(request: NextRequest) {
             learning_loop: payload.learning_loop,
             professional_standard: artifacts.professionalStandard,
             professional_standard_readiness: artifacts.readiness,
+            template_completeness: artifacts.templateCompleteness,
+            lifecycle: {
+              state: 'active',
+              action: 'create',
+              actor: 'agent_factory_generate',
+              transitioned_at: now,
+            },
+          }),
+          now,
+          now,
+        ],
+      );
+
+      run(
+        `INSERT INTO agent_reference_sheet_transitions
+         (id, sheet_id, agent_id, transition_type, from_state, to_state, actor, reason, metadata, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          referenceId,
+          agentId,
+          'create',
+          null,
+          'active',
+          'agent_factory_generate',
+          'Initial factory generation',
+          JSON.stringify({
+            source: 'agent_factory',
+            readiness: artifacts.readiness,
+            template_completeness: artifacts.templateCompleteness,
           }),
           now,
         ],

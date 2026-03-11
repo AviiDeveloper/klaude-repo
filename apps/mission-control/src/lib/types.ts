@@ -48,7 +48,25 @@ export interface AgentReferenceSheet {
   version: number;
   title: string;
   markdown: string;
+  lifecycle_state?: 'draft' | 'active' | 'archived';
+  lifecycle_action?: 'create' | 'version' | 'revise';
+  parent_sheet_id?: string | null;
+  archived_at?: string | null;
   metadata?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AgentReferenceSheetTransition {
+  id: string;
+  sheet_id: string;
+  agent_id: string;
+  transition_type: 'create' | 'version' | 'revise' | 'archive';
+  from_state?: 'draft' | 'active' | 'archived' | null;
+  to_state: 'draft' | 'active' | 'archived';
+  actor?: string | null;
+  reason?: string | null;
+  metadata?: string | null;
   created_at: string;
 }
 
