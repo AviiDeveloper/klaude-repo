@@ -12,6 +12,7 @@ async function main() {
   const dbMod = await import('../src/lib/db/index');
   const generateRoute = await import('../src/app/api/learning/questions/generate/route');
   const answerRoute = await import('../src/app/api/learning/questions/[id]/answer/route');
+  const memoryRoute = await import('../src/app/api/memory/packet/route');
   const { run, closeDb } = dbMod;
 
   const now = new Date().toISOString();
@@ -91,6 +92,11 @@ async function main() {
     result?: { id?: string; grade?: string; score?: number };
     grade?: string;
     score?: number;
+    confidence?: number;
+    coverage_score?: number;
+    reasoning_score?: number;
+    scorer_flags?: Record<string, unknown>;
+    learning_signal?: { trust_state?: string; tuning_enabled?: boolean };
   };
   const nestedResult = answerPayload.result_record || answerPayload.result;
   assert.ok(answerPayload.id, 'answer payload missing top-level id');
@@ -98,6 +104,42 @@ async function main() {
   assert.equal(answerPayload.id, nestedResult?.id, 'answer payload id mismatch');
   assert.equal(answerPayload.grade, nestedResult?.grade, 'answer payload grade mismatch');
   assert.equal(answerPayload.score, nestedResult?.score, 'answer payload score mismatch');
+  assert.equal(typeof answerPayload.confidence, 'number', 'answer payload confidence missing');
+  assert.equal(typeof answerPayload.coverage_score, 'number', 'answer payload coverage_score missing');
+  assert.equal(typeof answerPayload.reasoning_score, 'number', 'answer payload reasoning_score missing');
+  assert.equal(typeof answerPayload.scorer_flags, 'object', 'answer payload scorer_flags missing');
+  assert.ok(answerPayload.learning_signal?.trust_state, 'answer payload trust_state missing');
+  assert.equal(typeof answerPayload.learning_signal?.tuning_enabled, 'boolean', 'answer payload tuning_enabled missing');
+
+  const packetReq = new NextRequest('http://localhost/api/memory/packet?workspace_id=default');
+  const packetRes = await memoryRoute.GET(packetReq);
+  assert.equal(packetRes.status, 200);
+  const packetPayload = (await packetRes.json()) as {
+    packet?: {
+      learning_context?: {
+        avg_confidence?: number;
+        trust_state?: string;
+        tuning_enabled?: boolean;
+        trust_reasons?: string[];
+      } | null;
+    };
+  };
+  assert.ok(packetPayload.packet?.learning_context, 'memory packet learning_context missing');
+  assert.equal(
+    typeof packetPayload.packet?.learning_context?.avg_confidence,
+    'number',
+    'learning_context avg_confidence missing',
+  );
+  assert.ok(packetPayload.packet?.learning_context?.trust_state, 'learning_context trust_state missing');
+  assert.equal(
+    typeof packetPayload.packet?.learning_context?.tuning_enabled,
+    'boolean',
+    'learning_context tuning_enabled missing',
+  );
+  assert.ok(
+    Array.isArray(packetPayload.packet?.learning_context?.trust_reasons),
+    'learning_context trust_reasons missing',
+  );
 
   console.log('Learning API contract verification passed.');
   closeDb();

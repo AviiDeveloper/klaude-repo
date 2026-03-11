@@ -389,6 +389,9 @@ CREATE TABLE IF NOT EXISTS learning_answers (
   grade TEXT NOT NULL CHECK (grade IN ('good', 'partial', 'wrong')),
   feedback TEXT NOT NULL,
   next_resource TEXT,
+  coverage_score REAL NOT NULL DEFAULT 0,
+  reasoning_score REAL NOT NULL DEFAULT 0,
+  confidence REAL NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

@@ -384,8 +384,9 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
       method: "POST",
     });
     assert.equal(dispatchRes.status, 200);
-    const dispatchJson = (await dispatchRes.json()) as { status: string };
+    const dispatchJson = (await dispatchRes.json()) as { status: string; reason_code: string };
     assert.equal(dispatchJson.status, "dispatched");
+    assert.equal(dispatchJson.reason_code, "DISPATCHED_NOOP");
 
     const callRes = await fetch(`${base}/api/telephony/call`, {
       method: "POST",

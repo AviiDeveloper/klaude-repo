@@ -72,6 +72,7 @@ async function main() {
     workspaceId: string;
     conceptTag: string;
     scores: number[];
+    confidence: number;
     gradeFromScore: (score: number) => 'good' | 'partial' | 'wrong';
   }) {
     const baseTs = Date.now();
@@ -96,8 +97,8 @@ async function main() {
       );
       run(
         `INSERT INTO learning_answers
-         (id, question_id, workspace_id, operator_id, answer_text, score, grade, feedback, next_resource, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, question_id, workspace_id, operator_id, answer_text, score, grade, feedback, next_resource, confidence, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           answerId,
           questionId,
@@ -108,6 +109,7 @@ async function main() {
           input.gradeFromScore(score),
           'feedback',
           null,
+          input.confidence,
           ts,
         ],
       );
@@ -118,13 +120,15 @@ async function main() {
   insertLearningSet({
     workspaceId: 'ws-conservative',
     conceptTag: 'approval-gated orchestration',
-    scores: [22, 30, 35, 40, 28, 33],
-    gradeFromScore: () => 'wrong',
+    scores: [52, 54, 49, 51, 53, 50],
+    confidence: 0.75,
+    gradeFromScore: () => 'partial',
   });
   const conservativePacket = buildMemoryPacket({
     workspaceId: 'ws-conservative',
     taskId: conservative.taskId,
   });
+  assert.equal(conservativePacket.learning_context?.tuning_enabled, true);
   assert.equal(conservativePacket.learning_context?.delegation_mode, 'conservative');
   const conservativeDelegation = delegateTask({
     workspaceId: 'ws-conservative',
@@ -141,12 +145,14 @@ async function main() {
     workspaceId: 'ws-exploratory',
     conceptTag: 'supervisor delegation scoring',
     scores: [92, 90, 95, 88, 91, 93],
+    confidence: 0.9,
     gradeFromScore: () => 'good',
   });
   const exploratoryPacket = buildMemoryPacket({
     workspaceId: 'ws-exploratory',
     taskId: exploratory.taskId,
   });
+  assert.equal(exploratoryPacket.learning_context?.tuning_enabled, true);
   assert.equal(exploratoryPacket.learning_context?.delegation_mode, 'exploratory');
   const exploratoryDelegation = delegateTask({
     workspaceId: 'ws-exploratory',
@@ -156,6 +162,25 @@ async function main() {
   assert.ok(
     exploratoryDelegation.scoreReasons.some((reason) => reason.includes('exploration boost')),
     'Exploratory mode reasons missing from delegation rationale',
+  );
+
+  const untrusted = seedWorkspace('ws-untrusted', 'Untrusted');
+  insertLearningSet({
+    workspaceId: 'ws-untrusted',
+    conceptTag: 'approval-gated orchestration',
+    scores: [24, 33, 28, 35, 26, 31],
+    confidence: 0.45,
+    gradeFromScore: () => 'wrong',
+  });
+  const untrustedPacket = buildMemoryPacket({
+    workspaceId: 'ws-untrusted',
+    taskId: untrusted.taskId,
+  });
+  assert.equal(untrustedPacket.learning_context?.tuning_enabled, false);
+  assert.equal(untrustedPacket.learning_context?.delegation_mode, 'balanced');
+  assert.ok(
+    (untrustedPacket.learning_context?.trust_reasons || []).includes('low_confidence'),
+    'Trust gate should report low_confidence',
   );
 
   console.log('Lead learning verification passed.');

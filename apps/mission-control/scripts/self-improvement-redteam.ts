@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -177,7 +178,7 @@ async function main() {
   }
   const failureSignal = getLearningSignal('rt-improvement');
 
-  for (let i = 0; i < 8; i += 1) {
+  for (let i = 0; i < 10; i += 1) {
     scoreLearningAnswer({
       workspaceId: 'rt-improvement',
       questionId: improvementQuestion.id,
@@ -208,6 +209,23 @@ async function main() {
   };
 
   console.log(JSON.stringify(summary, null, 2));
+
+  const failedCases = [...delegationCases, ...approvalCases].filter((item) => !item.passed);
+  assert.equal(
+    failedCases.length,
+    0,
+    `Adversarial scorer regressions: ${failedCases.map((item) => `${item.label}:${item.actual}`).join(', ')}`,
+  );
+  assert.equal(
+    failureSignal?.tuning_enabled,
+    false,
+    'Trust gate must disable delegation tuning after low-confidence failure-heavy samples',
+  );
+  assert.equal(
+    recoverySignal?.tuning_enabled,
+    true,
+    'Trust gate should re-enable delegation tuning after sustained high-confidence recovery',
+  );
 
   closeDb();
   fs.rmSync(tmpDir, { recursive: true, force: true });

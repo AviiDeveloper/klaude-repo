@@ -109,12 +109,16 @@ export interface MemoryPacket {
     sample_count: number;
     recent_answer_count: number;
     avg_score: number;
+    avg_confidence: number;
     latest_score: number | null;
     good_rate: number;
     partial_rate: number;
     wrong_rate: number;
     trend: 'improving' | 'declining' | 'stable' | 'insufficient_data';
     delegation_mode: 'conservative' | 'balanced' | 'exploratory';
+    tuning_enabled: boolean;
+    trust_state: 'trusted' | 'insufficient_samples' | 'low_confidence' | 'high_wrong_rate';
+    trust_reasons: string[];
     coaching_focus: string;
     latest_concept_tag?: string | null;
   } | null;
@@ -214,6 +218,9 @@ export interface LearningAnswer {
   answer_text: string;
   score: number;
   grade: 'good' | 'partial' | 'wrong';
+  confidence?: number | null;
+  coverage_score?: number | null;
+  reasoning_score?: number | null;
   feedback: string;
   next_resource?: string | null;
   created_at: string;

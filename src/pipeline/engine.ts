@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NotificationStore } from "../notifications/notificationStore.js";
 import { MultiAgentRuntime } from "./agentRuntime.js";
-import { PostDispatchAdapter } from "./postDispatch.js";
+import { DispatchReasonCode, PostDispatchAdapter } from "./postDispatch.js";
 import { SQLitePipelineStore } from "./sqlitePipelineStore.js";
 import { PipelineBudgetPolicy, PipelineNodeRun, PipelineRun } from "./types.js";
 
@@ -298,12 +298,51 @@ export class PipelineEngine {
   async dispatchPostQueueItem(input: {
     id: string;
     approvedBy?: string;
-  }): Promise<{ status: string; detail: string }> {
+  }): Promise<{
+    status: string;
+    detail: string;
+    reason_code:
+      | DispatchReasonCode
+      | "POLICY_APPROVAL_REQUIRED"
+      | "MISSING_ADAPTER"
+      | "ALREADY_DEAD_LETTER";
+    retry_after_ms?: number;
+    attempts: number;
+  }> {
+    const maxAttempts = 3;
+    const retryBackoffMs = [3000, 15000, 60000];
+
     const queue = this.store.listPostQueue(500).find((item) => item.id === input.id);
     if (!queue) {
       throw new Error("post queue item not found");
     }
+    if (queue.status === "dead_letter") {
+      return {
+        status: "dead_letter",
+        detail: "item already in dead-letter",
+        reason_code: "ALREADY_DEAD_LETTER",
+        attempts: queue.attempts,
+      };
+    }
     if (queue.status === "pending_approval") {
+      if (!input.approvedBy) {
+        const attempts = queue.attempts + 1;
+        this.store.patchPostQueue(queue.id, {
+          status: "dead_letter",
+          attempts,
+          last_error: JSON.stringify({
+            reason_code: "POLICY_APPROVAL_REQUIRED",
+            detail: "approved_by is required before delivery",
+            retryable: false,
+          }),
+        });
+        return {
+          status: "dead_letter",
+          detail: "approved_by is required before delivery",
+          reason_code: "POLICY_APPROVAL_REQUIRED",
+          attempts,
+        };
+      }
       this.store.patchPostQueue(queue.id, {
         status: "approved",
         approved_by: input.approvedBy ?? "mission-control",
@@ -315,31 +354,71 @@ export class PipelineEngine {
     }
     const adapter = this.dispatchAdapters?.get(active.platform);
     if (!adapter) {
-      this.store.patchPostQueue(active.id, {
-        status: "failed",
-        last_error: `no dispatch adapter configured for ${active.platform}`,
-        attempts: active.attempts + 1,
-      });
-      return { status: "failed", detail: "missing adapter" };
-    }
-    const result = await adapter.dispatch(active.payload_json);
-    if (!result.success) {
       const attempts = active.attempts + 1;
-      const status = attempts >= 3 ? "dead_letter" : "failed";
+      const status = attempts >= maxAttempts ? "dead_letter" : "failed";
+      this.store.patchPostQueue(active.id, {
+        status,
+        last_error: JSON.stringify({
+          reason_code: "MISSING_ADAPTER",
+          detail: `no dispatch adapter configured for ${active.platform}`,
+          retryable: attempts < maxAttempts,
+        }),
+        attempts,
+      });
+      return {
+        status,
+        detail: "missing adapter",
+        reason_code: "MISSING_ADAPTER",
+        retry_after_ms: attempts < maxAttempts ? retryBackoffMs[Math.min(attempts - 1, retryBackoffMs.length - 1)] : undefined,
+        attempts,
+      };
+    }
+    const nextAttempt = active.attempts + 1;
+    const result = await adapter.dispatch({
+      payload: active.payload_json,
+      idempotency_key: `post-${active.id}-attempt-${nextAttempt}`,
+      queue_id: active.id,
+      run_id: active.run_id,
+      attempt: nextAttempt,
+    });
+    if (!result.success) {
+      const attempts = nextAttempt;
+      const retryAfterMs = result.retryable
+        ? retryBackoffMs[Math.min(attempts - 1, retryBackoffMs.length - 1)]
+        : undefined;
+      const status =
+        !result.retryable || attempts >= maxAttempts ? "dead_letter" : "failed";
       this.store.patchPostQueue(active.id, {
         status,
         attempts,
-        last_error: result.detail,
+        last_error: JSON.stringify({
+          reason_code: result.reason_code,
+          detail: result.detail,
+          retryable: result.retryable,
+          retry_after_ms: retryAfterMs,
+          http_status: result.http_status,
+        }),
       });
-      return { status, detail: result.detail };
+      return {
+        status,
+        detail: result.detail,
+        reason_code: result.reason_code,
+        retry_after_ms: retryAfterMs,
+        attempts,
+      };
     }
     this.store.patchPostQueue(active.id, {
       status: "dispatched",
-      attempts: active.attempts + 1,
+      attempts: nextAttempt,
       dispatched_at: new Date().toISOString(),
       last_error: undefined,
     });
-    return { status: "dispatched", detail: result.detail };
+    return {
+      status: "dispatched",
+      detail: result.detail,
+      reason_code: result.reason_code,
+      attempts: nextAttempt,
+    };
   }
 
   private finalizeRun(runId: string): void {

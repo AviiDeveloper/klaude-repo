@@ -447,6 +447,9 @@ const migrations: Migration[] = [
           grade TEXT NOT NULL CHECK (grade IN ('good', 'partial', 'wrong')),
           feedback TEXT NOT NULL,
           next_resource TEXT,
+          coverage_score REAL NOT NULL DEFAULT 0,
+          reasoning_score REAL NOT NULL DEFAULT 0,
+          confidence REAL NOT NULL DEFAULT 0,
           created_at TEXT DEFAULT (datetime('now'))
         );
       `);
@@ -521,6 +524,28 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_model
         ON ai_request_telemetry(model, created_at DESC)
       `);
+    }
+  },
+  {
+    id: '011',
+    name: 'learning_answers_confidence_breakdown',
+    up: (db) => {
+      console.log('[Migration 011] Adding learning scorer confidence/breakdown columns...');
+
+      const columns = db
+        .prepare(`PRAGMA table_info(learning_answers)`)
+        .all() as Array<{ name: string }>;
+      const names = new Set(columns.map((column) => column.name));
+
+      if (!names.has('coverage_score')) {
+        db.exec(`ALTER TABLE learning_answers ADD COLUMN coverage_score REAL NOT NULL DEFAULT 0`);
+      }
+      if (!names.has('reasoning_score')) {
+        db.exec(`ALTER TABLE learning_answers ADD COLUMN reasoning_score REAL NOT NULL DEFAULT 0`);
+      }
+      if (!names.has('confidence')) {
+        db.exec(`ALTER TABLE learning_answers ADD COLUMN confidence REAL NOT NULL DEFAULT 0`);
+      }
     }
   }
 ];
