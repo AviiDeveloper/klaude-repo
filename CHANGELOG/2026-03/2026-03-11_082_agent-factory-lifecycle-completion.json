@@ -1,5 +1,5 @@
 {
-  "change_id": "2026-03-11_081_agent-factory-lifecycle-completion",
+  "change_id": "2026-03-11_082_agent-factory-lifecycle-completion",
   "created_at": "2026-03-11T20:25:00Z",
   "summary": "Completed EXP-008 lifecycle hardening with deterministic template completeness checks and audited reference-sheet lifecycle transitions.",
   "why": [
