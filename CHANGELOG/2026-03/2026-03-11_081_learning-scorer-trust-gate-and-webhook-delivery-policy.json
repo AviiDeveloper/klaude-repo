@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-03-11_081_learning-scorer-trust-gate-and-webhook-delivery-policy",
+  "created_at": "2026-03-11T21:10:00Z",
+  "summary": "Completed EXP-010i and EXP-004 by hardening learning scoring/trust gating and enforcing fail-closed webhook delivery policy with structured reason codes.",
+  "files": [
+    "context/source-of-truth/TASK_BOARD.md",
+    "apps/mission-control/src/lib/learning.ts",
+    "apps/mission-control/src/lib/memory/packet.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/lib/db/migrations.ts",
+    "apps/mission-control/src/lib/db/schema.ts",
+    "apps/mission-control/src/app/api/learning/questions/[id]/answer/route.ts",
+    "apps/mission-control/scripts/self-improvement-redteam.ts",
+    "apps/mission-control/scripts/learning-api-contract-verify.ts",
+    "apps/mission-control/scripts/lead-learning-verify.ts",
+    "src/pipeline/postDispatch.ts",
+    "src/pipeline/engine.ts",
+    "src/tests/pipelineDispatchPolicy.test.ts",
+    "src/tests/missionControlApi.test.ts"
+  ],
+  "validation": [
+    "npm run typecheck -> PASS",
+    "npm run mc:build -> PASS (warnings only)",
+    "npm test -> PASS (46 passed, 0 failed)",
+    "npm run mc:eval:verify -> PASS",
+    "npm run mc:lead:learning:verify -> PASS",
+    "npm run mc:learning:api:verify -> PASS",
+    "npm run mc:self-improvement:redteam -> PASS"
+  ],
+  "risks": [
+    "Webhook integrations must return signed acknowledgements and matching idempotency keys; otherwise dispatch fails closed/dead-letters.",
+    "Existing Next.js lint warnings remain non-blocking and were not addressed in this stabilization change."
+  ]
+}
