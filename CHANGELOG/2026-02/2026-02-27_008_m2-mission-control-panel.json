@@ -1,0 +1,41 @@
+{
+  "change_id": "2026-02-27_008_m2-mission-control-panel",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 2",
+  "title": "M2 Mission Control Panel",
+  "summary": [
+    "Added Mission Control HTTP server and UI",
+    "Added task/trace/message API endpoints",
+    "Added mission-control runtime mode",
+    "Added Mission Control API contract test"
+  ],
+  "files_changed": [
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/tests/missionControlApi.test.ts",
+    "src/tests/sqlitePersistence.test.ts",
+    "README.md",
+    "package.json",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=mission-control npm run dev",
+    "GET /api/health",
+    "GET /api/tasks"
+  ],
+  "rollback_steps": [
+    "Remove MissionControlServer implementation",
+    "Revert index mission-control mode wiring",
+    "Remove mission control API test",
+    "Revert README and package script updates",
+    "Delete changelog entry pair"
+  ],
+  "open_items": [
+    "Implement M3-001 approval.requested flow",
+    "Implement M3-002 approval.resolved flow",
+    "Add side-effect approval token enforcement"
+  ]
+}

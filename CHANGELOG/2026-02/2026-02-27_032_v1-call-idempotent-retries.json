@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-02-27_032_v1-call-idempotent-retries",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V1 Call Idempotent Retries",
+  "summary": [
+    "Added optional client_turn_id support for /calls/:call_id/final",
+    "Added bounded per-call final response retry cache",
+    "Added retry flag on cached final responses",
+    "Updated voice-lab client to send client_turn_id",
+    "Added retry contract test for deterministic replay"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove final-turn retry cache and client_turn_id handling",
+    "Revert voice-lab client client_turn_id generation",
+    "Revert retry contract test",
+    "Revert docs/task board/index metadata updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add /calls/:call_id/state endpoint for reconnect clients",
+    "Add persisted retry cache for process-restart resilience"
+  ]
+}

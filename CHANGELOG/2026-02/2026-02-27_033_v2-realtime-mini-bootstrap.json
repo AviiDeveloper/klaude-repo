@@ -1,0 +1,42 @@
+{
+  "change_id": "2026-02-27_033_v2-realtime-mini-bootstrap",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V2 Realtime Mini Bootstrap",
+  "summary": [
+    "Added OpenAI realtime session broker",
+    "Added /realtime/session bridge endpoint",
+    "Wired runtime env toggles for realtime session creation",
+    "Added voice-lab realtime session request action",
+    "Added tests for realtime endpoint available/unavailable cases",
+    "Added ADR-0007 for interface/security decision"
+  ],
+  "files_changed": [
+    "src/openclaw/realtimeSessionBroker.ts",
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md",
+    "ADR/ADR-0007-openai-realtime-session-bootstrap.md"
+  ],
+  "decisions_refs": [
+    "ADR-0007-openai-realtime-session-bootstrap"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove realtime session broker and /realtime/session route",
+    "Revert runtime env wiring in index",
+    "Revert voice-lab realtime action",
+    "Revert realtime endpoint tests",
+    "Revert docs/task board/ADR updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement browser WebRTC realtime media path",
+    "Add fallback handoff to /calls pipeline on realtime failure"
+  ]
+}

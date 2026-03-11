@@ -1,0 +1,33 @@
+{
+  "id": "2026-03-11_070_eval-layer-v1-schema-and-apis",
+  "date": "2026-03-11",
+  "title": "Implement Eval Layer V1 schema, types, and API foundation",
+  "summary": "Added persistent eval and learning tables, mission-control migration 009, typed eval contracts, eval service logic, and new eval APIs for spec CRUD, run execution, task history, and agent performance profile access.",
+  "scope": [
+    "apps/mission-control/src/lib/db/schema.ts",
+    "apps/mission-control/src/lib/db/migrations.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/lib/evals.ts",
+    "apps/mission-control/src/app/api/evals/specs/route.ts",
+    "apps/mission-control/src/app/api/evals/specs/[id]/route.ts",
+    "apps/mission-control/src/app/api/evals/run/route.ts",
+    "apps/mission-control/src/app/api/evals/task/[task_id]/route.ts",
+    "apps/mission-control/src/app/api/evals/agent/[agent_id]/profile/route.ts",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added eval spec/run/performance and learning question/answer schema objects to mission-control DB baseline.",
+    "Added migration 009 to create eval and learning tables for existing databases.",
+    "Added evaluation status and attribution contracts in shared types.",
+    "Implemented eval utility service with scoring heuristics and rolling profile aggregation.",
+    "Exposed eval API surface for spec CRUD, run execution, and result retrieval.",
+    "Marked EXP-010a complete in task board."
+  ],
+  "risks": [
+    "Current scorer is heuristic and intentionally simple; rubric-sensitive accuracy work remains in EXP-010b/010c.",
+    "No UI panel yet for eval data; APIs are ready but presentation is still pending."
+  ],
+  "rollback": [
+    "Revert migration 009 and remove /api/evals routes and eval service if foundation needs redesign."
+  ]
+}

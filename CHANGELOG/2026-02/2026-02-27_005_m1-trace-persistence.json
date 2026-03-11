@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-02-27_005_m1-trace-persistence",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 1",
+  "title": "M1 Trace Persistence",
+  "summary": [
+    "Added immutable trace record persistence",
+    "Logged orchestrator timeline events to trace",
+    "Added baseline trace schema test"
+  ],
+  "files_changed": [
+    "src/trace/types.ts",
+    "src/trace/traceStore.ts",
+    "src/orchestrator/orchestrator.ts",
+    "src/index.ts",
+    "src/tests/tracePersistence.test.ts",
+    "package.json",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm run build",
+    "npm run dev",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove trace store and trace type files",
+    "Revert orchestrator and index trace wiring",
+    "Remove trace test and package test script",
+    "Delete changelog entry pair"
+  ],
+  "open_items": [
+    "Add adapter/orchestrator contract tests",
+    "Add approval timeline records",
+    "Move traces to SQLite in Milestone 2"
+  ]
+}

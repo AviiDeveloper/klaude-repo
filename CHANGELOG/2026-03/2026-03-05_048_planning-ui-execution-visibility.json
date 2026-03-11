@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-03-05_048_planning-ui-execution-visibility",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Planning UI Execution Visibility",
+  "summary": [
+    "Rendered normalized planning execution fields in Planning tab complete state",
+    "Added operator visibility for approvals, side effects, rollback and stop conditions",
+    "Kept deliverables/success criteria and hardened optional array rendering"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/components/PlanningTab.tsx",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Revert PlanningTab complete-state rendering updates",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Add queue-level plan preview",
+    "Add automated tests for planning field visibility"
+  ]
+}

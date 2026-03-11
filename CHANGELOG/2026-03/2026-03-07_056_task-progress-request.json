@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-03-07_056_task-progress-request",
+  "timestamp": "2026-03-07T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Task Progress Request Action",
+  "summary": [
+    "Added task API to request immediate progress update from assigned OpenClaw session",
+    "Added Mission Control Task Modal button for one-click progress requests",
+    "Logged requests to task activities and events for traceability"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/app/api/tasks/[id]/progress-request/route.ts",
+    "apps/mission-control/src/components/TaskModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "TASK_BOARD.md"
+  ],
+  "tests_run": [
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Delete progress-request route",
+    "Revert TaskModal request-progress UI",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Add Telegram mission control relay",
+    "Add operator-configurable progress prompt templates"
+  ]
+}

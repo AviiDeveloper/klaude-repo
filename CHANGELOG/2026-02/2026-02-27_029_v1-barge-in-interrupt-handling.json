@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-02-27_029_v1-barge-in-interrupt-handling",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V1 Barge-In Interrupt Handling",
+  "summary": [
+    "Added per-call turn state tracking",
+    "Added stale-turn suppression on interrupt",
+    "Added /calls/:call_id/interrupt endpoint",
+    "Added turn_id/interrupted metadata on final responses",
+    "Added bridge concurrency test for barge-in behavior"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove bridge call interruption state and logic",
+    "Remove /calls/:call_id/interrupt endpoint",
+    "Revert bridge barge-in test",
+    "Revert docs/task board/index metadata updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement reconnect/retry for call transport failures",
+    "Implement degraded text fallback for voice stream errors"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "2026-03-11_069_eval-layer-v1-spec",
+  "date": "2026-03-11",
+  "title": "Define Eval Layer V1 spec for Charlie quality scoring and learning loop",
+  "summary": "Added a build-ready implementation spec for evaluation contracts, scoring, fault attribution, performance profiling, and a Mission Control learning page; updated active task board slices for execution.",
+  "scope": [
+    "OPERATIONS/EVAL_LAYER_V1_IMPLEMENTATION_SPEC.md",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Documented eval data model tables and schema fields.",
+    "Documented new eval and learning API routes.",
+    "Defined Charlie integration flow for score + attribution + delegation weighting.",
+    "Defined Mission Control UI surfaces for evaluation and learning.",
+    "Added EXP-010a to EXP-010d as active execution slices."
+  ],
+  "risks": [
+    "Rubric quality determines scoring quality; weak rubric design can bias delegation.",
+    "If attribution logic is weak, system may misclassify input gaps as agent failures."
+  ],
+  "rollback": [
+    "Remove EXP-010 entries from TASK_BOARD and archive spec as draft-only."
+  ]
+}

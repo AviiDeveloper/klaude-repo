@@ -1,0 +1,33 @@
+{
+  "change_id": "2026-02-27_017_m5-openai-agent-provider",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 5",
+  "title": "M5 OpenAI Agent Provider",
+  "summary": [
+    "Added OpenAI-backed agent output generation",
+    "Refactored OpenAI provider request handling",
+    "Added OpenAI agent output parsing test",
+    "Kept safety/approval execution boundaries unchanged"
+  ],
+  "files_changed": [
+    "src/models/provider.ts",
+    "src/tests/openaiCallerProvider.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert OpenAI agentOutput implementation",
+    "Revert OpenAI provider helper refactor",
+    "Remove new agent-output test",
+    "Revert task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Implement M5-004 timeout/retry/fallback",
+    "Implement M6-001 OpenClaw bridge",
+    "Complete expansion-track design package"
+  ]
+}

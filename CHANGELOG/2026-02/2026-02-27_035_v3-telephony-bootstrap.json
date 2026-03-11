@@ -1,0 +1,43 @@
+{
+  "change_id": "2026-02-27_035_v3-telephony-bootstrap",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V3 Telephony Bootstrap",
+  "summary": [
+    "Added phone-calling phased plan document",
+    "Added Twilio dialer abstraction and outbound call implementation",
+    "Added bridge telephony endpoints: POST /telephony/call, POST /twilio/voice, POST /twilio/status",
+    "Wired telephony configuration in runtime bootstrap",
+    "Added bridge tests for telephony success and unavailable paths",
+    "Added ADR-0009 for telephony outbound bootstrap contract"
+  ],
+  "files_changed": [
+    "OPERATIONS/PHONE_CALLING_PLAN.md",
+    "src/telephony/twilioDialer.ts",
+    "src/openclaw/bridgeServer.ts",
+    "src/index.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "README.md",
+    "TASK_BOARD.md",
+    "ADR/ADR-0009-telephony-outbound-bootstrap.md"
+  ],
+  "decisions_refs": [
+    "ADR-0009-telephony-outbound-bootstrap"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove telephony dialer and bridge telephony endpoints",
+    "Revert telephony runtime wiring in src/index.ts",
+    "Revert telephony bridge tests",
+    "Revert docs/task board/ADR updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement /twilio/media websocket stream bridge",
+    "Add Mission Control dial controls and active call panel",
+    "Add Twilio webhook signature validation"
+  ]
+}

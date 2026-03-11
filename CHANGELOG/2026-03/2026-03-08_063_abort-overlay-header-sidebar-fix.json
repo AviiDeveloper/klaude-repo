@@ -1,0 +1,22 @@
+{
+  "id": "2026-03-08_063_abort-overlay-header-sidebar-fix",
+  "date": "2026-03-08",
+  "title": "Fix client abort runtime overlays in Header and AgentsSidebar",
+  "summary": "Removed AbortController timeout paths in client polling helpers and replaced with timeout-safe Promise.race behavior.",
+  "scope": [
+    "apps/mission-control/src/components/Header.tsx",
+    "apps/mission-control/src/components/AgentsSidebar.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Replaced abort-based timeout fetch helper with Promise.race null-timeout approach in Header.",
+    "Applied same fetch helper hardening in AgentsSidebar.",
+    "Kept OpenClaw polling behavior non-blocking and offline-safe."
+  ],
+  "risks": [
+    "Fetch requests are no longer explicitly aborted; timed-out calls may complete in background."
+  ],
+  "rollback": [
+    "Restore previous AbortController timeout implementation in both components."
+  ]
+}

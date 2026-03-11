@@ -1,0 +1,26 @@
+{
+  "change_id": "2026-02-27_001_repo-bootstrap-governance",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "M1",
+  "title": "Repo bootstrap and governance system",
+  "summary": [
+    "Created full spec and governance repo for single-node OpenClaw integration.",
+    "Added paper-trail changelog system with Markdown + JSON entries.",
+    "Added reliability, performance, operations, agent contracts, and OpenClaw interface docs."
+  ],
+  "files_changed": [
+    "(all files added)"
+  ],
+  "decisions_refs": [
+    "ADR-0001",
+    "ADR-0003"
+  ],
+  "tests_run": [],
+  "rollback_steps": [
+    "Delete repo contents."
+  ],
+  "open_items": [
+    "Choose implementation language and DB (SQLite vs Postgres) for Milestone 1.",
+    "Implement OpenClaw adapter skeleton with event contracts."
+  ]
+}

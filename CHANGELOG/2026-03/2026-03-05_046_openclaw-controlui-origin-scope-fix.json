@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-03-05_046_openclaw-controlui-origin-scope-fix",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "OpenClaw Control UI Origin + Scope Fix",
+  "summary": [
+    "Updated Mission Control websocket client to request Control UI operator scopes",
+    "Switched server-side websocket transport to ws with explicit origin support",
+    "Validated live gateway connectivity and successful task dispatch on Pi"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/lib/openclaw/client.ts",
+    "apps/mission-control/package.json",
+    "apps/mission-control/package-lock.json",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "npm run build (apps/mission-control on Pi)",
+    "curl /api/openclaw/status",
+    "curl /api/openclaw/sessions?source=gateway",
+    "POST task + POST dispatch smoke test"
+  ],
+  "rollback_steps": [
+    "Revert apps/mission-control/src/lib/openclaw/client.ts",
+    "Revert mission-control package dependency changes",
+    "Revert src/index.ts BUILD_CHANGE_ID default",
+    "Restart Mission Control without WS_NO_BUFFER_UTIL/WS_NO_UTF_8_VALIDATE",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Persist Pi runtime env in service manager",
+    "Add visible OpenClaw connection status in Mission Control UI"
+  ]
+}

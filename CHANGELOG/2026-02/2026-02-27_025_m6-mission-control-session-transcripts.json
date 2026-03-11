@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-02-27_025_m6-mission-control-session-transcripts",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 Mission Control Session Transcripts",
+  "summary": [
+    "Added session transcript summary listing method",
+    "Added Mission Control session and transcript endpoints",
+    "Wired transcript store into mission-control runtime",
+    "Added tests for mission-control transcript APIs"
+  ],
+  "files_changed": [
+    "src/transcript/sessionTranscriptStore.ts",
+    "src/transcript/sqliteSessionTranscriptStore.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/tests/missionControlApi.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert transcript store session summary contract changes",
+    "Remove mission-control session transcript API routes",
+    "Revert index wiring and tests/docs/task board updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add session transcript panel in Mission Control UI",
+    "Add transcript retention policy controls"
+  ]
+}

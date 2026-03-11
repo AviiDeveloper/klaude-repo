@@ -1,0 +1,33 @@
+{
+  "change_id": "2026-03-02_040_clawdeck-visual-integration",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "ClawDeck Visual Integration",
+  "summary": [
+    "Integrated ClawDeck visual language into Mission Control embedded frontend",
+    "Kept existing Mission Control APIs and runtime architecture unchanged",
+    "Maintained tracking-free implementation",
+    "Verified local typecheck/tests and remote Pi runtime"
+  ],
+  "files_changed": [
+    "src/missionControl/server.ts",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "pi runtime smoke"
+  ],
+  "rollback_steps": [
+    "Revert renderHtml style/theme updates in src/missionControl/server.ts",
+    "Revert build change id in src/index.ts",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Componentize UI for easier upstream ClawDeck merges",
+    "Add optional classic/clawdeck view modes"
+  ]
+}

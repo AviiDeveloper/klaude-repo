@@ -1,0 +1,27 @@
+{
+  "id": "2026-03-08_060_agent-factory-professional-dossier",
+  "date": "2026-03-08",
+  "title": "Upgrade Agent Factory to professional-grade onboarding and dossier generation",
+  "summary": "Expanded onboarding and generation so each created agent includes advanced competency, quality, policy, escalation, and KPI guidance like an industry-level employee profile.",
+  "scope": [
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "apps/mission-control/src/lib/agent-factory.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/app/api/agents/factory/route.ts",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added advanced agent profile fields to the factory type and API payload handling.",
+    "Extended onboarding wizard with required professional calibration questions.",
+    "Strengthened generation gating so advanced fields are completed before create.",
+    "Reworked generated artifacts and reference sheet into a multi-page professional dossier.",
+    "Stored expanded metadata in reference sheet persistence for auditability."
+  ],
+  "risks": [
+    "Longer onboarding flow increases time-to-create for quick prototype agents."
+  ],
+  "rollback": [
+    "Revert expanded fields in AgentFactoryModal and route payload mapping.",
+    "Restore previous lightweight reference sheet template in agent-factory.ts."
+  ]
+}

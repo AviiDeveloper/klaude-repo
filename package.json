@@ -1,0 +1,36 @@
+{
+  "name": "openclaw-local-agent-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-node local voice-orchestrated multi-agent MVP scaffold",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "mc:install": "npm --prefix apps/mission-control install",
+    "mc:dev": "npm --prefix apps/mission-control run dev",
+    "mc:dev:safe": "npm --prefix apps/mission-control run dev:safe",
+    "mc:build": "npm --prefix apps/mission-control run build",
+    "mc:eval:verify": "npm --prefix apps/mission-control run eval:verify",
+    "mc:lead:learning:verify": "npm --prefix apps/mission-control run lead:learning:verify",
+    "mc:learning:api:verify": "npm --prefix apps/mission-control run learning:api:verify",
+    "mc:self-improvement:redteam": "npm --prefix apps/mission-control run self-improvement:redteam",
+    "mc:start": "npm --prefix apps/mission-control run start",
+    "mc:start:safe": "npm --prefix apps/mission-control run start:safe",
+    "mc:push:pi": "bash scripts/pi/mc-push-pi.sh",
+    "test": "npm run build && node --test dist/tests/**/*.test.js",
+    "verify": "npm run typecheck && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "ws": "^8.19.0"
+  }
+}

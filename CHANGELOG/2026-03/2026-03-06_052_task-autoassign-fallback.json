@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-03-06_052_task-autoassign-fallback",
+  "timestamp": "2026-03-06T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Task Auto-Assign Fallback",
+  "summary": [
+    "Added default assignee fallback for new tasks with no explicit/inferred agent",
+    "Added fallback assignee when tasks are patched to assigned without assignee",
+    "Select fallback agent using least-active-load ordering within workspace"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/lib/task-assignment.ts",
+    "apps/mission-control/src/app/api/tasks/route.ts",
+    "apps/mission-control/src/app/api/tasks/[id]/route.ts",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Revert task-assignment fallback picker",
+    "Revert task create/update route fallback usage",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Resolve OpenClaw gateway pairing requirement (NOT_PAIRED) on pi runtime",
+    "Add tests for assignment ordering and fallback behavior"
+  ]
+}

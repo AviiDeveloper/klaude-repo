@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-02-27_011_m3-approval-token-enforcement",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 3",
+  "title": "M3 Approval Token Enforcement",
+  "summary": [
+    "Added SideEffectExecutor with hard token enforcement",
+    "Wired orchestrator side effects through execution boundary",
+    "Updated approved flow to execute token-gated side effects",
+    "Added token-enforcement contract tests"
+  ],
+  "files_changed": [
+    "src/sideEffects/executor.ts",
+    "src/orchestrator/orchestrator.ts",
+    "src/agents/codeAgent.ts",
+    "src/tests/approvalResolvedContract.test.ts",
+    "src/tests/approvalTokenEnforcementContract.test.ts",
+    "src/tests/sideEffectExecutor.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw npm run dev"
+  ],
+  "rollback_steps": [
+    "Revert SideEffectExecutor and orchestrator boundary integration",
+    "Revert CodeAgent approved-side-effect behavior",
+    "Remove token-enforcement tests",
+    "Revert task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Implement Milestone 4 voice transcript event flow",
+    "Add two-phase response timing metrics",
+    "Add OpenClaw voice callback/progress narration behavior"
+  ]
+}

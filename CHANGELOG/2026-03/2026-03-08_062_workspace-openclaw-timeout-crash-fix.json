@@ -1,0 +1,21 @@
+{
+  "id": "2026-03-08_062_workspace-openclaw-timeout-crash-fix",
+  "date": "2026-03-08",
+  "title": "Fix workspace runtime crash from OpenClaw status timeout abort",
+  "summary": "Removed AbortController timeout abort path that triggered unhandled runtime errors in workspace view.",
+  "scope": [
+    "apps/mission-control/src/app/workspace/[slug]/page.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Replaced abort-driven OpenClaw status fetch with direct non-blocking fetch path.",
+    "Preserved offline fallback behavior when status checks fail.",
+    "Eliminated runtime AbortError surface in workspace UI."
+  ],
+  "risks": [
+    "Status check now relies on network stack timeout behavior instead of explicit abort timing."
+  ],
+  "rollback": [
+    "Reintroduce timeout+AbortController in checkOpenClaw path if needed."
+  ]
+}

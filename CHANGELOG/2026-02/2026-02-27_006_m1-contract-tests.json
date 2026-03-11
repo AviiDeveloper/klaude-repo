@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-02-27_006_m1-contract-tests",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 1",
+  "title": "M1 Contract Tests",
+  "summary": [
+    "Added OpenClaw adapter contract tests",
+    "Added orchestrator failure trace contract test",
+    "Hardened trace test isolation"
+  ],
+  "files_changed": [
+    "src/tests/adapterContract.test.ts",
+    "src/tests/orchestratorFailureContract.test.ts",
+    "src/tests/tracePersistence.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm run build",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove newly added contract tests",
+    "Revert trace test isolation update",
+    "Revert task board status update",
+    "Delete changelog entry pair"
+  ],
+  "open_items": [
+    "SQLite-backed persistence for Milestone 2",
+    "Mission Control minimal status panel",
+    "Approval-gating event flow for Milestone 3"
+  ]
+}

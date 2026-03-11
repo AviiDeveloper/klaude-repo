@@ -1,0 +1,21 @@
+{
+  "change_id": "2026-03-11_079_cost-observability-page-and-agent-breakdown",
+  "created_at": "2026-03-11T16:35:00Z",
+  "summary": "Added a Mission Control cost observability page and agent-level estimated cost breakdowns.",
+  "files": [
+    "apps/mission-control/src/lib/cost-observability.ts",
+    "apps/mission-control/src/app/api/costs/overview/route.ts",
+    "apps/mission-control/src/app/workspace/[slug]/costs/page.tsx",
+    "apps/mission-control/src/components/Header.tsx",
+    "apps/mission-control/src/components/AgentModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "validation": [
+    "npm run typecheck",
+    "npm run mc:build"
+  ],
+  "notes": [
+    "This slice exposes estimated AI action spend only; exact external OpenRouter billing is not yet persisted locally.",
+    "Workspace and agent summaries are inferred from Mission Control workflow counts."
+  ]
+}

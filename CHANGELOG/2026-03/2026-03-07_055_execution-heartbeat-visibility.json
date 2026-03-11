@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-03-07_055_execution-heartbeat-visibility",
+  "timestamp": "2026-03-07T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Execution Heartbeat Visibility",
+  "summary": [
+    "Added dispatch-linked task activity heartbeat logging for long-running runs",
+    "Broadcasted periodic task updates during execution to keep UI state fresh",
+    "Added activity auto-refresh and in-progress card active indicator"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/app/api/tasks/[id]/dispatch/route.ts",
+    "apps/mission-control/src/components/ActivityLog.tsx",
+    "apps/mission-control/src/components/MissionQueue.tsx",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "TASK_BOARD.md"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "POST /api/tasks/:id/dispatch (live)",
+    "Pi runtime log lifecycle check"
+  ],
+  "rollback_steps": [
+    "Revert dispatch heartbeat monitor changes",
+    "Revert ActivityLog polling update",
+    "Revert MissionQueue active indicator",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Add persisted run-phase fields for richer board state",
+    "Add run-monitor integration tests"
+  ]
+}

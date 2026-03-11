@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-02-27_018_expansion-track-design-docs",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Post-MVP Planning",
+  "title": "Expansion Track Design Docs",
+  "summary": [
+    "Added ADR-0006 for multi-agent expansion track",
+    "Added post-MVP expansion roadmap",
+    "Added 8-agent pipeline and provider routing draft"
+  ],
+  "files_changed": [
+    "ADR/ADR-0006-multi-agent-expansion-track.md",
+    "ROADMAP_EXPANSION.md",
+    "AGENTS/AGENT_PIPELINES_DRAFT.md"
+  ],
+  "decisions_refs": [
+    "ADR-0006"
+  ],
+  "tests_run": [
+    "npm run verify"
+  ],
+  "rollback_steps": [
+    "Delete ADR-0006",
+    "Delete ROADMAP_EXPANSION.md",
+    "Delete AGENTS/AGENT_PIPELINES_DRAFT.md",
+    "Delete changelog entry pair"
+  ],
+  "open_items": [
+    "Continue M5-004 in active build flow",
+    "Formalize SPEC/CONSTRAINT updates before expansion implementation"
+  ]
+}

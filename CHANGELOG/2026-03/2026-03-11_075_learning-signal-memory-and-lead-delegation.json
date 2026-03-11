@@ -1,0 +1,31 @@
+{
+  "id": "2026-03-11_075_learning-signal-memory-and-lead-delegation",
+  "date": "2026-03-11",
+  "title": "Integrate learning-loop signal into Charlie memory + delegation",
+  "summary": "Added learning-context packet fields and adaptive delegation mode weighting so Lead can shift between conservative/balanced/exploratory assignment based on recent operator learning outcomes.",
+  "scope": [
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/lib/memory/packet.ts",
+    "apps/mission-control/src/lib/lead-orchestrator.ts",
+    "apps/mission-control/scripts/lead-learning-verify.ts",
+    "apps/mission-control/package.json",
+    "package.json",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Extended MemoryPacket with learning_context metrics and delegation mode.",
+    "Computed learning trend and coaching guidance from recent learning answers.",
+    "Injected learning signal into prompt formatter for runtime decision context.",
+    "Adjusted delegation scoring by learning mode (conservative/balanced/exploratory).",
+    "Added deterministic verification script to validate learning-mode-driven delegation behavior.",
+    "Marked EXP-010f complete on task board."
+  ],
+  "risks": [
+    "Exploratory mode can intentionally route work to lower-history workers; monitor quality gates and retry rates.",
+    "Current trend thresholds are heuristic and may need calibration with more learning samples."
+  ],
+  "rollback": [
+    "Remove learning-mode weighting in lead-orchestrator and retain eval/profile-only scoring.",
+    "Keep learning page/APIs intact while reverting memory/delegation integration if needed."
+  ]
+}

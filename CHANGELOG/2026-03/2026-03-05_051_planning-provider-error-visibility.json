@@ -1,0 +1,33 @@
+{
+  "change_id": "2026-03-05_051_planning-provider-error-visibility",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Planning Provider Error Visibility",
+  "summary": [
+    "Render planner/provider failures in Planning UI instead of indefinite waiting spinner",
+    "Read plannerError from planning state endpoint and expose clear failure state",
+    "Improve operator diagnostics for OpenClaw provider auth failures"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/components/PlanningTab.tsx",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "npm run mc:lint"
+  ],
+  "rollback_steps": [
+    "Revert PlanningTab plannerError rendering",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Repair OpenClaw provider auth configuration on runtime host",
+    "Add planner retry action in UI"
+  ]
+}

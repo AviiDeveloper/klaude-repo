@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-03-02_045_nextjs-openclaw-fetch-hardening",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Next.js OpenClaw Fetch Hardening",
+  "summary": [
+    "Added safe fetch wrappers for OpenClaw polling in sidebar and header",
+    "Prevented unhandled promise/runtime errors on failed fetches",
+    "Kept UI operational when OpenClaw gateway is unavailable"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/components/AgentsSidebar.tsx",
+    "apps/mission-control/src/components/Header.tsx",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "manual runtime verification on http://127.0.0.1:3000"
+  ],
+  "rollback_steps": [
+    "Revert safe fetch helpers and polling callback wrappers in AgentsSidebar.tsx/Header.tsx",
+    "Revert TASK_BOARD.md and src/index.ts updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Apply safe-fetch polling wrapper to remaining dashboard components"
+  ]
+}

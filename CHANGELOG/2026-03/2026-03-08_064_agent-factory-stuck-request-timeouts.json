@@ -1,0 +1,23 @@
+{
+  "id": "2026-03-08_064_agent-factory-stuck-request-timeouts",
+  "date": "2026-03-08",
+  "title": "Fix Agent Factory stuck Drafting/Generating states",
+  "summary": "Added request timeouts and operation locking to prevent indefinite UI spinners when OpenClaw suggestion calls hang.",
+  "scope": [
+    "apps/mission-control/src/app/api/agents/factory/suggest/route.ts",
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added withTimeout wrappers around OpenClaw connect/send/history in suggest route.",
+    "Added client-side fetch timeout helper for factory draft/generate requests.",
+    "Added timeout-specific error messaging.",
+    "Blocked concurrent draft and generate actions to avoid conflicting pending states."
+  ],
+  "risks": [
+    "Long-running valid OpenClaw responses may now time out and require retry."
+  ],
+  "rollback": [
+    "Remove timeout wrappers and mutual exclusion checks in AgentFactoryModal and suggest route."
+  ]
+}

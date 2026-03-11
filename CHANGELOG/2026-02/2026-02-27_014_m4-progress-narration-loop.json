@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-02-27_014_m4-progress-narration-loop",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "M4 Progress Narration Loop",
+  "summary": [
+    "Added progress narration loop at 3-second intervals",
+    "Added progress phase metadata in outbound messages",
+    "Added slow-path test coverage for >3s narration behavior"
+  ],
+  "files_changed": [
+    "src/interface/controller.ts",
+    "src/agents/codeAgent.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/tests/adapterContract.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert progress loop and progress phase metadata",
+    "Revert slow-path code-agent behavior",
+    "Remove slow execution narration test",
+    "Revert task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Start M5-001 model-provider integration",
+    "Implement OpenAI-backed caller model",
+    "Implement OpenAI-backed code/ops agents"
+  ]
+}

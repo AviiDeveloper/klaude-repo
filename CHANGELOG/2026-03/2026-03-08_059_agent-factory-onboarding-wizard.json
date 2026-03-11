@@ -1,0 +1,23 @@
+{
+  "id": "2026-03-08_059_agent-factory-onboarding-wizard",
+  "date": "2026-03-08",
+  "title": "Convert Agent Factory to onboarding planner wizard",
+  "summary": "Replaced the single-form Agent Factory UX with a guided question flow that validates required answers before generation.",
+  "scope": [
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added an onboarding step model for advanced agent generation questions.",
+    "Added progress indicator, back/next controls, and required-field gating.",
+    "Added onboarding summary panel with completion state and pending answers.",
+    "Kept existing generation API contract while improving frontend flow quality."
+  ],
+  "risks": [
+    "Longer wizard flow may add friction for power users who preferred direct full-form editing."
+  ],
+  "rollback": [
+    "Restore previous AgentFactoryModal flat-form implementation.",
+    "Keep backend factory route and reference sheet persistence unchanged."
+  ]
+}

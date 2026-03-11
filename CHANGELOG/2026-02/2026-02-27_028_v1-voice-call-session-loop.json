@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-02-27_028_v1-voice-call-session-loop",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V1 Voice Call Session Loop",
+  "summary": [
+    "Added /calls/start endpoint for voice sessions",
+    "Added /calls/:call_id/partial and /calls/:call_id/final transcript ingestion",
+    "Added /calls/:call_id/end endpoint",
+    "Added bridge test for voice call start-partial-final-end loop"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove /calls route handling in bridge server",
+    "Revert bridge test additions",
+    "Revert docs/task board/index metadata updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement barge-in and interrupt handling",
+    "Implement call reconnect/retry and degraded-mode behavior"
+  ]
+}

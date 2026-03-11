@@ -1,0 +1,22 @@
+{
+  "id": "2026-03-11_076_lead-console-learning-mode-visibility",
+  "date": "2026-03-11",
+  "title": "Expose Charlie learning-mode state in Lead Console",
+  "summary": "Added a dedicated Lead Console panel that surfaces learning-driven delegation mode, trend, score rates, and coaching focus for transparent orchestration control.",
+  "scope": [
+    "apps/mission-control/src/components/LeadControlConsole.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added typed memory-packet view model for learning_context in Lead Console.",
+    "Added Learning Delegation Mode panel with mode/trend metrics and coaching focus.",
+    "Added mode badge color-coding for quick conservative/balanced/exploratory recognition.",
+    "Marked EXP-010g complete in task board."
+  ],
+  "risks": [
+    "UI currently reads the latest memory packet snapshot only; rapid backend changes may briefly lag between refresh intervals."
+  ],
+  "rollback": [
+    "Remove the learning-mode panel from Lead Console while retaining backend learning integration."
+  ]
+}

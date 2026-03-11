@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-02-27_030_v1-browser-voice-lab-client",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V1 Browser Voice Lab Client",
+  "summary": [
+    "Added bridge-hosted /voice-lab browser client",
+    "Streamed partial/final mic transcripts to /calls endpoints",
+    "Played system.voice_speak responses via browser speech synthesis",
+    "Added manual text fallback for unsupported browsers",
+    "Added route test for /voice-lab availability"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove /voice-lab route and renderer",
+    "Revert /voice-lab route test",
+    "Revert docs/task board/index metadata updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement call reconnect/retry handling",
+    "Add mission-control live call diagnostics"
+  ]
+}

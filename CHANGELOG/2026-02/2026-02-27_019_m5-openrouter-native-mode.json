@@ -1,0 +1,33 @@
+{
+  "change_id": "2026-02-27_019_m5-openrouter-native-mode",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 5",
+  "title": "M5 OpenRouter Native Mode",
+  "summary": [
+    "Added MODEL_PROVIDER=openrouter mode",
+    "Added OpenRouter default base URL and model env routing",
+    "Added OpenRouter compatibility headers",
+    "Added openrouter guard and header forwarding tests"
+  ],
+  "files_changed": [
+    "src/models/provider.ts",
+    "src/tests/openaiCallerProvider.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert openrouter provider mode and headers",
+    "Remove openrouter tests",
+    "Revert docs/task board updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement M5-004 fallback/retry/timeout",
+    "Run live openrouter smoke test"
+  ]
+}

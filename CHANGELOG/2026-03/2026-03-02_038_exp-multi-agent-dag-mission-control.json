@@ -1,0 +1,53 @@
+{
+  "change_id": "2026-03-02_038_exp-multi-agent-dag-mission-control",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Multi-Agent DAG Scheduler and Mission Control Expansion",
+  "summary": [
+    "Added SQLite-backed pipeline domain: definitions, runs, nodes, artifacts, media jobs, post queue, spend ledger, source registry",
+    "Added 8-agent DAG runtime engine with dependency-aware execution and blocking semantics",
+    "Added scheduler service for recurring hourly run triggering",
+    "Added paid-step approval and budget policy enforcement",
+    "Added post queue approval/dispatch flow with adapter abstraction",
+    "Added Mission Control APIs for jobs, runs, graph, retry/override, queue, media jobs, and telephony control",
+    "Added telephony control client integration for Mission Control",
+    "Added integration tests for pipeline + queue + telephony endpoints"
+  ],
+  "files_changed": [
+    "src/pipeline/types.ts",
+    "src/pipeline/sqlitePipelineStore.ts",
+    "src/pipeline/agentRuntime.ts",
+    "src/pipeline/engine.ts",
+    "src/pipeline/scheduler.ts",
+    "src/pipeline/postDispatch.ts",
+    "src/telephony/controlClient.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/notifications/notificationStore.ts",
+    "src/tests/missionControlApi.test.ts",
+    "TASK_BOARD.md",
+    "OPERATIONS/PHONE_CALLING_PLAN.md",
+    "README.md",
+    "ADR/ADR-0012-multi-agent-dag-scheduler-mission-control.md"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove pipeline and telephony control modules",
+    "Revert Mission Control pipeline/telephony API and UI changes",
+    "Revert mission-control runtime wiring in src/index.ts",
+    "Revert notification reason extension and tests",
+    "Revert docs/task board/operations and ADR updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement native OAuth/API adapters for platform publish",
+    "Improve source quality and scoring tuning",
+    "Implement realtime Twilio media bridge"
+  ]
+}

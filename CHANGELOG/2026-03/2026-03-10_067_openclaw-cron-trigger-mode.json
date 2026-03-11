@@ -1,0 +1,31 @@
+{
+  "id": "2026-03-10_067_openclaw-cron-trigger-mode",
+  "date": "2026-03-10",
+  "title": "Add OpenClaw cron-trigger scheduler mode for mission-control pipeline runs",
+  "summary": "Introduced `SCHEDULER_MODE=openclaw-cron`, a token-protected external trigger endpoint, and runtime mode introspection so OpenClaw cron can drive pipeline starts while Mission Control retains DAG execution and governance.",
+  "scope": [
+    "src/index.ts",
+    "src/missionControl/server.ts",
+    "src/tests/missionControlApi.test.ts",
+    "scripts/pi/openclaw-cron-wire.sh",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added scheduler mode switch (`internal` vs `openclaw-cron`) in mission-control runtime startup.",
+    "Added `GET /api/scheduler/mode` endpoint for runtime scheduler-mode visibility.",
+    "Added `POST /api/jobs/:id/trigger` endpoint that starts runs with `trigger=scheduler`.",
+    "Added optional trigger token enforcement via `MISSION_CONTROL_CRON_TRIGGER_TOKEN` and `x-mc-cron-token` header.",
+    "Added PI helper script to wire OpenClaw cron jobs to Mission Control trigger endpoint.",
+    "Extended mission-control API tests to validate mode endpoint and trigger token guard."
+  ],
+  "risks": [
+    "External cron flow depends on OpenClaw cron reliability and correct token configuration.",
+    "If both internal and external schedulers are enabled operationally, duplicate runs are possible."
+  ],
+  "rollback": [
+    "Set `SCHEDULER_MODE=internal` to re-enable built-in interval scheduler.",
+    "Stop using `/api/jobs/:id/trigger` and remove cron jobs created by `scripts/pi/openclaw-cron-wire.sh`.",
+    "Revert this changelog scope files."
+  ]
+}

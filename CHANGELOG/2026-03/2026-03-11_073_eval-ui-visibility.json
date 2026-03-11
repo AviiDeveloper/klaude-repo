@@ -1,0 +1,30 @@
+{
+  "id": "2026-03-11_073_eval-ui-visibility",
+  "date": "2026-03-11",
+  "title": "Add Mission Control evaluation visibility surfaces",
+  "summary": "Implemented eval visibility in task modal, agent modal, and lead console by wiring latest eval signals into UI and adding manual evaluation run control from task view.",
+  "scope": [
+    "apps/mission-control/src/components/EvaluationTab.tsx",
+    "apps/mission-control/src/components/TaskModal.tsx",
+    "apps/mission-control/src/components/AgentModal.tsx",
+    "apps/mission-control/src/components/LeadConsolePanel.tsx",
+    "apps/mission-control/src/lib/lead-orchestrator.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added Evaluation tab to task modal and history display based on /api/evals/task/:task_id.",
+    "Added task-level manual eval trigger via /api/evals/run.",
+    "Added Agent performance tab consuming /api/evals/agent/:agent_id/profile.",
+    "Extended lead queue payload with latest eval status/score/fault data.",
+    "Rendered eval badges and signals in lead console cards.",
+    "Marked EXP-010c complete."
+  ],
+  "risks": [
+    "Evaluation tab refresh currently on-demand; no live SSE for eval rows yet.",
+    "Agent performance tab is read-only in this slice; no threshold tuning controls yet."
+  ],
+  "rollback": [
+    "Remove Evaluation tab and Agent performance tab UI wiring; keep backend eval APIs intact."
+  ]
+}

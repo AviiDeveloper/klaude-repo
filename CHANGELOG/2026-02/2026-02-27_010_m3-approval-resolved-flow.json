@@ -1,0 +1,40 @@
+{
+  "change_id": "2026-02-27_010_m3-approval-resolved-flow",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 3",
+  "title": "M3 Approval Resolved Flow",
+  "summary": [
+    "Added approve/deny resolution path for pending approvals",
+    "Approved decisions resume task execution with approval token",
+    "Denied decisions block task, emit notify.requested, and finalize blocked trace",
+    "Added adapter/controller handling for openclaw.approval_decision"
+  ],
+  "files_changed": [
+    "src/agents/codeAgent.ts",
+    "src/orchestrator/orchestrator.ts",
+    "src/interface/controller.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/missionControl/server.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/tests/approvalResolvedContract.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw npm run dev"
+  ],
+  "rollback_steps": [
+    "Revert orchestrator approval resolution flow",
+    "Revert controller/adapter approval-decision handling",
+    "Remove mission control approvals endpoint",
+    "Remove approval resolved tests and task board updates",
+    "Delete changelog entry pair"
+  ],
+  "open_items": [
+    "Implement M3-003 side-effect approval token enforcement",
+    "Persist detailed approval records",
+    "Start Milestone 4 voice event support"
+  ]
+}

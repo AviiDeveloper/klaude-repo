@@ -1,0 +1,27 @@
+{
+  "id": "2026-03-11_071_eval-verification-pipeline",
+  "date": "2026-03-11",
+  "title": "Add deterministic eval verification pipeline with performance gates",
+  "summary": "Implemented a repeatable eval verification runner that tests scenario outcomes, attribution logic, profile aggregation, and latency, with non-zero exit on gate failure.",
+  "scope": [
+    "apps/mission-control/scripts/eval-verify.ts",
+    "apps/mission-control/package.json",
+    "package.json",
+    "OPERATIONS/EVAL_VERIFICATION_PIPELINE.md",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added eval verification script with isolated temp DB and scenario fixtures.",
+    "Added scenario gates for pass/partial/fail status and fault attribution checks.",
+    "Added profile aggregation and latency target gates.",
+    "Added npm scripts for app-local and root passthrough execution.",
+    "Marked EXP-010e complete in task board."
+  ],
+  "risks": [
+    "Latency target is local-machine specific; CI/low-power hardware may need adjusted threshold.",
+    "Scenario set is deterministic but not exhaustive for all future agent types."
+  ],
+  "rollback": [
+    "Remove eval verification script and scripts entries; keep eval APIs unchanged."
+  ]
+}

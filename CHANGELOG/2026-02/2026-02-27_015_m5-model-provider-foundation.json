@@ -1,0 +1,39 @@
+{
+  "change_id": "2026-02-27_015_m5-model-provider-foundation",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 5",
+  "title": "M5 Model Provider Foundation",
+  "summary": [
+    "Added model provider abstraction and local implementation",
+    "Injected provider into caller and agents",
+    "Added provider factory with env-based selection",
+    "Added provider wiring contract test"
+  ],
+  "files_changed": [
+    "src/models/provider.ts",
+    "src/caller/callerModel.ts",
+    "src/agents/codeAgent.ts",
+    "src/agents/opsAgent.ts",
+    "src/index.ts",
+    "src/tests/modelProviderContract.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove model provider module",
+    "Revert provider injection in caller/agents/index",
+    "Remove provider contract test",
+    "Revert README/task board updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement OpenAI-backed caller provider (M5-002)",
+    "Implement OpenAI-backed code/ops agent provider (M5-003)",
+    "Add provider timeout/retry/fallback policy (M5-004)"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-02-27_021_m5-provider-reliability-guards",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 5",
+  "title": "M5 Provider Reliability Guards",
+  "summary": [
+    "Added timeout guards for model provider calls",
+    "Added retry logic for transient provider failures",
+    "Added fallback-to-local behavior on provider errors",
+    "Added env-configurable reliability controls",
+    "Added reliability-focused provider tests"
+  ],
+  "files_changed": [
+    "src/models/provider.ts",
+    "src/tests/openaiCallerProvider.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert provider timeout/retry/fallback implementation",
+    "Revert provider env controls",
+    "Remove reliability tests",
+    "Revert README/task board updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Build M6-001 OpenClaw bridge process",
+    "Add runtime observability for provider fallback and retry counters"
+  ]
+}

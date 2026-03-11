@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-03-05_047_planning-schema-auto-assignment",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Planning Schema + Auto Assignment",
+  "summary": [
+    "Added normalized planning completion schema aligned with SPEC/PROMPT governance",
+    "Enforced deterministic agent auto-assignment + auto-dispatch after planning completion",
+    "Removed missing PLANNING.md dependency by embedding source-of-truth planning rules in prompt"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/lib/planning-schema.ts",
+    "apps/mission-control/src/app/api/tasks/[id]/planning/answer/route.ts",
+    "apps/mission-control/src/app/api/tasks/[id]/planning/route.ts",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md",
+    "AGENTS/AGENT_CONTRACTS.md"
+  ],
+  "tests_run": [
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Revert planning-schema helper and planning route updates",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Expose normalized plan fields in Mission Control UI",
+    "Add API tests for planning normalization and assignment fallback paths"
+  ]
+}

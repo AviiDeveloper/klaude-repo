@@ -1,0 +1,27 @@
+{
+  "id": "2026-03-10_068_openclaw-inapp-cron-manager",
+  "date": "2026-03-10",
+  "title": "Add in-app OpenClaw native cron manager to Mission Control settings",
+  "summary": "Implemented OpenClaw cron management APIs and a Settings UI panel for create/list/run/disable/remove/history operations without terminal usage.",
+  "scope": [
+    "apps/mission-control/src/lib/openclaw/cron-cli.ts",
+    "apps/mission-control/src/app/api/openclaw/cron/route.ts",
+    "apps/mission-control/src/app/api/openclaw/cron/[id]/route.ts",
+    "apps/mission-control/src/app/settings/page.tsx",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added node-runtime CLI wrapper for `openclaw cron` operations.",
+    "Added cron API endpoints for status/list/create and per-ID action commands.",
+    "Added Settings UI section for full in-app cron operations.",
+    "Wired create flow to mission-control trigger endpoint contract."
+  ],
+  "risks": [
+    "Requires `openclaw` binary to be installed and available in runtime PATH.",
+    "CLI output format may vary across OpenClaw versions; current UI displays raw output safely."
+  ],
+  "rollback": [
+    "Remove cron API routes and Settings section; continue using `scripts/pi/openclaw-cron-wire.sh` terminal flow."
+  ]
+}

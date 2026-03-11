@@ -1,0 +1,32 @@
+{
+  "id": "2026-03-08_058_agent-factory-reference-sheets",
+  "date": "2026-03-08",
+  "title": "Add Mission Control Agent Factory with persistent reference sheets",
+  "summary": "Introduced an Agent Factory UI and API that generates advanced agent profiles and stores full generated reference sheets per agent with versioned persistence.",
+  "scope": [
+    "apps/mission-control/src/components/AgentsSidebar.tsx",
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "apps/mission-control/src/components/index.ts",
+    "apps/mission-control/src/app/api/agents/factory/route.ts",
+    "apps/mission-control/src/app/api/agents/[id]/reference-sheet/route.ts",
+    "apps/mission-control/src/lib/agent-factory.ts",
+    "apps/mission-control/src/lib/types.ts",
+    "apps/mission-control/src/lib/db/schema.ts",
+    "apps/mission-control/src/lib/db/migrations.ts",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added Agent Factory modal and sidebar entry point for rapid agent creation.",
+    "Added POST /api/agents/factory to create an agent plus generated SOUL/USER/AGENTS markdown and a full reference sheet.",
+    "Added GET /api/agents/:id/reference-sheet endpoint (latest/history modes).",
+    "Added agent_reference_sheets table and migration for persistent versioned docs."
+  ],
+  "risks": [
+    "Reference sheet generation is deterministic template-based and may require manual refinement for edge-case agent roles."
+  ],
+  "rollback": [
+    "Hide Agent Factory button and remove modal wiring in AgentsSidebar.",
+    "Remove new API routes and generator utility.",
+    "Keep migration applied but ignore table if feature disabled."
+  ]
+}

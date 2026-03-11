@@ -1,0 +1,39 @@
+{
+  "change_id": "2026-02-27_034_v2-mission-control-realtime",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V2 Mission Control Realtime",
+  "summary": [
+    "Added Mission Control POST /api/realtime/session endpoint",
+    "Added Mission Control realtime session UI controls",
+    "Wired realtime broker into mission-control runtime",
+    "Added tests for realtime endpoint success and 503 unavailable path",
+    "Added ADR-0008 for mission-control realtime API contract"
+  ],
+  "files_changed": [
+    "src/missionControl/server.ts",
+    "src/tests/missionControlApi.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md",
+    "ADR/ADR-0008-mission-control-realtime-api.md"
+  ],
+  "decisions_refs": [
+    "ADR-0008-mission-control-realtime-api"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove mission-control realtime API/UI changes",
+    "Revert runtime realtime broker injection into mission-control",
+    "Revert mission-control realtime tests",
+    "Revert docs/task board/ADR updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement mission-control WebRTC realtime client path",
+    "Implement mission-control fallback action to /calls flow"
+  ]
+}

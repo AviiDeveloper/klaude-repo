@@ -1,0 +1,31 @@
+{
+  "id": "2026-02-27_004_runtime-portable-interface-mode",
+  "date": "2026-02-27",
+  "milestone": "Milestone 1",
+  "spec_sections": [
+    "Section 4",
+    "Section 9",
+    "OPERATIONS Deployment"
+  ],
+  "summary": [
+    "Added interface controller boundary",
+    "Refactored OpenClaw adapter to transport mapping",
+    "Added local and openclaw runtime modes"
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm run build",
+    "npm run dev",
+    "INTERFACE_MODE=openclaw npm run dev"
+  ],
+  "rollback": [
+    "Remove interface controller and local adapter",
+    "Restore previous index and openclaw adapter",
+    "Delete changelog entry for this change"
+  ],
+  "next_steps": [
+    "Implement real OpenClaw network bridge",
+    "Add trace persistence",
+    "Add adapter mode tests"
+  ]
+}

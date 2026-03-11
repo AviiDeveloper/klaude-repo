@@ -1,0 +1,41 @@
+{
+  "change_id": "2026-02-27_009_m3-approval-requested-flow",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 3",
+  "title": "M3 Approval Requested Flow",
+  "summary": [
+    "Added approval-request trigger path for side-effect proposals",
+    "Updated orchestrator to enter awaiting_approval and emit approval.requested",
+    "Added outbound system.approval_request mapping in OpenClaw adapter",
+    "Added contract tests for approval-request behavior"
+  ],
+  "files_changed": [
+    "src/agents/codeAgent.ts",
+    "src/orchestrator/orchestrator.ts",
+    "src/interface/controller.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/mock/localAdapter.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/tests/approvalRequestedContract.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw npm run dev"
+  ],
+  "rollback_steps": [
+    "Revert approval-request logic in agent/orchestrator",
+    "Revert controller and OpenClaw adapter approval payload changes",
+    "Remove approval contract tests",
+    "Revert task board and delete changelog entry pair"
+  ],
+  "open_items": [
+    "Implement M3-002 approval.resolved unblock flow",
+    "Implement M3-003 approval token enforcement",
+    "Expose pending approvals in Mission Control"
+  ]
+}

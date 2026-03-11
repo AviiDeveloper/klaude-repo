@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-03-05_049_queue-plan-preview",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Queue Plan Preview",
+  "summary": [
+    "Added mission queue card preview for normalized plan objective/summary",
+    "Rendered first two plan steps in card context",
+    "Displayed approval requirement count for rapid triage"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/components/MissionQueue.tsx",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Revert MissionQueue plan preview changes",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Add queue card badges for blocked/dependency state",
+    "Add approval-required queue filter"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "2026-03-11_077_lead-learning-bootstrap-and-api-contract-hardening",
+  "date": "2026-03-11",
+  "title": "Add Lead Console learning bootstrap and harden learning API contracts",
+  "summary": "Introduced in-console learning question generation/preview and enforced stable wrapped+flat response contracts for learning generate/answer endpoints with automated contract verification.",
+  "scope": [
+    "apps/mission-control/src/components/LeadControlConsole.tsx",
+    "apps/mission-control/src/app/api/learning/questions/generate/route.ts",
+    "apps/mission-control/src/app/api/learning/questions/[id]/answer/route.ts",
+    "apps/mission-control/src/app/workspace/[slug]/learning/page.tsx",
+    "apps/mission-control/scripts/learning-api-contract-verify.ts",
+    "apps/mission-control/package.json",
+    "package.json",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added Learning Bootstrap controls and question preview to Lead Console.",
+    "Improved no-learning fallback copy to guide operator bootstrap flow.",
+    "Standardized generate/answer API responses with wrapper records (`question_record`, `result_record`) plus flattened top-level fields for compatibility.",
+    "Updated Learning page and Lead Console consumers to parse wrapped and legacy payloads.",
+    "Added deterministic learning API contract verifier script and npm hooks.",
+    "Marked EXP-010h complete."
+  ],
+  "risks": [
+    "API now carries dual-shape payload for compatibility; future cleanup should deprecate one shape explicitly to avoid long-term ambiguity."
+  ],
+  "rollback": [
+    "Revert wrapper keys and UI bootstrap controls while retaining baseline learning endpoints."
+  ]
+}

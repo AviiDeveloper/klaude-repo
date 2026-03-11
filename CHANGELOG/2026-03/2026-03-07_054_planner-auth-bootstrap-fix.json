@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-03-07_054_planner-auth-bootstrap-fix",
+  "timestamp": "2026-03-07T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Planner Auth + Bootstrap Fix",
+  "summary": [
+    "Fixed planner auth drift by syncing OpenClaw OpenRouter profile key with active provider key",
+    "Hardened planning auto-bootstrap to use internal HTTP origin in HTTPS reverse-proxy deployments",
+    "Validated planning responses over both HTTP and HTTPS paths on Pi"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/app/api/tasks/route.ts",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "OPERATIONS/DEPLOYMENT.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "Pi planning run (assistant response, no planner error)",
+    "Pi HTTPS planning bootstrap validation"
+  ],
+  "rollback_steps": [
+    "Revert tasks route internal bootstrap URL change",
+    "Restore previous OpenClaw auth profile backups",
+    "Revert task board and build change id updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Automate provider-key drift detection at startup",
+    "Add automated test for planning bootstrap in HTTPS-proxy topology"
+  ]
+}

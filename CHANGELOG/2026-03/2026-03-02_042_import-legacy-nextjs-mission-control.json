@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-03-02_042_import-legacy-nextjs-mission-control",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Import Legacy Next.js Mission Control",
+  "summary": [
+    "Imported exact legacy Next.js Mission Control app into apps/mission-control",
+    "Added root scripts to install/run/build imported app from klaude-repo",
+    "Updated docs and task board for this integration step"
+  ],
+  "files_changed": [
+    "apps/mission-control",
+    "package.json",
+    "README.md",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm run mc:install",
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Remove apps/mission-control",
+    "Remove mc:* scripts from root package.json",
+    "Revert README/TASK_BOARD/src/index.ts updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Wire selected Next.js API routes to klaude runtime endpoints",
+    "Add single command to run both mission-control services"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "change_id": "2026-02-27_023_m6-session-lifecycle-voice-speak",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 Session Lifecycle and Voice Speak",
+  "summary": [
+    "Added session_started and session_ended inbound events",
+    "Added system.voice_speak outbound behavior",
+    "Added bridge /sessions/start, /sessions/end, /sessions endpoints",
+    "Added tests for session lifecycle and voice output behavior"
+  ],
+  "files_changed": [
+    "src/openclaw/types.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw-bridge npm run dev",
+    "POST /sessions/start",
+    "POST /events (openclaw.voice_transcript_final)"
+  ],
+  "rollback_steps": [
+    "Revert inbound session event and voice output adapter wiring",
+    "Revert bridge session endpoints and in-memory session registry",
+    "Revert index logging switch update",
+    "Remove session/voice test additions",
+    "Revert README and task board updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Persist transcript timelines for active sessions",
+    "Continue expansion-track implementation"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "change_id": "2026-03-02_044_nextjs-task-auto-assignment",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Next.js Task Auto-Assignment",
+  "summary": [
+    "Added natural-language assignment inference for task create/update APIs in imported Next.js app",
+    "Supported assign-to phrase, @agent mention, and inline name matching",
+    "Auto-sets status=assigned on create when assignment is inferred"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/lib/task-assignment.ts",
+    "apps/mission-control/src/app/api/tasks/route.ts",
+    "apps/mission-control/src/app/api/tasks/[id]/route.ts",
+    "README.md",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "API smoke test (create auto-assign)",
+    "API smoke test (patch auto-assign @mention)"
+  ],
+  "rollback_steps": [
+    "Delete apps/mission-control/src/lib/task-assignment.ts",
+    "Revert task assignment inference in tasks create/update routes",
+    "Revert README/TASK_BOARD/src/index.ts changes",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add explicit inference confidence + UI confirmation",
+    "Add automated tests for inference edge cases"
+  ]
+}

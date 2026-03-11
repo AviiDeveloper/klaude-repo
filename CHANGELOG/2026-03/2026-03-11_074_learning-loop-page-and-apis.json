@@ -1,0 +1,31 @@
+{
+  "id": "2026-03-11_074_learning-loop-page-and-apis",
+  "date": "2026-03-11",
+  "title": "Add in-app learning loop (question generation, scoring, and history)",
+  "summary": "Implemented Mission Control learning APIs and workspace page that generates architecture-reasoning questions from recent decisions, scores operator answers, and recommends next concepts/resources.",
+  "scope": [
+    "apps/mission-control/src/lib/learning.ts",
+    "apps/mission-control/src/app/api/learning/questions/generate/route.ts",
+    "apps/mission-control/src/app/api/learning/questions/latest/route.ts",
+    "apps/mission-control/src/app/api/learning/questions/[id]/answer/route.ts",
+    "apps/mission-control/src/app/api/learning/history/route.ts",
+    "apps/mission-control/src/app/workspace/[slug]/learning/page.tsx",
+    "apps/mission-control/src/components/Header.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added decision-log-backed learning question generation and expected-answer contracts.",
+    "Added answer scoring logic with rubric-like keyword coverage, tradeoff/risk checks, and grade mapping.",
+    "Added feedback and concept-resource suggestion output on scoring.",
+    "Added learning page UI with generate/answer/history workflow.",
+    "Added header navigation to learning page.",
+    "Marked EXP-010d complete."
+  ],
+  "risks": [
+    "Current scorer is heuristic; semantic grading sophistication can be improved in later eval slices.",
+    "Question generation currently defaults to decision-log context when explicit diff context is absent."
+  ],
+  "rollback": [
+    "Remove learning APIs/page and header link if training workflow is paused; keep eval core intact."
+  ]
+}

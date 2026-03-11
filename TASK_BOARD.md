@@ -1,0 +1,99 @@
+# Task Board
+
+## Active
+- [ ] EXP-004: platform webhook adapter hardening + delivery policy enforcement
+- [ ] EXP-005: phase-2 content quality tuning (source quality, scoring balance, dedupe depth)
+- [ ] EXP-007: Telegram control bridge (task updates + command relay for Mission Control/OpenClaw)
+- [ ] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle)
+- [x] EXP-011a: Add estimated cost observability page + agent-level cost breakdown in Mission Control
+- [x] EXP-011b: Add exact OpenClaw request telemetry capture + actual-vs-estimated cost comparison surfaces
+- [ ] EXP-010i: Harden learning scorer against keyword stuffing, contradiction, and shallow restatement before trusting learning-driven delegation tuning
+- [x] EXP-010a: Eval layer schema + migration + typed contracts (agent_eval_specs, agent_eval_runs, agent_performance_profiles)
+- [x] EXP-010b: Charlie eval execution path + fault attribution + eval-informed delegation weighting
+- [x] EXP-010c: Mission Control evaluation UI (Lead eval chips, Task Evaluation tab, Agent Performance tab)
+- [x] EXP-010d: Learning page in Mission Control (diff-based architecture question, answer scoring, concept recommendation)
+- [x] EXP-010e: Eval verification pipeline (scenario gates + latency report + profile aggregation checks)
+- [x] EXP-010f: Charlie learning-signal memory integration + delegation-mode weighting + verification pipeline
+- [x] EXP-010g: Lead Console learning-mode visibility (mode/trend/score/coaching focus) for live orchestration explainability
+- [x] EXP-010h: Lead Console learning bootstrap + learning API response-contract hardening/verification
+
+## Next
+- [ ] V3-004: Realtime audio bridge for Twilio media frames
+- [ ] EXP-006: native OAuth/API publisher adapters for platform-specific delivery
+
+## Done
+- [x] INIT-001: Create runtime scaffold with orchestrator + two agents
+- [x] INIT-002: Add governance-compliant ADR and changelog entry
+- [x] M1-001: Add OpenClaw inbound `message_received` adapter
+- [x] M1-001b: Split interface controller from OpenClaw transport; add local mode
+- [x] M1-002: Add immutable trace persistence with timeline event logging
+- [x] M1-003: Add adapter + orchestrator contract tests (success and failure paths)
+- [x] M2-001: Add SQLite-backed task and trace persistence
+- [x] M2-002: Add Mission Control local panel with task and trace APIs
+- [x] M3-001: Emit approval.requested and outbound system.approval_request flow
+- [x] M3-002: Handle approval.resolved for approve/deny and resume/block task flow
+- [x] M3-003: Enforce approval token at side-effect execution boundary
+- [x] M4-001: Handle OpenClaw voice transcript partial/final event flows
+- [x] M4-002: Add two-phase response timing and latency metrics pipeline
+- [x] M4-003: Add >3s progress narration loop for long-running requests
+- [x] M5-001: Add model-provider abstraction and inject provider into caller/agents
+- [x] M5-002: Add OpenAI-backed CallerModel provider implementation
+- [x] M5-003: Add OpenAI-backed agent provider output implementation
+- [x] M5-003b: Add native OpenRouter provider mode and compatibility headers
+- [x] M5-004a: Add greeting fast-path and trace metadata hardening
+- [x] M5-004: Add model-provider timeout, retry, and fallback guards
+- [x] M6-001: Add real OpenClaw bridge process and deployment runtime mode
+  - [x] M6-002: Add session lifecycle endpoints and outbound voice_speak flow
+- [x] M6-003: Add session transcript persistence and transcript query endpoint
+- [x] M6-004: Add Mission Control session/transcript APIs
+- [x] M6-005: Add notify/callback flows for blocked/failure/missing-input conditions
+- [x] M6-006: Add persistent notification queue and Mission Control notification APIs
+- [x] V1-001: Add voice call session loop endpoints on bridge runtime
+- [x] V1-002: Add barge-in/interrupt handling with stale turn suppression
+- [x] V1-003: Add browser voice lab client for live mic + TTS bridge testing
+- [x] V1-003b: Add anti-echo voice guardrails (no startup speak, no progress TTS, mic pause during TTS)
+- [x] V1-004: Add call final-turn idempotent retry handling (`client_turn_id`)
+- [x] V2-001: Add OpenAI Realtime Mini session bootstrap endpoint (`/realtime/session`)
+- [x] V2-002: Add Mission Control Realtime session controls (`/api/realtime/session`)
+- [x] V3-001: Add telephony outbound call bootstrap and Twilio webhook endpoints
+- [x] V3-002: Add Twilio media websocket endpoint and stream session metrics API
+- [x] V3-002b: Add Twilio speech-gather fallback conversation loop (`/twilio/gather`)
+- [x] V3-003: Add Mission Control telephony call controls and media diagnostics APIs
+- [x] EXP-002: Add recurring scheduler + job definitions for hourly pipeline runs
+- [x] EXP-003: Add multi-agent DAG runtime (8-agent topology, node retries, blocked dependency behavior)
+- [x] EXP-003b: Add post queue + approval/dispatch APIs and webhook adapter abstraction
+- [x] EXP-003c: Add Mission Control unified visual command center dashboard (`/api/dashboard`, DAG/run/queue/telephony views)
+- [x] EXP-003d: Add ClawDeck API compatibility layer (workspace/agent/task/event CRUD + OpenClaw status) on mission-control runtime
+- [x] EXP-003e: Import exact legacy Next.js Mission Control app into repo (`apps/mission-control`) with root run scripts
+- [x] EXP-003f: Harden imported Next.js run path (remove critical advisory and add localhost-only safe scripts)
+- [x] EXP-003g: Add natural-language task auto-assignment (`assign to <agent>` / `@agent`) on create/update routes
+- [x] EXP-003h: Harden OpenClaw polling fetches in UI (prevent unhandled runtime errors when gateway/fetch fails)
+- [x] EXP-003i: Enforce structured planning schema + deterministic agent auto-assignment on planning completion
+- [x] EXP-003j: Surface normalized execution plan fields in Planning UI (`objective/steps/approvals/rollback/stop conditions`)
+- [x] EXP-003k: Add mission queue task-card preview for normalized plan (`objective`, next steps, approval requirement count)
+- [x] EXP-003l: Auto-bootstrap planning sessions on task create when status=`planning` (prevent null planning session stalls)
+- [x] EXP-003m: Surface OpenClaw planner/provider errors in Planning UI instead of indefinite waiting spinner
+- [x] EXP-003n: Default task auto-assignment fallback (pick least-loaded workspace agent when no explicit assignee)
+- [x] EXP-003o: Add Pi Mission Control bootstrap scripts (`scripts/pi/mc-start.sh`, `mc-stop.sh`) for post-reboot recovery
+- [x] EXP-003p: Fix planner auth profile drift (sync OpenRouter key) and harden planning auto-bootstrap for HTTPS proxy mode
+- [x] EXP-003q: Add execution heartbeat visibility (dispatch activity timeline + active card indicator + activity auto-refresh)
+- [x] EXP-003r: Add explicit task-level progress request action (Mission Control -> assigned OpenClaw session)
+- [x] EXP-008a: Add Agent Factory generation API + sidebar UI + persistent agent reference sheets
+- [x] EXP-008b: Add Agent Factory onboarding-question wizard with guided step flow and generation gate
+- [x] EXP-008c: Expand Agent Factory to professional-grade competency/quality/KPI/escalation dossier generation
+- [x] EXP-008d: Add OpenClaw-backed AI profile drafting for Agent Factory onboarding autofill
+- [x] EXP-003s: Prevent workspace runtime crash on OpenClaw status timeout abort path
+- [x] EXP-003t: Remove client-side abort timeout paths in header/sidebar OpenClaw polling to prevent runtime abort overlays
+- [x] EXP-008e: Prevent Agent Factory UI stuck states with request timeouts and draft/generate mutual exclusion
+- [x] EXP-008f: Add Agent Factory progress monitor with live stage + elapsed timer + logic trace
+- [x] EXP-008g: Extend AI draft polling/timeout windows so OpenClaw suggestion completes instead of premature 504
+- [x] EXP-008h: Add persistent operator memory context (profile APIs + runtime dispatch prompt injection)
+- [x] EXP-008i: Enforce 10-section Agent Context & Identity Standard with runtime dispatch injection
+- [x] EXP-008j: Add dedicated Agent Factory onboarding steps/pages for every professional-standard field
+- [x] EXP-008k: Make Agent Factory AI-first with full 10-page profile drafting and explicit manual fallback gate
+- [x] EXP-008l: Rework Agent Factory to AI interview -> context-sheet -> 10-page section onboarding flow with user-input-preserving autofill
+- [x] EXP-008m: Redesign Agent Factory interview UX to one adaptive question at a time and reduce onboarding screen density
+- [x] EXP-008n: Auto-backfill remaining required Agent Factory fields after context-sheet build and surface top-level "Generate Agent Now" action
+- [x] EXP-009a: Implement Lead Orchestrator control-plane foundation (lead intake, delegation, approval mediation APIs, lead memory packet, dispatch fail-closed on missing lead delegation, Lead Console UI + task Lead Timeline)
+- [x] EXP-009b: Add OpenClaw-native scheduler trigger mode (`SCHEDULER_MODE=openclaw-cron`), protected external cron trigger endpoint (`POST /api/jobs/:id/trigger`), and scheduler mode visibility API (`GET /api/scheduler/mode`)
+- [x] EXP-009c: Add Mission Control in-app OpenClaw cron manager (create/list/run/disable/remove jobs; no-terminal cron control path)

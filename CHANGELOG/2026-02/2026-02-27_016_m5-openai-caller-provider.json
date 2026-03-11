@@ -1,0 +1,39 @@
+{
+  "change_id": "2026-02-27_016_m5-openai-caller-provider",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 5",
+  "title": "M5 OpenAI Caller Provider",
+  "summary": [
+    "Made provider interface async for model calls",
+    "Added OpenAI-backed caller provider",
+    "Added env-guarded openai provider mode",
+    "Added tests for openai provider guard and parsing"
+  ],
+  "files_changed": [
+    "src/models/provider.ts",
+    "src/caller/callerModel.ts",
+    "src/interface/controller.ts",
+    "src/agents/codeAgent.ts",
+    "src/agents/opsAgent.ts",
+    "src/tests/modelProviderContract.test.ts",
+    "src/tests/openaiCallerProvider.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert async provider contract and openai mode",
+    "Revert caller/agent await changes",
+    "Remove openai provider tests",
+    "Revert docs/task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Implement M5-003 OpenAI-backed agent outputs",
+    "Implement M5-004 provider timeout/retry/fallback",
+    "Run live key-backed openai caller smoke test"
+  ]
+}

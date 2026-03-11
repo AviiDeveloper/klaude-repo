@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-03-02_043_nextjs-risk-hardening-local-safe",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Next.js Risk Hardening (Local Safe Mode)",
+  "summary": [
+    "Upgraded imported mission-control Next.js from 14.2.21 to 14.2.35",
+    "Removed critical vulnerability from audit output",
+    "Added localhost-only safe scripts for dev/start"
+  ],
+  "files_changed": [
+    "apps/mission-control/package.json",
+    "package.json",
+    "README.md",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm --prefix apps/mission-control install",
+    "npm --prefix apps/mission-control audit --json",
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Revert next/eslint-config-next versions in apps/mission-control/package.json",
+    "Remove mc:dev:safe and mc:start:safe scripts",
+    "Revert README/TASK_BOARD/src/index.ts updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Major upgrade path to next@16 and eslint-config-next@16",
+    "Deployment hardening review before public exposure"
+  ]
+}

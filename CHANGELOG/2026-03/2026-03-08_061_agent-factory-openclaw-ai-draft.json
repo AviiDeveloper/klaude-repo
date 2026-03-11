@@ -1,0 +1,23 @@
+{
+  "id": "2026-03-08_061_agent-factory-openclaw-ai-draft",
+  "date": "2026-03-08",
+  "title": "Connect Agent Factory onboarding to OpenClaw AI drafting",
+  "summary": "Added an OpenClaw-powered suggestion endpoint and UI action so Agent Factory can auto-draft advanced professional profile fields.",
+  "scope": [
+    "apps/mission-control/src/app/api/agents/factory/suggest/route.ts",
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added OpenClaw-backed /api/agents/factory/suggest route for structured profile generation.",
+    "Added JSON extraction and response polling logic for model output reliability.",
+    "Added AI Draft Profile button in Agent Factory modal to autofill advanced fields.",
+    "Added objective-first validation before invoking AI suggestions."
+  ],
+  "risks": [
+    "AI draft quality depends on OpenClaw provider auth and model availability."
+  ],
+  "rollback": [
+    "Remove suggest route and AI Draft Profile button while retaining manual onboarding flow."
+  ]
+}

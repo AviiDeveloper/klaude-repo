@@ -1,0 +1,37 @@
+{
+  "change_id": "2026-02-27_022_m6-openclaw-bridge-process",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 OpenClaw Bridge Process",
+  "summary": [
+    "Added OpenClaw bridge HTTP server",
+    "Added /health and /events endpoints",
+    "Added openclaw-bridge runtime mode",
+    "Added bridge service contract tests"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/index.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw-bridge npm run dev",
+    "GET /health"
+  ],
+  "rollback_steps": [
+    "Remove bridge server implementation",
+    "Revert bridge mode runtime wiring",
+    "Remove bridge tests",
+    "Revert docs/task board",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Connect real OpenClaw transport to /events",
+    "Continue expansion-track implementation"
+  ]
+}

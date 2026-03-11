@@ -1,0 +1,41 @@
+{
+  "change_id": "2026-03-02_039_mission-control-visual-command-center",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Mission Control Visual Command Center",
+  "summary": [
+    "Added GET /api/dashboard aggregate endpoint",
+    "Replaced Mission Control UI with unified visual command-center layout",
+    "Added live views for DAG graph, runs, queue, notifications, sessions, and tasks",
+    "Added in-UI controls for run/node actions, queue approve/dispatch, and telephony calls",
+    "Validated local and pi400 runtime smoke tests",
+    "Synced repository to openclaw@pi400 and verified remote typecheck/build"
+  ],
+  "files_changed": [
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "TASK_BOARD.md",
+    "README.md"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "local mission-control runtime smoke",
+    "pi400 mission-control runtime smoke",
+    "pi400 npm install && npm run typecheck && npm run build"
+  ],
+  "rollback_steps": [
+    "Revert /api/dashboard route and Mission Control renderHtml changes",
+    "Revert src/index.ts build change id update",
+    "Revert README and TASK_BOARD updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add websocket push updates for dashboard",
+    "Add enhanced timeline visualizations",
+    "Add per-section loading/error badges"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "2026-02-27_002_m1-runtime-bootstrap",
+  "date": "2026-02-27",
+  "milestone": "Milestone 1",
+  "spec_sections": [
+    "Section 4",
+    "Section 6",
+    "Section 7",
+    "Section 9"
+  ],
+  "summary": [
+    "Bootstrapped single runtime TypeScript codebase",
+    "Implemented orchestrator and two local agents",
+    "Added in-memory event bus and task store abstraction"
+  ],
+  "verification": [
+    "npm install",
+    "npm run typecheck",
+    "npm run build",
+    "npm run dev"
+  ],
+  "rollback": [
+    "Delete added runtime and management files",
+    "Delete ADR-0004",
+    "Delete changelog entries for this change"
+  ],
+  "next_steps": [
+    "Implement OpenClaw inbound adapter",
+    "Add trace persistence",
+    "Add orchestrator tests"
+  ]
+}

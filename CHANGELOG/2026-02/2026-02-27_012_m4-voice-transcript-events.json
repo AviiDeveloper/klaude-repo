@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-02-27_012_m4-voice-transcript-events",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "M4 Voice Transcript Events",
+  "summary": [
+    "Added voice transcript payload types",
+    "Handled voice_transcript_partial as non-task caption update",
+    "Handled voice_transcript_final via normal task flow",
+    "Added voice adapter contract tests"
+  ],
+  "files_changed": [
+    "src/openclaw/types.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/tests/adapterContract.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test",
+    "INTERFACE_MODE=openclaw npm run dev"
+  ],
+  "rollback_steps": [
+    "Revert voice payload types and adapter logic",
+    "Remove voice transcript tests",
+    "Revert task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Implement M4-002 two-phase timing metrics",
+    "Implement M4-003 progress narration loop",
+    "Integrate model providers in Milestone 5"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "2026-03-09_066_agent-factory-suggest-time-window-fix",
+  "date": "2026-03-09",
+  "title": "Fix premature Agent Factory AI draft timeout",
+  "summary": "Extended backend suggestion polling and frontend request timeout to prevent early 504 errors while OpenClaw is still generating valid output.",
+  "scope": [
+    "apps/mission-control/src/app/api/agents/factory/suggest/route.ts",
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Increased suggest route polling attempts and interval.",
+    "Parsed suggestion opportunistically during polling loop until valid JSON appears.",
+    "Raised AI Draft client timeout to 30 seconds.",
+    "Validated successful suggest response on Pi runtime."
+  ],
+  "risks": [
+    "Longer waits before error response when OpenClaw is truly unresponsive."
+  ],
+  "rollback": [
+    "Restore previous shorter polling and 12s frontend timeout."
+  ]
+}

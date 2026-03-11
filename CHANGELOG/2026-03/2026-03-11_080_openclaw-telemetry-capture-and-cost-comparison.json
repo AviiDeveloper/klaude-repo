@@ -1,0 +1,24 @@
+{
+  "change_id": "2026-03-11_080_openclaw-telemetry-capture-and-cost-comparison",
+  "created_at": "2026-03-11T18:45:00Z",
+  "summary": "Added exact OpenClaw request telemetry capture and estimated-vs-actual cost comparison in Mission Control.",
+  "files": [
+    "apps/mission-control/src/lib/db/schema.ts",
+    "apps/mission-control/src/lib/db/migrations.ts",
+    "apps/mission-control/src/lib/openclaw/telemetry.ts",
+    "apps/mission-control/src/lib/openclaw/client.ts",
+    "apps/mission-control/src/lib/cost-observability.ts",
+    "apps/mission-control/src/app/api/costs/telemetry/route.ts",
+    "apps/mission-control/src/app/workspace/[slug]/costs/page.tsx",
+    "apps/mission-control/src/components/AgentModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "validation": [
+    "npm run typecheck",
+    "npm run mc:build"
+  ],
+  "notes": [
+    "Telemetry writes are non-blocking and cannot fail user requests.",
+    "Actual captured cost depends on OpenClaw response payload exposing cost fields."
+  ]
+}

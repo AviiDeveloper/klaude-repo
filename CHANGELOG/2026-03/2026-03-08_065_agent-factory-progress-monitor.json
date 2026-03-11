@@ -1,0 +1,22 @@
+{
+  "id": "2026-03-08_065_agent-factory-progress-monitor",
+  "date": "2026-03-08",
+  "title": "Add Agent Factory progress monitor and logic trace",
+  "summary": "Introduced a live progress monitor in Agent Factory to expose current stage, elapsed runtime, and logic trace events for AI Draft and Generate flows.",
+  "scope": [
+    "apps/mission-control/src/components/AgentFactoryModal.tsx",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added operation state and timing for draft/generate lifecycle tracking.",
+    "Added timestamped logic trace collection and bounded history.",
+    "Rendered progress monitor panel with stage + elapsed seconds + logic feed.",
+    "Instrumented both action handlers with explicit stage transitions."
+  ],
+  "risks": [
+    "Additional client state updates during operations may add minor render overhead."
+  ],
+  "rollback": [
+    "Remove monitor state/helpers and panel from AgentFactoryModal."
+  ]
+}

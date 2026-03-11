@@ -1,0 +1,30 @@
+{
+  "id": "2026-02-27_003_m1-openclaw-message-adapter",
+  "date": "2026-02-27",
+  "milestone": "Milestone 1",
+  "spec_sections": [
+    "Section 3",
+    "Section 4",
+    "Section 9"
+  ],
+  "summary": [
+    "Added OpenClaw inbound event schema",
+    "Implemented message_received adapter",
+    "Wired adapter-driven flow in runtime entrypoint"
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm run build",
+    "npm run dev"
+  ],
+  "rollback": [
+    "Remove OpenClaw adapter and caller model files",
+    "Restore previous index entrypoint",
+    "Delete changelog entry for this change"
+  ],
+  "next_steps": [
+    "Handle approval decision events",
+    "Add trace persistence",
+    "Add adapter tests"
+  ]
+}

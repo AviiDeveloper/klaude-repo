@@ -1,0 +1,33 @@
+{
+  "change_id": "2026-03-08_057_pi-service-telegram-plan",
+  "timestamp": "2026-03-08T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Pi Service Stabilization + Telegram Control Plan",
+  "summary": [
+    "Stabilized Mission Control process management on Pi via user systemd service",
+    "Validated HTTPS and task APIs are reachable through Caddy reverse proxy",
+    "Added Telegram control integration plan and tracked milestone"
+  ],
+  "files_changed": [
+    "TASK_BOARD.md",
+    "OPERATIONS/TELEGRAM_CONTROL_PLAN.md"
+  ],
+  "decisions_refs": [
+    "TASK_BOARD.md",
+    "OPERATIONS/TELEGRAM_CONTROL_PLAN.md"
+  ],
+  "tests_run": [
+    "curl -sk https://100.93.24.14/",
+    "curl -sk https://100.93.24.14/api/tasks",
+    "curl -sk -X POST https://100.93.24.14/api/tasks/7dc9ed7d-7904-4572-8cdc-fc6c94bde1a0/progress-request -H 'content-type: application/json' -d '{}'"
+  ],
+  "rollback_steps": [
+    "Remove EXP-007 from task board",
+    "Delete Telegram plan file",
+    "Disable mission-control-next.service on Pi if rollback required"
+  ],
+  "open_items": [
+    "Implement Telegram outbound notifier",
+    "Implement Telegram command webhook relay"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "change_id": "2026-02-27_027_m6-notification-queue-apis",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 Notification Queue APIs",
+  "summary": [
+    "Added notification store contract and SQLite implementation",
+    "Persisted notify/call events from OpenClaw adapter",
+    "Added Mission Control notification list/filter and acknowledge APIs",
+    "Wired local mission-control message/approval notifications to persistence",
+    "Added tests for notification queue API behavior"
+  ],
+  "files_changed": [
+    "src/notifications/notificationStore.ts",
+    "src/notifications/sqliteNotificationStore.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/tests/missionControlApi.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove notification store files",
+    "Revert adapter notification persistence wiring",
+    "Revert mission-control notification endpoints",
+    "Revert runtime wiring in index",
+    "Revert tests/docs/task board changes",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add Mission Control notification queue UI panel",
+    "Add pending-notification retry scheduler"
+  ]
+}

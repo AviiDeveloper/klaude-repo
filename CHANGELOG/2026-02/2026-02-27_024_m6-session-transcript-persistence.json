@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-02-27_024_m6-session-transcript-persistence",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 Session Transcript Persistence",
+  "summary": [
+    "Added SQLite-backed session transcript store",
+    "Persisted inbound session/message/voice events and outbound assistant outputs",
+    "Added transcript query endpoint GET /sessions/:session_id/transcript",
+    "Tracked session context continuity metadata in bridge session list"
+  ],
+  "files_changed": [
+    "src/transcript/sessionTranscriptStore.ts",
+    "src/transcript/sqliteSessionTranscriptStore.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/openclaw/bridgeServer.ts",
+    "src/index.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove session transcript store interfaces and SQLite implementation",
+    "Revert adapter transcript append wiring",
+    "Revert bridge transcript endpoint and session context updates",
+    "Revert index wiring and tests/docs/task board",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add transcript APIs to mission control panel",
+    "Continue expansion-track implementation"
+  ]
+}

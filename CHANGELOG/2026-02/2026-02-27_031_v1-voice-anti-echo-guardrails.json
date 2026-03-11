@@ -1,0 +1,36 @@
+{
+  "change_id": "2026-02-27_031_v1-voice-anti-echo-guardrails",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V1 Voice Anti-Echo Guardrails",
+  "summary": [
+    "Removed session-start automatic voice_speak output",
+    "Suppressed progress and startup phrase TTS in voice-lab",
+    "Added mic pause/resume coordination during browser TTS",
+    "Updated contract tests for startup voice behavior"
+  ],
+  "files_changed": [
+    "src/openclaw/inboundAdapter.ts",
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Re-enable startup voice_speak behavior",
+    "Revert voice-lab TTS/mic coordination changes",
+    "Revert related test assertion updates",
+    "Revert index/task board metadata updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add VAD/silence gating hooks",
+    "Add optional startup greeting setting"
+  ]
+}

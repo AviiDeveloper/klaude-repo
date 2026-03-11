@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-03-02_041_clawdeck-api-compat-wiring",
+  "timestamp": "2026-03-02T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "ClawDeck API Compatibility Wiring",
+  "summary": [
+    "Added SQLite-backed ClawDeck compatibility store for mission-control",
+    "Wired workspace/agent/task/event CRUD and openclaw status compatibility endpoints",
+    "Kept existing mission-control APIs stable with scoped compatibility behavior",
+    "Added test coverage for compatibility flow"
+  ],
+  "files_changed": [
+    "src/missionControl/clawdeckCompatStore.ts",
+    "src/missionControl/server.ts",
+    "src/tests/missionControlApi.test.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [
+    "ADR-0012-multi-agent-dag-scheduler-mission-control"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove ClawdeckCompatStore wiring in src/index.ts and src/missionControl/server.ts",
+    "Delete src/missionControl/clawdeckCompatStore.ts",
+    "Revert compatibility API route blocks in src/missionControl/server.ts",
+    "Remove compatibility API test in src/tests/missionControlApi.test.ts",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add compatibility endpoints for task planning/activity/deliverables",
+    "Add compatibility SSE stream endpoint for live feed parity"
+  ]
+}

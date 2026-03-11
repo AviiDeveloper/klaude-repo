@@ -1,0 +1,44 @@
+{
+  "change_id": "2026-02-28_037_v3-telephony-gather-conversation-loop",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V3 Telephony Gather Conversation Loop",
+  "summary": [
+    "Added telephony conversation mode switch with gather default",
+    "Added Twilio POST /twilio/gather turn-based speech conversation route",
+    "Updated POST /twilio/voice to support gather conversation mode",
+    "Added call-end phrase handling with session closure and TwiML hangup",
+    "Added tests for gather conversation loop and preserved stream-mode test",
+    "Wired TELEPHONY_CONVERSATION_MODE env in runtime bootstrap",
+    "Updated plan/task board/README and added ADR-0011"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "src/index.ts",
+    "OPERATIONS/PHONE_CALLING_PLAN.md",
+    "TASK_BOARD.md",
+    "README.md",
+    "ADR/ADR-0011-telephony-gather-conversation-fallback.md"
+  ],
+  "decisions_refs": [
+    "ADR-0011-telephony-gather-conversation-fallback"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove /twilio/gather route and gather prompt helper",
+    "Revert gather-mode branch from /twilio/voice",
+    "Revert TELEPHONY_CONVERSATION_MODE wiring in src/index.ts",
+    "Revert gather conversation tests",
+    "Revert docs/task board/ADR updates",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement V3-004 realtime audio bridge for Twilio media streams",
+    "Implement V3-003 Mission Control phone dial controls and call panel",
+    "Add Twilio webhook signature validation"
+  ]
+}

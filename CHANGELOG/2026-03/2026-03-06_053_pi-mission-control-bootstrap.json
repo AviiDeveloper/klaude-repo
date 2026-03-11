@@ -1,0 +1,35 @@
+{
+  "change_id": "2026-03-06_053_pi-mission-control-bootstrap",
+  "timestamp": "2026-03-06T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Pi Mission Control Bootstrap",
+  "summary": [
+    "Added one-command Mission Control startup script for Pi",
+    "Startup script auto-generates apps/mission-control/.env.local from OpenClaw gateway config",
+    "Added stop script and documented operational run path"
+  ],
+  "files_changed": [
+    "scripts/pi/mc-start.sh",
+    "scripts/pi/mc-stop.sh",
+    "README.md",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "OPERATIONS/DEPLOYMENT.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "chmod +x scripts/pi/mc-start.sh scripts/pi/mc-stop.sh",
+    "npm run mc:build"
+  ],
+  "rollback_steps": [
+    "Remove scripts/pi bootstrap scripts",
+    "Revert docs/governance references",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "OpenClaw gateway pairing policy still needs final alignment for Mission Control client",
+    "Add script-backed service wrapper for auto-start on Pi login"
+  ]
+}

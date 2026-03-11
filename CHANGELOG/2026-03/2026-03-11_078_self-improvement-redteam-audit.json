@@ -1,0 +1,27 @@
+{
+  "id": "2026-03-11_078_self-improvement-redteam-audit",
+  "date": "2026-03-11",
+  "title": "Audit the current self-improvement loop with adversarial learning cases",
+  "summary": "Added a reproducible red-team harness and report showing that the current learning scorer is vulnerable to keyword stuffing and can incorrectly push Charlie into exploratory mode after bad answers.",
+  "scope": [
+    "apps/mission-control/scripts/self-improvement-redteam.ts",
+    "apps/mission-control/package.json",
+    "package.json",
+    "OPERATIONS/SELF_IMPROVEMENT_REDTEAM_AUDIT_2026-03-11.md",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added deterministic self-improvement red-team audit script.",
+    "Documented the current learning pipeline end-to-end.",
+    "Recorded measured false positives for keyword stuffing and contradictory reasoning.",
+    "Confirmed that bad answers can still yield exploratory delegation mode if the scorer is fooled.",
+    "Added follow-up hardening task EXP-010i."
+  ],
+  "risks": [
+    "Learning-driven delegation remains vulnerable until scorer hardening is implemented.",
+    "Current learning scores should not be treated as a high-trust proxy for operator understanding."
+  ],
+  "rollback": [
+    "Remove the audit harness/report if analysis artifacts need to be separated from production docs; no runtime behavior depends on them."
+  ]
+}

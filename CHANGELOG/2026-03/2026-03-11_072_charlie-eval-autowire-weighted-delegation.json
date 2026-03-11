@@ -1,0 +1,25 @@
+{
+  "id": "2026-03-11_072_charlie-eval-autowire-weighted-delegation",
+  "date": "2026-03-11",
+  "title": "Auto-run Charlie evaluations on findings and weight delegation by eval performance",
+  "summary": "Integrated evaluation execution into lead finding flow and upgraded worker selection to include rolling eval performance profiles, with status actioning for input-gap vs agent-error failures.",
+  "scope": [
+    "apps/mission-control/src/lib/lead-orchestrator.ts",
+    "apps/mission-control/src/app/api/lead/tasks/[id]/findings/route.ts",
+    "TASK_BOARD.md"
+  ],
+  "changes": [
+    "Added eval-aware scoring signals to lead worker selection.",
+    "Added evaluateDelegationOutcome orchestration path with decision logging and memory journaling.",
+    "Added intake status branching based on eval fault attribution.",
+    "Auto-triggered evaluation from lead findings endpoint and returned eval metadata to callers.",
+    "Marked EXP-010b complete."
+  ],
+  "risks": [
+    "Weighting constants are initial heuristics and may need tuning as sample counts increase.",
+    "Early low sample sizes can bias score swings; operator oversight remains required."
+  ],
+  "rollback": [
+    "Remove evaluateDelegationOutcome call from findings route and revert delegation weighting to pre-eval scoring."
+  ]
+}

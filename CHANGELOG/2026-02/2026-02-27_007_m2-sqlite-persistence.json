@@ -1,0 +1,46 @@
+{
+  "change_id": "2026-02-27_007_m2-sqlite-persistence",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 2",
+  "title": "M2 SQLite Persistence",
+  "summary": [
+    "Added SQLite task store",
+    "Added SQLite trace store",
+    "Switched runtime default persistence to SQLite",
+    "Added SQLite persistence contract test"
+  ],
+  "files_changed": [
+    "src/storage/taskStore.ts",
+    "src/storage/sqliteTaskStore.ts",
+    "src/trace/traceStore.ts",
+    "src/trace/sqliteTraceStore.ts",
+    "src/orchestrator/orchestrator.ts",
+    "src/index.ts",
+    "src/tests/sqlitePersistence.test.ts",
+    "package.json",
+    "package-lock.json",
+    ".gitignore",
+    "TASK_BOARD.md",
+    "ADR/ADR-0005-sqlite-persistence-m2.md"
+  ],
+  "decisions_refs": [
+    "ADR-0005"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm run build",
+    "npm test",
+    "npm run dev"
+  ],
+  "rollback_steps": [
+    "Revert runtime to in-memory/file stores",
+    "Remove SQLite store implementations",
+    "Remove SQLite test and dependency additions",
+    "Delete ADR-0005 and changelog pair"
+  ],
+  "open_items": [
+    "Build Mission Control minimal panel (M2-002)",
+    "Expose task/trace read APIs",
+    "Implement Milestone 3 approval flows"
+  ]
+}

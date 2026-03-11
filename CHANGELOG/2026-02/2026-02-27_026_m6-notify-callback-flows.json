@@ -1,0 +1,39 @@
+{
+  "change_id": "2026-02-27_026_m6-notify-callback-flows",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 6",
+  "title": "M6 Notify and Callback Flows",
+  "summary": [
+    "Added interface notification request contract",
+    "Added system.notify_user and system.call_user outbound mappings",
+    "Added missing-input guard and callback escalation",
+    "Added blocked/failure and approval-denied notify flows",
+    "Added adapter tests for notify/callback behavior"
+  ],
+  "files_changed": [
+    "src/interface/controller.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "README.md",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert interface notification contract and missing-input guard",
+    "Remove notify/call outbound event mappings",
+    "Revert transcript append logic for notify/call",
+    "Revert mission-control response payload changes",
+    "Revert docs/task board",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Add configurable missing-input thresholds",
+    "Add mission-control notification queue UI"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "change_id": "2026-03-05_050_planning-autobootstrap",
+  "timestamp": "2026-03-05T00:00:00Z",
+  "milestone": "Expansion Track",
+  "title": "Planning Auto-Bootstrap",
+  "summary": [
+    "Auto-start planning session when tasks are created in planning status",
+    "Use request origin for internal bootstrap call to target active Next API host",
+    "Prevent planning cards from stalling with null planning_session_key"
+  ],
+  "files_changed": [
+    "apps/mission-control/src/app/api/tasks/route.ts",
+    "TASK_BOARD.md",
+    "src/index.ts"
+  ],
+  "decisions_refs": [
+    "SPEC.md",
+    "GOVERNANCE/PROMPT_GOVERNANCE.md"
+  ],
+  "tests_run": [
+    "npm run mc:build",
+    "live POST /api/tasks status=planning + GET /api/tasks/:id/planning"
+  ],
+  "rollback_steps": [
+    "Revert auto-bootstrap block in task create route",
+    "Revert TASK_BOARD and BUILD_CHANGE_ID updates",
+    "Delete this changelog pair"
+  ],
+  "open_items": [
+    "Sync latest planning prompt/normalization routes to Pi runtime"
+  ]
+}

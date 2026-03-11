@@ -1,0 +1,45 @@
+{
+  "change_id": "2026-02-28_036_v3-telephony-media-websocket-bootstrap",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "V3 Telephony Media WebSocket Bootstrap",
+  "summary": [
+    "Added websocket upgrade handling for GET /twilio/media",
+    "Added Twilio media event parsing and per-session stream metrics tracking",
+    "Added GET /telephony/media/sessions diagnostics endpoint",
+    "Added websocket integration test for media session metrics",
+    "Added ADR-0010 for telephony media websocket bootstrap",
+    "Updated docs/task board/phone plan for V3-002 completion",
+    "Added ws and @types/ws dependencies"
+  ],
+  "files_changed": [
+    "src/openclaw/bridgeServer.ts",
+    "src/tests/openclawBridgeServer.test.ts",
+    "OPERATIONS/PHONE_CALLING_PLAN.md",
+    "TASK_BOARD.md",
+    "README.md",
+    "ADR/ADR-0010-telephony-media-websocket-bootstrap.md",
+    "package.json",
+    "package-lock.json"
+  ],
+  "decisions_refs": [
+    "ADR-0010-telephony-media-websocket-bootstrap"
+  ],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Remove /twilio/media websocket upgrade handling",
+    "Remove media session diagnostics endpoint and state tracking",
+    "Revert websocket media tests",
+    "Revert ADR/docs/task board updates",
+    "Remove ws dependencies",
+    "Delete changelog pair"
+  ],
+  "open_items": [
+    "Implement realtime audio bridge for Twilio media streams",
+    "Add Mission Control phone dial controls and active-call panel",
+    "Add Twilio webhook signature validation"
+  ]
+}

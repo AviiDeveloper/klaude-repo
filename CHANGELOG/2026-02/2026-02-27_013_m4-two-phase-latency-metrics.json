@@ -1,0 +1,38 @@
+{
+  "change_id": "2026-02-27_013_m4-two-phase-latency-metrics",
+  "timestamp": "2026-02-27T00:00:00Z",
+  "milestone": "Milestone 4",
+  "title": "M4 Two-Phase Latency Metrics",
+  "summary": [
+    "Added latency tracker for ack and total response timings",
+    "Added phase/latency metadata in outbound messages",
+    "Added Mission Control metrics endpoint",
+    "Extended tests for latency metadata and metrics API"
+  ],
+  "files_changed": [
+    "src/metrics/latencyTracker.ts",
+    "src/interface/controller.ts",
+    "src/openclaw/inboundAdapter.ts",
+    "src/missionControl/server.ts",
+    "src/index.ts",
+    "src/tests/adapterContract.test.ts",
+    "src/tests/missionControlApi.test.ts",
+    "TASK_BOARD.md"
+  ],
+  "decisions_refs": [],
+  "tests_run": [
+    "npm run typecheck",
+    "npm test"
+  ],
+  "rollback_steps": [
+    "Revert latency tracker and controller metadata changes",
+    "Revert adapter payload metadata and mission control metrics endpoint",
+    "Revert test updates",
+    "Revert task board and delete changelog pair"
+  ],
+  "open_items": [
+    "Implement M4-003 progress narration loop",
+    "Persist latency metrics for long-term analysis",
+    "Integrate model providers (M5-001)"
+  ]
+}
