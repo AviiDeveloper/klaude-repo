@@ -97,3 +97,4 @@
 - [x] EXP-009a: Implement Lead Orchestrator control-plane foundation (lead intake, delegation, approval mediation APIs, lead memory packet, dispatch fail-closed on missing lead delegation, Lead Console UI + task Lead Timeline)
 - [x] EXP-009b: Add OpenClaw-native scheduler trigger mode (`SCHEDULER_MODE=openclaw-cron`), protected external cron trigger endpoint (`POST /api/jobs/:id/trigger`), and scheduler mode visibility API (`GET /api/scheduler/mode`)
 - [x] EXP-009c: Add Mission Control in-app OpenClaw cron manager (create/list/run/disable/remove jobs; no-terminal cron control path)
+- [x] EXP-009d: Improve Lead Console operator UX controls (clearer queue states, delegation reasoning visibility, approval inbox usability, agent heartbeat/progress visibility)
