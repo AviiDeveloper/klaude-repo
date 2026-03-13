@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Save, RotateCcw, FolderOpen, Link as LinkIcon, PlugZap } from 'lucide-react';
+import { Settings, Save, RotateCcw, FolderOpen, Link as LinkIcon, PlugZap, MessageCircle } from 'lucide-react';
 import { getConfig, updateConfig, resetConfig, type MissionControlConfig } from '@/lib/config';
 
 export default function SettingsPage() {
@@ -40,6 +40,21 @@ export default function SettingsPage() {
   const [cronApprovalToken, setCronApprovalToken] = useState('');
   const [cronTargetId, setCronTargetId] = useState('');
 
+  // Telegram state
+  const [tgConfig, setTgConfig] = useState({
+    bot_token: '',
+    default_chat_id: '',
+    allowed_chat_ids: '',
+    webhook_secret: '',
+    enabled: 'false',
+  });
+  const [tgStatus, setTgStatus] = useState<string | null>(null);
+  const [tgError, setTgError] = useState<string | null>(null);
+  const [isSavingTg, setIsSavingTg] = useState(false);
+  const [isTestingTg, setIsTestingTg] = useState(false);
+  const [isSettingWebhook, setIsSettingWebhook] = useState(false);
+  const [tgWebhookUrl, setTgWebhookUrl] = useState('');
+
   useEffect(() => {
     setConfig(getConfig());
     void (async () => {
@@ -59,6 +74,22 @@ export default function SettingsPage() {
       }
     })();
     void refreshCronState();
+    void (async () => {
+      try {
+        const res = await fetch('/api/integrations/telegram/config');
+        if (!res.ok) return;
+        const data = await res.json();
+        setTgConfig({
+          bot_token: data.has_token ? '********' : '',
+          default_chat_id: data.default_chat_id || '',
+          allowed_chat_ids: data.allowed_chat_ids || '',
+          webhook_secret: data.webhook_secret ? '********' : '',
+          enabled: data.enabled || 'false',
+        });
+      } catch {
+        // no-op
+      }
+    })();
   }, []);
 
   const handleSave = async () => {
@@ -224,6 +255,82 @@ export default function SettingsPage() {
       setCronError(err instanceof Error ? err.message : `Cron action failed: ${action}`);
     } finally {
       setCronLoading(false);
+    }
+  };
+
+  const handleTgChange = (field: keyof typeof tgConfig, value: string) => {
+    setTgConfig((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const saveTelegram = async () => {
+    setIsSavingTg(true);
+    setTgStatus(null);
+    setTgError(null);
+    try {
+      const payload: Record<string, string> = { action: 'save' };
+      // Only send fields that aren't masked placeholders
+      if (tgConfig.bot_token && tgConfig.bot_token !== '********') payload.bot_token = tgConfig.bot_token;
+      if (tgConfig.webhook_secret && tgConfig.webhook_secret !== '********') payload.webhook_secret = tgConfig.webhook_secret;
+      payload.default_chat_id = tgConfig.default_chat_id;
+      payload.allowed_chat_ids = tgConfig.allowed_chat_ids;
+      payload.enabled = tgConfig.enabled;
+
+      const res = await fetch('/api/integrations/telegram/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+      setTgStatus('Telegram config saved.');
+    } catch (err) {
+      setTgError(err instanceof Error ? err.message : 'Failed to save Telegram config');
+    } finally {
+      setIsSavingTg(false);
+    }
+  };
+
+  const testTelegram = async () => {
+    setIsTestingTg(true);
+    setTgStatus(null);
+    setTgError(null);
+    try {
+      const res = await fetch('/api/integrations/telegram/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Test message failed');
+      setTgStatus('Test message sent to Telegram!');
+    } catch (err) {
+      setTgError(err instanceof Error ? err.message : 'Test failed');
+    } finally {
+      setIsTestingTg(false);
+    }
+  };
+
+  const setTelegramWebhook = async () => {
+    if (!tgWebhookUrl.trim()) {
+      setTgError('Webhook URL is required');
+      return;
+    }
+    setIsSettingWebhook(true);
+    setTgStatus(null);
+    setTgError(null);
+    try {
+      const res = await fetch('/api/integrations/telegram/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_webhook', url: tgWebhookUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.description || 'Failed to set webhook');
+      setTgStatus('Webhook registered with Telegram.');
+    } catch (err) {
+      setTgError(err instanceof Error ? err.message : 'Failed to set webhook');
+    } finally {
+      setIsSettingWebhook(false);
     }
   };
 
@@ -636,6 +743,131 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Telegram Control Bridge */}
+        <section className="mb-8 p-6 bg-mc-bg-secondary border border-mc-border rounded-lg">
+          <div className="flex items-center gap-2 mb-4">
+            <MessageCircle className="w-5 h-5 text-mc-accent" />
+            <h2 className="text-xl font-semibold text-mc-text">Telegram Control Bridge</h2>
+          </div>
+          <p className="text-sm text-mc-text-secondary mb-4">
+            Receive task notifications and send commands from Telegram. Approve/deny requests from your phone.
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <label className="text-sm font-medium text-mc-text">Enable Telegram</label>
+              <button
+                onClick={() => handleTgChange('enabled', tgConfig.enabled === 'true' ? 'false' : 'true')}
+                className={`w-12 h-6 rounded-full transition-colors relative ${
+                  tgConfig.enabled === 'true' ? 'bg-mc-accent' : 'bg-mc-border'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    tgConfig.enabled === 'true' ? 'translate-x-6' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-mc-text mb-2">Bot Token</label>
+              <input
+                type="password"
+                value={tgConfig.bot_token}
+                onChange={(e) => handleTgChange('bot_token', e.target.value)}
+                placeholder="123456:ABC-DEF..."
+                className="w-full px-4 py-2 bg-mc-bg border border-mc-border rounded text-mc-text focus:border-mc-accent focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-mc-text mb-2">Default Chat ID</label>
+                <input
+                  type="text"
+                  value={tgConfig.default_chat_id}
+                  onChange={(e) => handleTgChange('default_chat_id', e.target.value)}
+                  placeholder="-1001234567890"
+                  className="w-full px-4 py-2 bg-mc-bg border border-mc-border rounded text-mc-text focus:border-mc-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mc-text mb-2">Allowed Chat IDs (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tgConfig.allowed_chat_ids}
+                  onChange={(e) => handleTgChange('allowed_chat_ids', e.target.value)}
+                  placeholder="id1,id2,..."
+                  className="w-full px-4 py-2 bg-mc-bg border border-mc-border rounded text-mc-text focus:border-mc-accent focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-mc-text mb-2">Webhook Secret</label>
+              <input
+                type="password"
+                value={tgConfig.webhook_secret}
+                onChange={(e) => handleTgChange('webhook_secret', e.target.value)}
+                placeholder="Optional secret for webhook validation"
+                className="w-full px-4 py-2 bg-mc-bg border border-mc-border rounded text-mc-text focus:border-mc-accent focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-mc-text mb-2">Webhook URL</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tgWebhookUrl}
+                  onChange={(e) => setTgWebhookUrl(e.target.value)}
+                  placeholder="https://your-funnel-url.ts.net/api/integrations/telegram/webhook"
+                  className="flex-1 px-4 py-2 bg-mc-bg border border-mc-border rounded text-mc-text focus:border-mc-accent focus:outline-none"
+                />
+                <button
+                  onClick={() => void setTelegramWebhook()}
+                  disabled={isSettingWebhook}
+                  className="px-4 py-2 border border-mc-border rounded hover:bg-mc-bg-tertiary text-mc-text-secondary disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isSettingWebhook ? 'Setting...' : 'Set Webhook'}
+                </button>
+              </div>
+              <p className="text-xs text-mc-text-secondary mt-1">
+                Register this URL with Telegram via Tailscale Funnel. Format: https://&lt;funnel-host&gt;/api/integrations/telegram/webhook
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void saveTelegram()}
+                disabled={isSavingTg}
+                className="px-4 py-2 bg-mc-accent text-mc-bg rounded hover:bg-mc-accent/90 disabled:opacity-50"
+              >
+                {isSavingTg ? 'Saving...' : 'Save Config'}
+              </button>
+              <button
+                onClick={() => void testTelegram()}
+                disabled={isTestingTg}
+                className="px-4 py-2 border border-mc-border rounded hover:bg-mc-bg-tertiary text-mc-text-secondary disabled:opacity-50"
+              >
+                {isTestingTg ? 'Sending...' : 'Test Message'}
+              </button>
+            </div>
+
+            {tgStatus && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-sm">
+                {tgStatus}
+              </div>
+            )}
+            {tgError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                {tgError}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Environment Variables Note */}
         <section className="p-6 bg-blue-500/10 border border-blue-500/30 rounded-lg">
           <h3 className="text-lg font-semibold text-blue-400 mb-2">
@@ -652,6 +884,10 @@ export default function SettingsPage() {
             <li><code>OPENCLAW_GATEWAY_TOKEN</code> - Gateway auth token</li>
             <li><code>SCHEDULER_MODE</code> - Use <code>openclaw-cron</code> for native external cron trigger mode</li>
             <li><code>MISSION_CONTROL_CRON_TRIGGER_TOKEN</code> - token required by <code>/api/jobs/:id/trigger</code></li>
+            <li><code>TELEGRAM_BOT_TOKEN</code> - Telegram bot API token</li>
+            <li><code>TELEGRAM_DEFAULT_CHAT_ID</code> - Default Telegram chat for notifications</li>
+            <li><code>TELEGRAM_ALLOWED_CHAT_IDS</code> - Comma-separated allowed chat IDs</li>
+            <li><code>TELEGRAM_WEBHOOK_SECRET</code> - Secret for webhook validation</li>
           </ul>
           <p className="text-xs text-blue-400 mt-3">
             Environment variables take precedence over UI settings for server-side operations.

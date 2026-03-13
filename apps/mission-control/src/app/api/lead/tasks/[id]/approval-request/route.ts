@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run } from '@/lib/db';
 import { createApprovalRequest, ensureLeadAgent } from '@/lib/lead-orchestrator';
+import { broadcast } from '@/lib/events';
 import type { Task } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +59,16 @@ export async function POST(
         new Date().toISOString(),
       ],
     );
+
+    broadcast({
+      type: 'approval_requested',
+      payload: {
+        approval_id: created.id,
+        task_id: id,
+        recommendation: body.recommendation.trim(),
+        risks_json: JSON.stringify(Array.isArray(body.risks) ? body.risks.filter(Boolean) : []),
+      },
+    });
 
     return NextResponse.json({
       approval_request_id: created.id,

@@ -25,6 +25,11 @@ import { PipelineScheduler } from "./pipeline/scheduler.js";
 import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
+import {
+  TelegramTransport,
+  NoopTelegramTransport,
+} from "./notifications/transports/telegramTransport.js";
+import type { NotificationTransport, NotificationPayload } from "./notifications/transports/notificationTransport.js";
 
 async function main(): Promise<void> {
   const changelogChangeId =
@@ -61,6 +66,34 @@ async function main(): Promise<void> {
 
   bus.subscribe("task.created", (event) => {
     console.log("event", event.name, event.payload);
+  });
+
+  // Telegram notification transport
+  const telegramTransport: NotificationTransport =
+    process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_DEFAULT_CHAT_ID
+      ? new TelegramTransport({
+          botToken: process.env.TELEGRAM_BOT_TOKEN,
+          defaultChatId: process.env.TELEGRAM_DEFAULT_CHAT_ID,
+          allowedChatIds: process.env.TELEGRAM_ALLOWED_CHAT_IDS?.split(",").map((s) => s.trim()).filter(Boolean),
+          webhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
+        })
+      : new NoopTelegramTransport();
+
+  bus.subscribe("notify.requested", async (event) => {
+    const p = event.payload as Record<string, unknown>;
+    try {
+      await telegramTransport.send({
+        reason: (p.reason ?? "task_blocked") as NotificationPayload["reason"],
+        message: String(p.message ?? ""),
+        severity: (p.severity ?? "info") as NotificationPayload["severity"],
+        channel: (p.channel ?? "notify_user") as NotificationPayload["channel"],
+        task_id: p.task_id as string | undefined,
+        session_id: p.session_id as string | undefined,
+        user_id: p.user_id as string | undefined,
+      });
+    } catch (err) {
+      console.error("[TelegramTransport] notify.requested error:", err);
+    }
   });
 
   const mode = process.env.INTERFACE_MODE ?? "local";
@@ -225,6 +258,7 @@ async function main(): Promise<void> {
       pipelineEngine,
       telephonyClient,
       compatStore,
+      telegramTransport instanceof TelegramTransport ? telegramTransport : undefined,
     );
     const host = process.env.MISSION_CONTROL_HOST ?? "127.0.0.1";
     const port = Number(process.env.MISSION_CONTROL_PORT ?? "4317");

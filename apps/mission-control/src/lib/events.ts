@@ -4,6 +4,16 @@
  */
 
 import type { SSEEvent } from './types';
+import { notifyTelegram } from './telegram';
+
+// Telegram notifications are handled at two levels:
+// 1. Core runtime (src/notifications/transports/telegramTransport.ts) — subscribes to
+//    notify.requested events on the EventBus for orchestrator-level notifications
+// 2. Mission Control (this file) — fires notifyTelegram() on SSE broadcasts as a
+//    complementary path for task CRUD events that originate in Mission Control's API
+//
+// Both paths ultimately route through the core runtime's TelegramTransport.
+// MC's notifyTelegram() relays messages via HTTP to the core's /api/telegram/send endpoint.
 
 // Store active SSE client connections
 const clients = new Set<ReadableStreamDefaultController>();
@@ -43,6 +53,9 @@ export function broadcast(event: SSEEvent): void {
   }
 
   console.log(`[SSE] Broadcast ${event.type} to ${clients.size} client(s)`);
+
+  // Fire-and-forget Telegram notification
+  notifyTelegram(event);
 }
 
 /**

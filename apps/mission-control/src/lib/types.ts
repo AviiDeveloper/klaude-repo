@@ -568,7 +568,8 @@ export type SSEEventType =
   | 'activity_logged'
   | 'deliverable_added'
   | 'agent_spawned'
-  | 'agent_completed';
+  | 'agent_completed'
+  | 'approval_requested';
 
 export interface SSEEvent {
   type: SSEEventType;
@@ -580,5 +581,10 @@ export interface SSEEvent {
     deleted?: boolean;
   } | {
     id: string;  // For task_deleted events
+  } | {
+    approval_id: string;
+    task_id: string;
+    recommendation: string;
+    risks_json?: string;
   };
 }

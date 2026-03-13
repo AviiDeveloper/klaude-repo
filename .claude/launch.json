@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "core-runtime",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "src/index.ts"],
+      "port": 4317
+    },
+    {
+      "name": "mission-control",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/Avii/Desktop/klaude-repo/.claude/worktrees/friendly-kirch/.claude/start-mc.js", "3000"],
+      "port": 3000
+    }
+  ]
+}

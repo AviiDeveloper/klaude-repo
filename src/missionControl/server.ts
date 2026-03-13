@@ -16,6 +16,7 @@ import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
 import { PipelineDefinition } from "../pipeline/types.js";
 import { TelephonyControlClient } from "../telephony/controlClient.js";
 import { ClawdeckCompatStore } from "./clawdeckCompatStore.js";
+import { TelegramTransport } from "../notifications/transports/telegramTransport.js";
 
 interface MissionControlServerOptions {
   host: string;
@@ -37,6 +38,7 @@ export class MissionControlServer {
     private readonly pipelineEngine?: PipelineEngine,
     private readonly telephonyClient?: TelephonyControlClient,
     private readonly compatStore?: ClawdeckCompatStore,
+    private readonly telegramTransport?: TelegramTransport,
   ) {}
 
   start(options: MissionControlServerOptions): Promise<void> {
@@ -1021,6 +1023,33 @@ export class MissionControlServer {
       return;
     }
 
+    // Telegram webhook for inbound commands
+    if (method === "POST" && url.pathname === "/api/telegram/webhook") {
+      await this.handleTelegramWebhook(req, res);
+      return;
+    }
+
+    // Telegram send relay — allows MC to delegate outbound messages through core runtime
+    if (method === "POST" && url.pathname === "/api/telegram/send") {
+      await this.handleTelegramSend(req, res);
+      return;
+    }
+
+    // Telegram config actions — setWebhook, test message, status
+    if (method === "POST" && url.pathname === "/api/telegram/config") {
+      await this.handleTelegramConfig(req, res);
+      return;
+    }
+
+    // Telegram status — check if transport is configured
+    if (method === "GET" && url.pathname === "/api/telegram/status") {
+      this.sendJson(res, 200, {
+        configured: !!this.telegramTransport,
+        defaultChatId: this.telegramTransport?.defaultChatId ?? null,
+      });
+      return;
+    }
+
     if (method === "GET" && url.pathname === "/") {
       this.sendHtml(res, this.renderHtml());
       return;
@@ -1769,5 +1798,224 @@ setInterval(function () {
 </script>
 </body>
 </html>`;
+  }
+
+  private async handleTelegramWebhook(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const tg = this.telegramTransport;
+    if (!tg) {
+      this.sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (tg.webhookSecret) {
+      const headerSecret = req.headers["x-telegram-bot-api-secret-token"];
+      if (headerSecret !== tg.webhookSecret) {
+        console.warn("[TelegramWebhook] Invalid secret token");
+        this.sendJson(res, 200, { ok: true });
+        return;
+      }
+    }
+
+    const body = await this.readJsonBody(req);
+    const chatId = this.tgGetChatId(body);
+
+    if (!chatId || !tg.isChatAllowed(chatId)) {
+      console.warn(`[TelegramWebhook] Unauthorized chat: ${chatId}`);
+      this.sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    const callbackQuery = body.callback_query as Record<string, unknown> | undefined;
+    if (callbackQuery) {
+      await this.tgHandleCallback(tg, callbackQuery, chatId);
+      this.sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    const message = body.message as Record<string, unknown> | undefined;
+    const text = message?.text as string | undefined;
+    if (text) {
+      await this.tgHandleCommand(tg, text, chatId);
+    }
+
+    this.sendJson(res, 200, { ok: true });
+  }
+
+  private tgGetChatId(update: Record<string, unknown>): string | null {
+    const cq = update.callback_query as Record<string, unknown> | undefined;
+    if (cq) {
+      const msg = cq.message as Record<string, unknown> | undefined;
+      const chat = msg?.chat as Record<string, unknown> | undefined;
+      if (chat?.id) return String(chat.id);
+    }
+    const msg = update.message as Record<string, unknown> | undefined;
+    const chat = msg?.chat as Record<string, unknown> | undefined;
+    if (chat?.id) return String(chat.id);
+    return null;
+  }
+
+  private async tgHandleCommand(tg: TelegramTransport, text: string, chatId: string): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("/")) {
+      await tg.sendMessage(chatId, "Send /help for available commands.");
+      return;
+    }
+
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase().replace(/@\w+$/, "");
+    const arg = parts[1] || "";
+
+    const helpText = `<b>Available Commands</b>\n\n/tasks \u2014 List active tasks\n/status &lt;task_id&gt; \u2014 Task details\n/help \u2014 Show this message`;
+
+    switch (cmd) {
+      case "/tasks": {
+        const tasks = this.taskStore.list().slice(0, 20);
+        if (tasks.length === 0) {
+          await tg.sendMessage(chatId, "\u{1F4ED} No active tasks.");
+        } else {
+          let msg = `<b>\u{1F4CB} Active Tasks (${tasks.length})</b>\n\n`;
+          for (const t of tasks.slice(0, 15)) {
+            msg += `\u{2022} <b>${this.tgEscape(t.title)}</b>\n  ${t.status} | <code>${t.id.slice(0, 8)}</code>\n\n`;
+          }
+          if (tasks.length > 15) msg += `... and ${tasks.length - 15} more`;
+          await tg.sendMessage(chatId, msg);
+        }
+        break;
+      }
+      case "/status": {
+        if (!arg) {
+          await tg.sendMessage(chatId, "Usage: /status &lt;task_id&gt;");
+          return;
+        }
+        const task = this.taskStore.get(arg);
+        if (!task) {
+          await tg.sendMessage(chatId, `Task not found: <code>${arg}</code>`);
+          return;
+        }
+        let msg = `<b>${this.tgEscape(task.title)}</b>\n`;
+        msg += `ID: <code>${task.id}</code>\n`;
+        msg += `Status: ${task.status}\n`;
+        if (task.objective) msg += `\n${this.tgEscape(task.objective.slice(0, 300))}`;
+        await tg.sendMessage(chatId, msg);
+        break;
+      }
+      case "/help":
+      case "/start":
+        await tg.sendMessage(chatId, helpText);
+        break;
+      default:
+        await tg.sendMessage(chatId, `Unknown command: <code>${cmd}</code>\n\n${helpText}`);
+    }
+  }
+
+  private async tgHandleCallback(
+    tg: TelegramTransport,
+    query: Record<string, unknown>,
+    chatId: string,
+  ): Promise<void> {
+    const data = (query.data as string) || "";
+    const queryId = query.id as string;
+    const dataParts = data.split(":");
+    if (dataParts.length < 3 || !["approve", "deny"].includes(dataParts[0])) {
+      await tg.answerCallbackQuery(queryId, "Invalid action");
+      return;
+    }
+    const emoji = dataParts[0] === "approve" ? "\u{2705}" : "\u{274C}";
+    await tg.answerCallbackQuery(queryId, `${dataParts[0] === "approve" ? "Approved" : "Denied"}!`);
+
+    const msg = query.message as Record<string, unknown> | undefined;
+    const messageId = msg?.message_id as number | undefined;
+    if (messageId) {
+      await tg.editMessageText(
+        chatId,
+        messageId,
+        `${emoji} <b>${dataParts[0] === "approve" ? "Approved" : "Denied"}</b> by operator via Telegram.`,
+      );
+    }
+  }
+
+  private tgEscape(text: string): string {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  private async handleTelegramSend(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const tg = this.telegramTransport;
+    if (!tg) {
+      this.sendJson(res, 200, { ok: false, detail: "telegram not configured" });
+      return;
+    }
+
+    const body = await this.readJsonBody(req);
+    const chatId = (body.chatId as string) || tg.defaultChatId;
+    const text = body.text as string;
+    const parseMode = (body.parseMode as "HTML" | "MarkdownV2") || "HTML";
+    const buttons = body.buttons as Array<Array<{ text: string; callback_data: string }>> | undefined;
+
+    if (!text) {
+      this.sendJson(res, 400, { ok: false, detail: "text is required" });
+      return;
+    }
+
+    const result = buttons
+      ? await tg.sendMessageWithButtons(chatId, text, buttons, parseMode)
+      : await tg.sendMessage(chatId, text, parseMode);
+
+    this.sendJson(res, 200, result);
+  }
+
+  private async handleTelegramConfig(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const tg = this.telegramTransport;
+    if (!tg) {
+      this.sendJson(res, 200, { ok: false, detail: "telegram not configured" });
+      return;
+    }
+
+    const body = await this.readJsonBody(req);
+    const action = body.action as string;
+
+    switch (action) {
+      case "test": {
+        const result = await tg.sendMessage(
+          tg.defaultChatId,
+          "\u{2705} <b>Test message from Mission Control</b>\n\nTelegram integration is working.",
+        );
+        this.sendJson(res, 200, result);
+        break;
+      }
+      case "set_webhook": {
+        const url = body.url as string;
+        if (!url) {
+          this.sendJson(res, 400, { ok: false, detail: "url is required" });
+          return;
+        }
+        const result = await tg.setWebhook(url, tg.webhookSecret);
+        this.sendJson(res, 200, result);
+        break;
+      }
+      case "answer_callback": {
+        const callbackQueryId = body.callbackQueryId as string;
+        if (!callbackQueryId) {
+          this.sendJson(res, 400, { ok: false, detail: "callbackQueryId is required" });
+          return;
+        }
+        const ok = await tg.answerCallbackQuery(callbackQueryId, body.text as string | undefined);
+        this.sendJson(res, 200, { ok });
+        break;
+      }
+      case "edit_message": {
+        const chatId = body.chatId as string;
+        const messageId = body.messageId as number;
+        const text = body.text as string;
+        if (!chatId || !messageId || !text) {
+          this.sendJson(res, 400, { ok: false, detail: "chatId, messageId, text required" });
+          return;
+        }
+        const ok = await tg.editMessageText(chatId, messageId, text);
+        this.sendJson(res, 200, { ok });
+        break;
+      }
+      default:
+        this.sendJson(res, 400, { ok: false, detail: `unknown action: ${action}` });
+    }
   }
 }
