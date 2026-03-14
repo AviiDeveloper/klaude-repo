@@ -1054,3 +1054,149 @@ export function buildLeadMemoryPacket(input: {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// LLM-enhanced delegation (uses charlie-brain for intelligent agent selection)
+// ---------------------------------------------------------------------------
+
+export async function intelligentDelegateTask(input: {
+  taskId: string;
+  workspaceId: string;
+  subtaskDescription?: string;
+}): Promise<{
+  delegation: LeadDelegationRecord;
+  selected: Agent;
+  scoreReasons: string[];
+  llmRationale?: string;
+}> {
+  // Dynamic import to avoid circular dependency at module load time
+  const { selectAgentForSubtask } = await import('@/lib/charlie-brain');
+
+  const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [input.taskId]);
+  if (!task) throw new Error(`Task not found: ${input.taskId}`);
+
+  const lead = ensureLeadAgent(input.workspaceId);
+  const scores = computeWorkerScores(task, input.workspaceId, lead.id);
+
+  if (scores.length === 0) {
+    throw new Error('No worker agents available for delegation');
+  }
+
+  // Use LLM to enhance selection
+  const llmSelection = await selectAgentForSubtask(
+    {
+      title: task.title,
+      description: input.subtaskDescription || task.description || task.title,
+      requiredSkills: [],
+      estimatedComplexity: 'medium',
+      dependencies: [],
+    },
+    scores,
+  );
+
+  // Delegate using the LLM-selected agent (or fallback to score-based)
+  const targetAgentId = llmSelection.agentId || scores[0].agent.id;
+
+  const result = delegateTask({
+    taskId: input.taskId,
+    workspaceId: input.workspaceId,
+    delegatedToAgentId: targetAgentId,
+    rationale: llmSelection.rationale,
+  });
+
+  // Log the LLM decision
+  logLeadDecision({
+    workspaceId: input.workspaceId,
+    taskId: input.taskId,
+    decisionType: 'intelligent_delegation',
+    summary: `LLM-enhanced delegation to ${result.selected.name}: ${llmSelection.rationale}`,
+    details: {
+      llmConfidence: llmSelection.confidence,
+      fallbackAgentId: llmSelection.fallbackAgentId,
+      topScores: scores.slice(0, 3).map((s) => ({ agent: s.agent.name, score: s.score })),
+    },
+    actorType: 'lead',
+    actorId: lead.id,
+  });
+
+  return {
+    ...result,
+    llmRationale: llmSelection.rationale,
+  };
+}
+
+export async function handleDelegationFailure(input: {
+  workspaceId: string;
+  taskId: string;
+  delegationId: string;
+  failureReason: string;
+  evalSummary?: string;
+}): Promise<{
+  action: string;
+  rationale: string;
+}> {
+  const { generateRecoveryPlan } = await import('@/lib/charlie-brain');
+
+  const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [input.taskId]);
+  if (!task) throw new Error(`Task not found: ${input.taskId}`);
+
+  const plan = await generateRecoveryPlan(task, input.failureReason, input.evalSummary);
+
+  logLeadDecision({
+    workspaceId: input.workspaceId,
+    taskId: input.taskId,
+    decisionType: 'recovery_plan',
+    summary: `Recovery: ${plan.action} — ${plan.rationale}`,
+    details: { plan, failureReason: input.failureReason },
+    actorType: 'lead',
+  });
+
+  // Execute recovery action
+  switch (plan.action) {
+    case 'retry_same': {
+      // Re-delegate to same agent
+      const delegation = queryOne<LeadDelegationRecord>(
+        'SELECT * FROM lead_task_delegations WHERE id = ?',
+        [input.delegationId],
+      );
+      if (delegation) {
+        delegateTask({
+          taskId: input.taskId,
+          workspaceId: input.workspaceId,
+          delegatedToAgentId: delegation.delegated_to_agent_id,
+          rationale: `Retry: ${plan.rationale}`,
+        });
+      }
+      break;
+    }
+    case 'reassign': {
+      // Delegate to a different agent via intelligent selection
+      await intelligentDelegateTask({
+        taskId: input.taskId,
+        workspaceId: input.workspaceId,
+        subtaskDescription: plan.modifiedInstructions,
+      });
+      break;
+    }
+    case 'escalate': {
+      // Update intake status to awaiting_operator
+      run(
+        `UPDATE lead_task_intake SET status = 'awaiting_operator', updated_at = ? WHERE task_id = ?`,
+        [nowIso(), input.taskId],
+      );
+      break;
+    }
+    case 'modify_task': {
+      // Update task description with modified instructions
+      if (plan.modifiedInstructions) {
+        run(
+          `UPDATE tasks SET description = ?, updated_at = ? WHERE id = ?`,
+          [plan.modifiedInstructions, nowIso(), input.taskId],
+        );
+      }
+      break;
+    }
+  }
+
+  return { action: plan.action, rationale: plan.rationale };
+}

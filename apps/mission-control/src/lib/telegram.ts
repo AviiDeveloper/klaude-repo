@@ -318,6 +318,42 @@ export function formatApprovalRequest(
 }
 
 // ---------------------------------------------------------------------------
+// Charlie-specific formatters
+// ---------------------------------------------------------------------------
+
+export function formatAgentQuestion(
+  agentName: string,
+  question: string,
+  taskTitle: string,
+): string {
+  return (
+    `\u{2753} <b>Agent Question</b>\n\n` +
+    `<b>Agent:</b> ${escapeHtml(agentName)}\n` +
+    `<b>Task:</b> ${escapeHtml(taskTitle)}\n\n` +
+    `${escapeHtml(question)}`
+  );
+}
+
+export function formatRecoveryNotification(
+  action: string,
+  rationale: string,
+  taskTitle: string,
+): string {
+  const actionLabel: Record<string, string> = {
+    retry_same: '\u{1F504} Retrying with same agent',
+    reassign: '\u{1F500} Reassigning to different agent',
+    escalate: '\u{1F6A8} Escalating to operator',
+    modify_task: '\u{270F}\u{FE0F} Modifying task requirements',
+  };
+  return (
+    `\u{26A0}\u{FE0F} <b>Recovery Action</b>\n\n` +
+    `<b>Task:</b> ${escapeHtml(taskTitle)}\n` +
+    `<b>Action:</b> ${actionLabel[action] || action}\n\n` +
+    `${escapeHtml(rationale)}`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Outbound hook — called from broadcast() in events.ts
 // Delegates to core runtime's TelegramTransport via relay
 // ---------------------------------------------------------------------------

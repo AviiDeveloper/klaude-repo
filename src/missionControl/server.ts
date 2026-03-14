@@ -1857,7 +1857,8 @@ setInterval(function () {
   private async tgHandleCommand(tg: TelegramTransport, text: string, chatId: string): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed.startsWith("/")) {
-      await tg.sendMessage(chatId, "Send /help for available commands.");
+      // Forward free-form messages to Mission Control's Charlie orchestrator
+      await this.forwardToCharlie(chatId, trimmed);
       return;
     }
 
@@ -1915,6 +1916,14 @@ setInterval(function () {
   ): Promise<void> {
     const data = (query.data as string) || "";
     const queryId = query.id as string;
+
+    // Route charlie: prefixed callbacks to Mission Control
+    if (data.startsWith("charlie:")) {
+      await this.forwardCharlieCallback(chatId, data, queryId);
+      await tg.answerCallbackQuery(queryId, "Processing...");
+      return;
+    }
+
     const dataParts = data.split(":");
     if (dataParts.length < 3 || !["approve", "deny"].includes(dataParts[0])) {
       await tg.answerCallbackQuery(queryId, "Invalid action");
@@ -1936,6 +1945,37 @@ setInterval(function () {
 
   private tgEscape(text: string): string {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  private async forwardToCharlie(chatId: string, text: string): Promise<void> {
+    const mcUrl = process.env.MISSION_CONTROL_URL || "http://127.0.0.1:3001";
+    try {
+      await fetch(`${mcUrl}/api/charlie/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text }),
+      });
+    } catch (err) {
+      console.error("[TelegramWebhook] Failed to forward to Charlie:", err);
+      // Send a fallback message via Telegram
+      const tg = this.telegramTransport;
+      if (tg) {
+        await tg.sendMessage(chatId, "\u{26A0}\uFE0F Charlie is temporarily unavailable. Try /help for commands.");
+      }
+    }
+  }
+
+  private async forwardCharlieCallback(chatId: string, callbackData: string, callbackQueryId: string): Promise<void> {
+    const mcUrl = process.env.MISSION_CONTROL_URL || "http://127.0.0.1:3001";
+    try {
+      await fetch(`${mcUrl}/api/charlie/callback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, callback_data: callbackData, callback_query_id: callbackQueryId }),
+      });
+    } catch (err) {
+      console.error("[TelegramWebhook] Failed to forward callback to Charlie:", err);
+    }
   }
 
   private async handleTelegramSend(req: IncomingMessage, res: ServerResponse): Promise<void> {
