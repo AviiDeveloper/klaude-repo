@@ -10,6 +10,7 @@
  */
 
 import type { Agent, Task, TaskActivity } from '@/lib/types';
+import { auditLlmCall, audit } from '@/lib/audit-logger';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -117,12 +118,15 @@ interface WorkerScoreInput {
 async function llmRequest(
   systemInstruction: string,
   userContent: string,
+  callLabel = 'unknown',
+  context?: { taskId?: string; chatId?: string },
 ): Promise<unknown> {
   if (!OPENROUTER_API_KEY) {
-    console.warn('[Charlie Brain] No API key configured — using fallback');
+    audit('warn', 'charlie_brain', `llm.${callLabel}`, 'No API key configured — using fallback');
     return null;
   }
 
+  const startTime = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
 
@@ -150,23 +154,72 @@ async function llmRequest(
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      console.error(`[Charlie Brain] LLM request failed: ${res.status} ${text}`);
+      const durationMs = Date.now() - startTime;
+      auditLlmCall(callLabel, {
+        taskId: context?.taskId,
+        chatId: context?.chatId,
+        model: OPENROUTER_MODEL,
+        systemPrompt: systemInstruction,
+        userContent,
+        response: null,
+        durationMs,
+        success: false,
+        error: new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`),
+      });
       return null;
     }
 
     const data = (await res.json()) as {
-      choices: Array<{ message: { content: string } }>;
+      choices: Array<{ message: { content: string }; finish_reason?: string }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     };
     const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    return JSON.parse(content);
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') {
-      console.error('[Charlie Brain] LLM request timed out');
-    } else {
-      console.error('[Charlie Brain] LLM request error:', err);
+    if (!content) {
+      const durationMs = Date.now() - startTime;
+      auditLlmCall(callLabel, {
+        taskId: context?.taskId,
+        chatId: context?.chatId,
+        model: OPENROUTER_MODEL,
+        systemPrompt: systemInstruction,
+        userContent,
+        response: data,
+        durationMs,
+        success: false,
+        error: new Error('Empty response content'),
+      });
+      return null;
     }
+
+    const parsed = JSON.parse(content);
+    const durationMs = Date.now() - startTime;
+
+    auditLlmCall(callLabel, {
+      taskId: context?.taskId,
+      chatId: context?.chatId,
+      model: OPENROUTER_MODEL,
+      systemPrompt: systemInstruction,
+      userContent,
+      response: parsed,
+      inputTokens: data.usage?.prompt_tokens,
+      outputTokens: data.usage?.completion_tokens,
+      durationMs,
+      success: true,
+    });
+
+    return parsed;
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    auditLlmCall(callLabel, {
+      taskId: context?.taskId,
+      chatId: context?.chatId,
+      model: OPENROUTER_MODEL,
+      systemPrompt: systemInstruction,
+      userContent,
+      response: null,
+      durationMs,
+      success: false,
+      error: err,
+    });
     return null;
   } finally {
     clearTimeout(timeout);
@@ -217,7 +270,7 @@ CRITICAL RULES:
 
 For new_task, extract a clear title and detailed description. Infer priority from urgency cues.`;
 
-  const result = await llmRequest(system, `${text}${historyContext}`);
+  const result = await llmRequest(system, `${text}${historyContext}`, 'analyze_intent');
 
   if (!result || typeof result !== 'object') {
     // Fallback: simple heuristic
@@ -320,7 +373,7 @@ Rules:
 - Keep descriptions actionable and specific`;
 
   const userContent = `Task: ${task.title}\n${task.description ? `Description: ${task.description}` : ''}`;
-  const result = await llmRequest(system, userContent);
+  const result = await llmRequest(system, userContent, 'decompose_task');
 
   if (!result || typeof result !== 'object') {
     // Fallback: single subtask
@@ -398,7 +451,7 @@ ${agentDescriptions}
 Agent IDs for reference:
 ${scoredAgents.slice(0, 10).map((s) => `${s.agent.name}: ${s.agent.id}`).join('\n')}`;
 
-  const result = await llmRequest(system, userContent);
+  const result = await llmRequest(system, userContent, 'select_agent');
 
   if (!result || typeof result !== 'object') {
     // Fallback: use highest scored agent
@@ -455,7 +508,7 @@ Delegation status: ${delegationStatus || 'unknown'}
 Recent activities:
 ${recentActivities || 'No activities recorded'}`;
 
-  const result = await llmRequest(system, userContent);
+  const result = await llmRequest(system, userContent, 'assess_progress', { taskId: task.id });
 
   if (!result || typeof result !== 'object') {
     return {
@@ -501,7 +554,7 @@ Guidelines:
 Failure reason: ${failureReason}
 ${evalSummary ? `Evaluation: ${evalSummary}` : ''}`;
 
-  const result = await llmRequest(system, userContent);
+  const result = await llmRequest(system, userContent, 'recovery_plan', { taskId: task.id });
 
   if (!result || typeof result !== 'object') {
     return {
@@ -577,7 +630,7 @@ Return strict JSON:
 
   const userContent = `Complete this task:\n\nTitle: ${task.title}\n${task.description ? `Description: ${task.description}` : ''}`;
 
-  const result = await llmRequest(system, userContent);
+  const result = await llmRequest(system, userContent, 'execute_task');
 
   if (!result || typeof result !== 'object') {
     return {

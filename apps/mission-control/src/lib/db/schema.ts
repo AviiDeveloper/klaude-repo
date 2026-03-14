@@ -424,4 +424,29 @@ CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_created_at ON ai_request_tel
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_method ON ai_request_telemetry(method, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_session_id ON ai_request_telemetry(session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_model ON ai_request_telemetry(model, created_at DESC);
+
+-- Audit log — persistent paper trail for everything Charlie does
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  level TEXT NOT NULL CHECK (level IN ('debug', 'info', 'warn', 'error')),
+  component TEXT NOT NULL,
+  action TEXT NOT NULL,
+  message TEXT NOT NULL,
+  task_id TEXT,
+  agent_id TEXT,
+  chat_id TEXT,
+  duration_ms INTEGER,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  cost_usd REAL,
+  metadata_json TEXT,
+  error_message TEXT,
+  error_stack TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_component ON audit_log(component, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_task ON audit_log(task_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_level ON audit_log(level, created_at DESC);
 `;

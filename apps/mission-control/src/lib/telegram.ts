@@ -1,4 +1,5 @@
 import { queryOne, queryAll, run } from '@/lib/db';
+import { auditTelegram } from '@/lib/audit-logger';
 import type { SSEEvent, Task, TaskActivity } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -113,6 +114,8 @@ async function relaySend(payload: {
   parseMode?: string;
   buttons?: Array<Array<{ text: string; callback_data: string }>>;
 }): Promise<boolean> {
+  const startTime = Date.now();
+  const chatId = String(payload.chatId || 'default');
   try {
     const res = await fetch(`${CORE_RUNTIME_URL}/api/telegram/send`, {
       method: 'POST',
@@ -120,13 +123,31 @@ async function relaySend(payload: {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      console.error(`[Telegram→Core] send relay failed: ${res.status}`);
+      auditTelegram('send_failed', {
+        chatId,
+        messagePreview: payload.text,
+        success: false,
+        durationMs: Date.now() - startTime,
+        error: new Error(`HTTP ${res.status}`),
+      });
       return false;
     }
     const data = await res.json() as { ok: boolean };
+    auditTelegram('send', {
+      chatId,
+      messagePreview: payload.text,
+      success: data.ok,
+      durationMs: Date.now() - startTime,
+    });
     return data.ok;
   } catch (err) {
-    console.error('[Telegram→Core] send relay error:', err);
+    auditTelegram('send_failed', {
+      chatId,
+      messagePreview: payload.text,
+      success: false,
+      durationMs: Date.now() - startTime,
+      error: err,
+    });
     return false;
   }
 }

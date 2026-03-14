@@ -522,6 +522,39 @@ const migrations: Migration[] = [
         ON ai_request_telemetry(model, created_at DESC)
       `);
     }
+  },
+  {
+    id: '011',
+    name: 'add_audit_log',
+    up: (db) => {
+      console.log('[Migration 011] Adding audit_log table...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS audit_log (
+          id TEXT PRIMARY KEY,
+          created_at TEXT NOT NULL,
+          level TEXT NOT NULL CHECK (level IN ('debug', 'info', 'warn', 'error')),
+          component TEXT NOT NULL,
+          action TEXT NOT NULL,
+          message TEXT NOT NULL,
+          task_id TEXT,
+          agent_id TEXT,
+          chat_id TEXT,
+          duration_ms INTEGER,
+          input_tokens INTEGER,
+          output_tokens INTEGER,
+          cost_usd REAL,
+          metadata_json TEXT,
+          error_message TEXT,
+          error_stack TEXT
+        );
+      `);
+
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_component ON audit_log(component, created_at DESC)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_task ON audit_log(task_id, created_at DESC)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_level ON audit_log(level, created_at DESC)`);
+    }
   }
 ];
 

@@ -30,6 +30,8 @@ import {
   resolveApprovalRequest,
   logLeadDecision,
 } from '@/lib/lead-orchestrator';
+import { audit, auditTelegram, auditTask } from '@/lib/audit-logger';
+import { executeAgentTask } from '@/lib/agent-executor';
 import type { Agent, Task } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -123,7 +125,10 @@ export async function handleIncomingMessage(
   // Analyze intent via LLM
   const analysis = await analyzeIncomingMessage(text, history);
 
-  console.log(`[Charlie] Intent: ${analysis.intent} (confidence: ${analysis.confidence}) for: "${text.slice(0, 50)}"`);
+  audit('info', 'charlie_telegram', 'intent_classified', `Intent: ${analysis.intent} (${analysis.confidence}) for: "${text.slice(0, 60)}"`, {
+    chatId,
+    metadata: { intent: analysis.intent, confidence: analysis.confidence, textPreview: text.slice(0, 200) },
+  });
 
   // Route by intent
   try {
@@ -150,7 +155,10 @@ export async function handleIncomingMessage(
         break;
     }
   } catch (err) {
-    console.error(`[Charlie] Handler error for intent ${analysis.intent}:`, err);
+    audit('error', 'charlie_telegram', 'handler_error', `Handler crashed for intent ${analysis.intent}`, {
+      chatId, error: err,
+      metadata: { intent: analysis.intent, textPreview: text.slice(0, 200) },
+    });
     await reply(chatId, `Sorry, I hit an error processing your message. Please try again.`).catch(() => {});
   }
 }
@@ -176,7 +184,7 @@ async function handleNewTaskIntent(
   // Self-execute path: check FIRST, before any DB operations
   // -----------------------------------------------------------------------
   if (canSelfExecute({ title: extracted.title, description: extracted.description })) {
-    console.log(`[Charlie] Self-execute path for: "${extracted.title}"`);
+    auditTask('self_execute_start', { taskId: 'pending', title: extracted.title, chatId });
 
     // Create a minimal task record
     const taskId = uuidv4();
@@ -200,7 +208,10 @@ async function handleNewTaskIntent(
       description: extracted.description,
     });
 
-    console.log(`[Charlie] Self-execute result: success=${result.success}, output length=${result.output?.length || 0}`);
+    auditTask(result.success ? 'self_execute_complete' : 'self_execute_failed', {
+      taskId, title: extracted.title, chatId,
+      metadata: { outputLength: result.output?.length || 0, success: result.success },
+    });
 
     if (result.success) {
       let resultMsg = `\u{2705} <b>Task Complete:</b> ${escapeHtml(extracted.title)}\n\n`;
@@ -231,7 +242,7 @@ async function handleNewTaskIntent(
   // -----------------------------------------------------------------------
   // Delegation path: full task creation + decompose
   // -----------------------------------------------------------------------
-  console.log(`[Charlie] Delegation path for: "${extracted.title}"`);
+  auditTask('delegation_start', { taskId: 'pending', title: extracted.title, chatId });
 
   // Create the task in MC
   const taskId = uuidv4();
@@ -835,7 +846,7 @@ async function handlePlanConfirmation(
     return;
   }
 
-  // For single subtask, delegate the main task directly
+  // For single subtask, delegate and EXECUTE the main task directly
   if (subtaskCount === 1) {
     try {
       const result = delegateTask({
@@ -849,17 +860,19 @@ async function handlePlanConfirmation(
           `Rationale: ${result.scoreReasons.slice(0, 3).join(', ')}`,
       );
 
-      // Dispatch via internal API
-      await dispatchTask(taskId);
+      // ACTUALLY EXECUTE — the agent does the work via LLM
+      executeAgentTask(taskId, result.selected.id, chatId).catch((err) => {
+        audit('error', 'charlie_telegram', 'agent_execute_error', `Background execution failed for ${taskId}`, { taskId, error: err });
+      });
 
-      storeMessage(chatId, 'charlie', `Delegated to ${result.selected.name}`, 'followup', taskId);
+      storeMessage(chatId, 'charlie', `Delegated to ${result.selected.name} — executing now`, 'followup', taskId);
     } catch (err) {
       await reply(chatId, `\u{26A0}\u{FE0F} Delegation failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
     return;
   }
 
-  // Multiple subtasks — create child tasks and delegate each
+  // Multiple subtasks — create child tasks, delegate, and EXECUTE each
   const completedIndices = new Set<number>();
   let delegatedCount = 0;
 
@@ -869,8 +882,7 @@ async function handlePlanConfirmation(
     // Check dependencies
     const depsReady = subtask.dependencies.every((dep) => completedIndices.has(dep));
     if (!depsReady) {
-      // In a real system we'd queue these. For now, delegate in order.
-      console.log(`[Charlie] Skipping subtask ${i} — dependencies not met (proceeding anyway for MVP)`);
+      audit('info', 'charlie_telegram', 'subtask_deps_skip', `Subtask ${i} deps not met, proceeding anyway`, { taskId });
     }
 
     // Create subtask as a child task
@@ -897,10 +909,13 @@ async function handlePlanConfirmation(
         chatId,
         formatProgressUpdate(task.title, delegatedCount, subtaskCount, result.selected.name),
       );
+
+      // ACTUALLY EXECUTE each subtask
+      await executeAgentTask(subtaskId, result.selected.id, chatId);
     } catch (err) {
       await reply(
         chatId,
-        `\u{26A0}\u{FE0F} Failed to delegate subtask "${subtask.title}": ${err instanceof Error ? err.message : 'unknown'}`,
+        `\u{26A0}\u{FE0F} Failed subtask "${subtask.title}": ${err instanceof Error ? err.message : 'unknown'}`,
       );
     }
   }
