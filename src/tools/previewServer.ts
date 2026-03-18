@@ -504,14 +504,24 @@ let generating = false;
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
 
+  // Favicon — ignore
+  if (url.pathname === "/favicon.ico") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   // Serve asset files
-  if (url.pathname === "/api/files/download" && url.searchParams.get("raw") === "true") {
+  if (url.pathname === "/api/files/download") {
     const relPath = url.searchParams.get("relativePath") ?? "";
     const match = relPath.match(/^\.assets\/([^/]+)\/(.+)$/);
     if (match) {
       serveAsset(match[1], match[2], res);
       return;
     }
+    res.writeHead(404);
+    res.end("Asset not found");
+    return;
   }
 
   // API: generate site
