@@ -54,8 +54,14 @@ interface GeneratedSiteRecord {
   html: string;
   qa_score: number;
   qa_passed: boolean;
+  qa_issues: Array<{ severity: string; category: string; message: string }>;
   brand_source: string;
+  brand_colours: Record<string, string> | null;
+  brand_fonts: Record<string, string> | null;
+  brand_description: string;
+  brand_services: string[];
   assets_count: number;
+  assets: Array<{ filename: string; category: string; size_bytes?: number; width?: number; height?: number }>;
   generated_at: string;
 }
 
@@ -145,8 +151,20 @@ async function runPipeline(url: string, name: string, type: string): Promise<Gen
     html: site.html_output,
     qa_score: qa.score,
     qa_passed: qa.passed,
+    qa_issues: qa.issues ?? [],
     brand_source: site.brand_source ?? "unknown",
+    brand_colours: analysis?.colours ?? null,
+    brand_fonts: analysis?.fonts ?? null,
+    brand_description: analysis?.description ?? "",
+    brand_services: analysis?.services ?? [],
     assets_count: listAssets(leadId).length,
+    assets: listAssets(leadId).map((a: any) => ({
+      filename: a.filename,
+      category: a.category,
+      size_bytes: a.size_bytes,
+      width: a.width,
+      height: a.height,
+    })),
     generated_at: new Date().toISOString(),
   };
 
@@ -180,12 +198,13 @@ function renderIndex(sites: GeneratedSiteRecord[]): string {
     .sort((a, b) => b.generated_at.localeCompare(a.generated_at))
     .map((s) => `
       <tr>
-        <td><a href="/site/${s.domain}" target="_blank"><strong>${esc(s.business_name)}</strong></a></td>
+        <td><a href="/detail/${s.domain}"><strong>${esc(s.business_name)}</strong></a></td>
         <td>${esc(s.vertical)}</td>
         <td>${s.brand_source}</td>
         <td>${s.assets_count} files</td>
         <td style="color: ${s.qa_passed ? "#16a34a" : "#dc2626"}">${s.qa_score}/100 ${s.qa_passed ? "✅" : "❌"}</td>
         <td>${new Date(s.generated_at).toLocaleString()}</td>
+        <td><a href="/site/${s.domain}" target="_blank">View Site</a></td>
       </tr>`).join("");
 
   return `<!DOCTYPE html>
@@ -241,7 +260,7 @@ function renderIndex(sites: GeneratedSiteRecord[]): string {
 
   ${sites.length > 0 ? `
   <table>
-    <thead><tr><th>Business</th><th>Vertical</th><th>Brand Source</th><th>Assets</th><th>QA Score</th><th>Generated</th></tr></thead>
+    <thead><tr><th>Business</th><th>Vertical</th><th>Brand Source</th><th>Assets</th><th>QA Score</th><th>Generated</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table>` : `<div class="empty">No sites generated yet. Use the form above or run with --url flag.</div>`}
 
@@ -276,6 +295,184 @@ function renderIndex(sites: GeneratedSiteRecord[]): string {
       status.textContent = "❌ Network error: " + err.message;
     }
   }
+  </script>
+</body>
+</html>`;
+}
+
+function renderDetail(s: GeneratedSiteRecord): string {
+  const assetUrl = (filename: string) =>
+    `/api/files/download?relativePath=.assets/${encodeURIComponent(s.lead_id)}/${encodeURIComponent(filename)}&raw=true`;
+
+  // Group assets by category
+  const screenshots = s.assets.filter((a) => a.category === "screenshot");
+  const logos = s.assets.filter((a) => a.category === "logo" || a.category === "favicon");
+  const socialAssets = s.assets.filter((a) => a.category === "social");
+  const heroAssets = s.assets.filter((a) => a.category === "hero");
+  const galleryAssets = s.assets.filter((a) => a.category === "gallery" || a.category === "product");
+  const otherAssets = s.assets.filter((a) =>
+    !["screenshot", "logo", "favicon", "social", "hero", "gallery", "product"].includes(a.category),
+  );
+
+  const renderAssetGrid = (assets: typeof s.assets, label: string) => {
+    if (assets.length === 0) return "";
+    return `
+      <h3>${label}</h3>
+      <div class="asset-grid">
+        ${assets.map((a) => `
+          <div class="asset-card">
+            <img src="${assetUrl(a.filename)}" alt="${esc(a.filename)}" loading="lazy">
+            <div class="asset-meta">
+              <span class="asset-name">${esc(a.filename)}</span>
+              <span class="asset-size">${a.size_bytes ? `${(a.size_bytes / 1024).toFixed(0)}KB` : ""}${a.width ? ` ${a.width}x${a.height}` : ""}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>`;
+  };
+
+  const colourSwatches = s.brand_colours
+    ? Object.entries(s.brand_colours)
+        .filter(([k, v]) => v && k !== "palette_source")
+        .map(([k, v]) => `<div class="swatch"><div class="swatch-color" style="background:${v}"></div><span>${k}: ${v}</span></div>`)
+        .join("")
+    : '<span style="color:#64748b">No brand colours extracted</span>';
+
+  const qaIssues = (s.qa_issues ?? [])
+    .map((i) => `<div class="qa-issue qa-${i.severity}">[${i.severity}/${i.category}] ${esc(i.message)}</div>`)
+    .join("") || '<div style="color:#16a34a">No issues found</div>';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${esc(s.business_name)} — Detail View</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+    .top-bar { background: #1e293b; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    .top-bar a { color: #60a5fa; text-decoration: none; }
+    .top-bar h1 { font-size: 1.3rem; }
+    .content { padding: 24px 32px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    .panel { background: #1e293b; border-radius: 8px; padding: 20px; }
+    .panel h2 { font-size: 1.1rem; margin-bottom: 16px; color: #94a3b8; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
+    .panel h3 { font-size: 0.95rem; margin: 16px 0 8px; color: #cbd5e1; }
+    .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .asset-card { background: #0f172a; border-radius: 6px; overflow: hidden; }
+    .asset-card img { width: 100%; height: 160px; object-fit: cover; display: block; cursor: pointer; transition: transform 0.2s; }
+    .asset-card img:hover { transform: scale(1.02); }
+    .asset-meta { padding: 8px; font-size: 0.8rem; }
+    .asset-name { display: block; color: #cbd5e1; font-weight: 500; }
+    .asset-size { color: #64748b; }
+    .swatch { display: inline-flex; align-items: center; gap: 8px; margin: 4px 8px 4px 0; padding: 4px 12px 4px 4px; background: #0f172a; border-radius: 4px; font-size: 0.85rem; }
+    .swatch-color { width: 28px; height: 28px; border-radius: 4px; border: 1px solid #475569; }
+    .font-sample { font-size: 1.1rem; padding: 8px 12px; background: #0f172a; border-radius: 4px; margin: 4px 0; }
+    .services-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .service-tag { background: #334155; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; }
+    .qa-issue { padding: 6px 10px; margin: 4px 0; border-radius: 4px; font-size: 0.85rem; font-family: monospace; }
+    .qa-error { background: #450a0a; color: #fca5a5; }
+    .qa-warning { background: #451a03; color: #fcd34d; }
+    .qa-info { background: #0c2d48; color: #93c5fd; }
+    .stat { display: inline-block; margin-right: 20px; margin-bottom: 8px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; }
+    .stat-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; }
+    .iframe-wrap { border-radius: 8px; overflow: hidden; border: 2px solid #334155; }
+    .iframe-wrap iframe { width: 100%; height: 700px; border: none; background: #fff; }
+    .desc-text { color: #94a3b8; font-size: 0.9rem; line-height: 1.5; max-height: 80px; overflow: hidden; }
+    .full-width { grid-column: 1 / -1; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* Lightbox */
+    .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; cursor: pointer; }
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>${esc(s.business_name)}</h1>
+    <div>
+      <a href="/">← Back to Index</a> &nbsp; | &nbsp;
+      <a href="/site/${s.domain}" target="_blank">View Generated Site →</a>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Stats row -->
+    <div class="panel" style="margin-bottom: 24px;">
+      <div class="stat"><div class="stat-value" style="color: ${s.qa_passed ? "#16a34a" : "#dc2626"}">${s.qa_score}/100</div><div class="stat-label">QA Score</div></div>
+      <div class="stat"><div class="stat-value">${s.assets_count}</div><div class="stat-label">Assets Scraped</div></div>
+      <div class="stat"><div class="stat-value">${s.brand_source}</div><div class="stat-label">Colour Source</div></div>
+      <div class="stat"><div class="stat-value">${esc(s.vertical)}</div><div class="stat-label">Vertical</div></div>
+      <div class="stat"><div class="stat-value">${(s.html.length / 1024).toFixed(1)}KB</div><div class="stat-label">HTML Size</div></div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Reference screenshots -->
+      <div class="panel">
+        <h2>Reference Screenshots</h2>
+        ${renderAssetGrid(screenshots, "Website & Social Screenshots")}
+        ${screenshots.length === 0 ? '<p style="color:#64748b">No screenshots captured</p>' : ""}
+      </div>
+
+      <!-- Generated site preview -->
+      <div class="panel">
+        <h2>Generated Site Preview</h2>
+        <div class="iframe-wrap">
+          <iframe src="/site/${s.domain}" title="Generated site preview"></iframe>
+        </div>
+      </div>
+
+      <!-- Brand analysis -->
+      <div class="panel">
+        <h2>Brand Analysis</h2>
+        <h3>Colours</h3>
+        <div>${colourSwatches}</div>
+        <h3>Fonts</h3>
+        ${s.brand_fonts ? `
+          <div class="font-sample" style="font-family: ${s.brand_fonts.heading || 'inherit'}">Heading: ${esc(s.brand_fonts.heading || "default")} (${s.brand_fonts.source || "default"})</div>
+          <div class="font-sample" style="font-family: ${s.brand_fonts.body || 'inherit'}">Body: ${esc(s.brand_fonts.body || "default")}</div>
+        ` : '<p style="color:#64748b">No fonts detected</p>'}
+        <h3>Description</h3>
+        <p class="desc-text">${esc(s.brand_description || "No description extracted")}</p>
+        <h3>Services</h3>
+        <div class="services-list">
+          ${s.brand_services.length > 0 ? s.brand_services.map((sv) => `<span class="service-tag">${esc(sv)}</span>`).join("") : '<span style="color:#64748b">None extracted</span>'}
+        </div>
+      </div>
+
+      <!-- QA Results -->
+      <div class="panel">
+        <h2>QA Results</h2>
+        ${qaIssues}
+      </div>
+
+      <!-- All scraped assets -->
+      <div class="panel full-width">
+        <h2>All Scraped Assets</h2>
+        ${renderAssetGrid(logos, "Logos & Favicons")}
+        ${renderAssetGrid(heroAssets, "Hero Images")}
+        ${renderAssetGrid(socialAssets, "Social Media")}
+        ${renderAssetGrid(galleryAssets, "Gallery / Product")}
+        ${renderAssetGrid(otherAssets, "Other")}
+        ${s.assets.length === 0 ? '<p style="color:#64748b">No assets were scraped</p>' : ""}
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox for clicking images -->
+  <div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+    <img id="lightbox-img" src="" alt="Preview">
+  </div>
+  <script>
+    document.querySelectorAll('.asset-card img').forEach(img => {
+      img.addEventListener('click', () => {
+        document.getElementById('lightbox-img').src = img.src;
+        document.getElementById('lightbox').classList.add('active');
+      });
+    });
   </script>
 </body>
 </html>`;
@@ -340,6 +537,23 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         generating = false;
       }
     });
+    return;
+  }
+
+  // Detail page (reference screenshots + brand analysis + generated site)
+  if (url.pathname.startsWith("/detail/")) {
+    const domain = url.pathname.slice(8);
+    const jsonPath = join(GENERATED_DIR, `${domain}.json`);
+    if (existsSync(jsonPath)) {
+      try {
+        const record = JSON.parse(readFileSync(jsonPath, "utf-8")) as GeneratedSiteRecord;
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(renderDetail(record));
+        return;
+      } catch { /* fall through */ }
+    }
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Site not found");
     return;
   }
 
