@@ -141,10 +141,11 @@ describe("outreach pipeline end-to-end", () => {
 
     const def = store.getDefinition("lead-generation-v1");
     assert.ok(def, "Pipeline definition created");
-    assert.equal(def!.nodes.length, 3, "3 nodes in DAG");
+    assert.equal(def!.nodes.length, 4, "4 nodes in DAG (scout → profile → brand-analyse → qualify)");
     assert.equal(def!.nodes[0].agent_id, "lead-scout-agent");
     assert.equal(def!.nodes[1].agent_id, "lead-profiler-agent");
-    assert.equal(def!.nodes[2].agent_id, "lead-qualifier-agent");
+    assert.equal(def!.nodes[2].agent_id, "brand-analyser-agent");
+    assert.equal(def!.nodes[3].agent_id, "lead-qualifier-agent");
 
     // Execute the full pipeline
     const run = await engine.startRun({
@@ -156,7 +157,7 @@ describe("outreach pipeline end-to-end", () => {
 
     // Check all nodes completed
     const nodes = store.listNodeRuns(run.id);
-    assert.equal(nodes.length, 3, "3 node runs");
+    assert.equal(nodes.length, 4, "4 node runs (scout, profile, brand-analyse, qualify)");
     for (const node of nodes) {
       assert.equal(node.status, "completed", `Node ${node.node_id}: ${node.status}`);
     }

@@ -1,11 +1,15 @@
 /**
  * Industry-specific landing page templates.
  * Uses {{variable}} mustache-style placeholders that the site-composer-agent fills.
+ * Supports conditional blocks: {{#flag}}...content...{{/flag}}
  *
  * Common variables across all templates:
  *   {{business_name}}, {{tagline}}, {{phone}}, {{email}}, {{address}},
- *   {{services_list}}, {{about_text}}, {{cta_text}}, {{cta_url}},
- *   {{hero_image_url}}, {{primary_color}}, {{accent_color}}
+ *   {{services_html}}, {{about_text}}, {{cta_text}}, {{cta_url}},
+ *   {{hero_image_url}}, {{primary_color}}, {{accent_color}},
+ *   {{logo_url}}, {{gallery_html}}, {{menu_html}},
+ *   {{has_logo}}, {{has_hero_image}}, {{has_gallery}}, {{has_menu}},
+ *   {{heading_font}}, {{body_font}}
  */
 
 export interface SiteTemplate {
@@ -18,9 +22,42 @@ export interface SiteTemplate {
   config_schema_json: string;
 }
 
+// ---------------------------------------------------------------------------
+// Conditional block processor (zero deps)
+// ---------------------------------------------------------------------------
+
+/**
+ * Process {{#flag}}...{{/flag}} conditional blocks.
+ * If the flag is truthy (non-empty string), keeps the content.
+ * If falsy (empty string, undefined), removes the block.
+ * Supports nested conditionals.
+ */
+export function processConditionals(html: string, vars: Record<string, string>): string {
+  // Process from innermost outward to support nesting
+  let result = html;
+  let safety = 0;
+  while (safety < 50) {
+    safety++;
+    // Match the innermost conditional (no nested {{# inside)
+    const match = result.match(/\{\{#(\w+)\}\}((?:(?!\{\{#)[\s\S])*?)\{\{\/\1\}\}/);
+    if (!match) break;
+
+    const [fullMatch, flag, content] = match;
+    const value = vars[flag];
+    const keep = value !== undefined && value !== "" && value !== "false";
+    result = result.replace(fullMatch, keep ? content : "");
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// CSS
+// ---------------------------------------------------------------------------
+
 const sharedCss = `
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a2e; line-height: 1.6; }
+body { font-family: {{body_font}}, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a2e; line-height: 1.6; }
+h1, h2, h3, h4 { font-family: {{heading_font}}, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
 .btn { display: inline-block; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 1rem; transition: opacity 0.2s; }
 .btn:hover { opacity: 0.9; }
@@ -30,13 +67,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 /* Header */
 .header { padding: 16px 0; background: #fff; border-bottom: 1px solid #eee; }
 .header .container { display: flex; justify-content: space-between; align-items: center; }
-.logo { font-size: 1.5rem; font-weight: 700; color: {{primary_color}}; text-decoration: none; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 700; color: {{primary_color}}; text-decoration: none; }
+.logo-img { max-height: 48px; width: auto; object-fit: contain; }
 .header-phone { font-weight: 600; color: {{primary_color}}; text-decoration: none; font-size: 1.1rem; }
 
-/* Hero */
+/* Hero — default (no image) */
 .hero { padding: 80px 0; background: linear-gradient(135deg, {{primary_color}}15, {{accent_color}}10); text-align: center; }
 .hero h1 { font-size: 2.5rem; margin-bottom: 16px; color: #1a1a2e; }
 .hero p { font-size: 1.2rem; color: #555; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+/* Hero — with background image */
+.hero--image { padding: 100px 0; background-size: cover; background-position: center; position: relative; }
+.hero--image::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.hero--image .container { position: relative; z-index: 1; }
+.hero--image h1, .hero--image p { color: #fff; }
+.hero--image .btn-primary { background: #fff; color: {{primary_color}}; }
 
 /* Services */
 .services { padding: 60px 0; background: #fff; }
@@ -44,6 +89,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; }
 .service-card { background: #f8f9fa; border-radius: 8px; padding: 24px; text-align: center; }
 .service-card h3 { margin-bottom: 8px; color: {{primary_color}}; }
+
+/* Gallery */
+.gallery { padding: 60px 0; background: #fff; }
+.gallery h2 { text-align: center; font-size: 2rem; margin-bottom: 40px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.gallery-grid img { width: 100%; height: 220px; object-fit: cover; border-radius: 8px; }
+
+/* Menu (food vertical) */
+.menu-section { padding: 60px 0; background: #f8f9fa; }
+.menu-section h2 { text-align: center; font-size: 2rem; margin-bottom: 40px; }
+.menu-list { max-width: 700px; margin: 0 auto; }
+.menu-item { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-bottom: 1px dashed #ddd; }
+.menu-item-name { font-weight: 600; font-size: 1.05rem; }
+.menu-item-price { color: {{primary_color}}; font-weight: 700; font-size: 1.1rem; white-space: nowrap; margin-left: 16px; }
+.menu-item-desc { font-size: 0.9rem; color: #777; margin-top: 2px; }
 
 /* About */
 .about { padding: 60px 0; background: #f8f9fa; }
@@ -69,10 +129,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 /* Responsive */
 @media (max-width: 768px) {
   .hero h1 { font-size: 1.8rem; }
-  .hero { padding: 50px 0; }
-  .services, .about, .contact { padding: 40px 0; }
+  .hero, .hero--image { padding: 50px 0; }
+  .services, .about, .contact, .gallery, .menu-section { padding: 40px 0; }
+  .gallery-grid { grid-template-columns: 1fr; }
+  .logo-img { max-height: 36px; }
 }
 `;
+
+// ---------------------------------------------------------------------------
+// HTML
+// ---------------------------------------------------------------------------
 
 const sharedHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -86,11 +152,25 @@ const sharedHtml = `<!DOCTYPE html>
 <body>
   <header class="header">
     <div class="container">
-      <a href="#" class="logo">{{business_name}}</a>
-      <a href="tel:{{phone}}" class="header-phone">📞 {{phone}}</a>
+      <a href="#" class="logo">
+        {{#has_logo}}<img src="{{logo_url}}" alt="{{business_name}}" class="logo-img">{{/has_logo}}
+        <span>{{business_name}}</span>
+      </a>
+      <a href="tel:{{phone}}" class="header-phone">{{phone}}</a>
     </div>
   </header>
 
+  {{#has_hero_image}}
+  <section class="hero hero--image" style="background-image: url('{{hero_image_url}}')">
+    <div class="container">
+      <h1>{{tagline}}</h1>
+      <p>{{hero_description}}</p>
+      <a href="tel:{{phone}}" class="btn btn-primary">{{cta_text}}</a>
+    </div>
+  </section>
+  {{/has_hero_image}}
+
+  {{#no_hero_image}}
   <section class="hero">
     <div class="container">
       <h1>{{tagline}}</h1>
@@ -98,6 +178,7 @@ const sharedHtml = `<!DOCTYPE html>
       <a href="tel:{{phone}}" class="btn btn-primary">{{cta_text}}</a>
     </div>
   </section>
+  {{/no_hero_image}}
 
   <section class="services">
     <div class="container">
@@ -107,6 +188,28 @@ const sharedHtml = `<!DOCTYPE html>
       </div>
     </div>
   </section>
+
+  {{#has_gallery}}
+  <section class="gallery">
+    <div class="container">
+      <h2>Gallery</h2>
+      <div class="gallery-grid">
+        {{gallery_html}}
+      </div>
+    </div>
+  </section>
+  {{/has_gallery}}
+
+  {{#has_menu}}
+  <section class="menu-section">
+    <div class="container">
+      <h2>Our Menu</h2>
+      <div class="menu-list">
+        {{menu_html}}
+      </div>
+    </div>
+  </section>
+  {{/has_menu}}
 
   <section class="about">
     <div class="container">
@@ -151,6 +254,10 @@ const sharedHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// ---------------------------------------------------------------------------
+// Config schema
+// ---------------------------------------------------------------------------
+
 const configSchema = JSON.stringify({
   type: "object",
   required: ["business_name", "tagline", "phone"],
@@ -168,8 +275,18 @@ const configSchema = JSON.stringify({
     cta_subtext: { type: "string" },
     primary_color: { type: "string" },
     accent_color: { type: "string" },
+    logo_url: { type: "string" },
+    hero_image_url: { type: "string" },
+    gallery_html: { type: "string" },
+    menu_html: { type: "string" },
+    heading_font: { type: "string" },
+    body_font: { type: "string" },
   },
 });
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
 
 export const siteTemplates: SiteTemplate[] = [
   {
@@ -219,17 +336,23 @@ export const siteTemplates: SiteTemplate[] = [
   },
 ];
 
-/**
- * Default color schemes per vertical.
- * The site-composer-agent uses these as defaults when generating content.
- */
-export const verticalDefaults: Record<string, { primary_color: string; accent_color: string; cta_text: string }> = {
-  trades: { primary_color: "#2563eb", accent_color: "#1e40af", cta_text: "Call Now For A Free Quote" },
-  food: { primary_color: "#dc2626", accent_color: "#b91c1c", cta_text: "Book A Table" },
-  health: { primary_color: "#7c3aed", accent_color: "#6d28d9", cta_text: "Book An Appointment" },
-  professional: { primary_color: "#0f766e", accent_color: "#115e59", cta_text: "Get In Touch" },
-  retail: { primary_color: "#ea580c", accent_color: "#c2410c", cta_text: "Visit Us Today" },
-  general: { primary_color: "#2563eb", accent_color: "#1e40af", cta_text: "Contact Us" },
+// ---------------------------------------------------------------------------
+// Vertical defaults
+// ---------------------------------------------------------------------------
+
+export const verticalDefaults: Record<string, {
+  primary_color: string;
+  accent_color: string;
+  cta_text: string;
+  heading_font: string;
+  body_font: string;
+}> = {
+  trades:       { primary_color: "#2563eb", accent_color: "#1e40af", cta_text: "Call Now For A Free Quote", heading_font: "Inter", body_font: "Inter" },
+  food:         { primary_color: "#dc2626", accent_color: "#b91c1c", cta_text: "Book A Table", heading_font: "Playfair Display", body_font: "Inter" },
+  health:       { primary_color: "#7c3aed", accent_color: "#6d28d9", cta_text: "Book An Appointment", heading_font: "Inter", body_font: "Inter" },
+  professional: { primary_color: "#0f766e", accent_color: "#115e59", cta_text: "Get In Touch", heading_font: "Inter", body_font: "Inter" },
+  retail:       { primary_color: "#ea580c", accent_color: "#c2410c", cta_text: "Visit Us Today", heading_font: "Inter", body_font: "Inter" },
+  general:      { primary_color: "#2563eb", accent_color: "#1e40af", cta_text: "Contact Us", heading_font: "Inter", body_font: "Inter" },
 };
 
 /**
@@ -248,5 +371,5 @@ export function resolveVertical(businessType: string): string {
   if (health.some((t) => lower.includes(t))) return "health";
   if (professional.some((t) => lower.includes(t))) return "professional";
   if (retail.some((t) => lower.includes(t))) return "retail";
-  return "trades"; // default fallback
+  return "trades";
 }

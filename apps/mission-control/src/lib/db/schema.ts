@@ -506,7 +506,14 @@ CREATE TABLE IF NOT EXISTS outreach_lead_profiles (
   competitor_analysis_json TEXT,
   pain_points_json TEXT,
   profiled_at TEXT,
-  profiler_run_id TEXT
+  profiler_run_id TEXT,
+  brand_assets_json TEXT,
+  brand_colours_json TEXT,
+  brand_fonts_json TEXT,
+  photo_inventory_json TEXT,
+  business_description_synthesized TEXT,
+  services_extracted_json TEXT,
+  menu_items_json TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_outreach_campaigns_workspace ON outreach_campaigns(workspace_id, status, created_at DESC);
@@ -547,6 +554,7 @@ CREATE TABLE IF NOT EXISTS generated_sites (
   approved_at TEXT,
   deployed_at TEXT,
   lighthouse_score INTEGER,
+  assets_used_json TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

@@ -731,6 +731,38 @@ const migrations: Migration[] = [
       db.exec(`CREATE INDEX IF NOT EXISTS idx_generated_sites_campaign ON generated_sites(campaign_id, status, created_at DESC)`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_generated_sites_status ON generated_sites(status)`);
     }
+  },
+  {
+    id: '015',
+    name: 'add_brand_scraping_columns',
+    up: (db) => {
+      console.log('[Migration 015] Adding brand scraping columns to outreach tables...');
+
+      // Add brand asset columns to outreach_lead_profiles
+      const profileCols = [
+        'brand_assets_json TEXT',
+        'brand_colours_json TEXT',
+        'brand_fonts_json TEXT',
+        'photo_inventory_json TEXT',
+        'business_description_synthesized TEXT',
+        'services_extracted_json TEXT',
+        'menu_items_json TEXT',
+      ];
+      for (const col of profileCols) {
+        try {
+          db.exec(`ALTER TABLE outreach_lead_profiles ADD COLUMN ${col}`);
+        } catch {
+          // Column may already exist
+        }
+      }
+
+      // Add assets_used_json to generated_sites
+      try {
+        db.exec(`ALTER TABLE generated_sites ADD COLUMN assets_used_json TEXT`);
+      } catch {
+        // Column may already exist
+      }
+    }
   }
 ];
 

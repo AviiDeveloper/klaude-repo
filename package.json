@@ -23,6 +23,7 @@
     "verify": "npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0",
     "@types/ws": "^8.18.1",
@@ -31,6 +32,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "sharp": "^0.34.5",
     "ws": "^8.19.0"
   }
 }

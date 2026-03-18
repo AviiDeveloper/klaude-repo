@@ -6,9 +6,10 @@
  *   "publisher-agent", "performance-analyst-agent"
  *
  * Outreach pipeline agents:
- *   "lead-scout-agent", "lead-profiler-agent", "lead-qualifier-agent",
- *   "site-composer-agent", "site-qa-agent", "outreach-copywriter-agent",
- *   "outreach-compliance-agent", "site-deployer-agent", "client-onboarding-agent",
+ *   "lead-scout-agent", "lead-profiler-agent", "brand-analyser-agent",
+ *   "lead-qualifier-agent", "site-composer-agent", "site-qa-agent",
+ *   "outreach-copywriter-agent", "outreach-compliance-agent",
+ *   "site-deployer-agent", "client-onboarding-agent",
  *   "outreach-performance-analyst-agent", "site-maintenance-agent", "client-health-agent"
  */
 export type PipelineAgentId = string;

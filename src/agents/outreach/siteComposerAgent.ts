@@ -1,5 +1,11 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { siteTemplates, verticalDefaults, resolveVertical } from "../../templates/siteTemplates.js";
+import { siteTemplates, verticalDefaults, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
+import { buildAssetUrl } from "../../lib/assetStore.js";
+import type { BrandAnalysis, PhotoInventoryItem } from "./brandAnalyser.js";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface LeadData {
   lead_id?: string;
@@ -14,23 +20,40 @@ interface LeadData {
   pain_points_json?: string;
 }
 
+interface UpstreamData {
+  qualified?: LeadData[];
+  leads?: LeadData[];
+  analyses?: BrandAnalysis[];
+  profiles?: Array<LeadData & { brand_colours_json?: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Agent
+// ---------------------------------------------------------------------------
+
 /**
  * Generates a landing page by filling a template with lead-specific content.
- *
- * In production this would call an LLM to generate marketing copy.
- * For now it uses deterministic content generation based on lead data.
+ * When brand analysis data is available from upstream, uses real colours,
+ * logos, photos, descriptions, and services instead of defaults.
  */
 export const siteComposerAgent: AgentHandler = async (input) => {
-  const upstream = input.upstreamArtifacts as Record<string, { qualified?: LeadData[]; leads?: LeadData[] }>;
+  const upstream = input.upstreamArtifacts as Record<string, UpstreamData>;
 
-  // Collect leads from upstream (qualifier output or direct leads)
+  // Collect leads and brand analyses from upstream
   const leads: LeadData[] = [];
+  const brandAnalyses = new Map<string, BrandAnalysis>();
+
   for (const nodeOutput of Object.values(upstream)) {
     if (nodeOutput?.qualified) leads.push(...nodeOutput.qualified);
     else if (nodeOutput?.leads) leads.push(...nodeOutput.leads);
+
+    if (nodeOutput?.analyses) {
+      for (const analysis of nodeOutput.analyses) {
+        brandAnalyses.set(analysis.lead_id, analysis);
+      }
+    }
   }
 
-  // Config can override which leads to process
   const config = (input.config ?? {}) as { lead_ids?: string[]; template_id?: string; max_sites?: number };
   const maxSites = config.max_sites ?? 10;
   const targetLeads = config.lead_ids
@@ -47,10 +70,14 @@ export const siteComposerAgent: AgentHandler = async (input) => {
   const generatedSites: Array<Record<string, unknown>> = [];
 
   for (const lead of targetLeads) {
+    const leadId = lead.lead_id ?? "";
     const vertical = resolveVertical(lead.business_type ?? "general");
     const templateId = config.template_id ?? `${vertical}-v1`;
     const template = siteTemplates.find((t) => t.id === templateId) ?? siteTemplates[0];
     const defaults = verticalDefaults[vertical] ?? verticalDefaults.general;
+
+    // Get brand analysis if available
+    const brand = brandAnalyses.get(leadId);
 
     const businessName = lead.business_name;
     const businessType = lead.business_type ?? "business";
@@ -58,13 +85,53 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const email = lead.email ?? `info@${businessName.toLowerCase().replace(/\s+/g, "")}.co.uk`;
     const address = lead.address ?? "";
 
-    // Generate content (deterministic for now — LLM integration in production)
+    // --- Colours: prefer brand analysis over defaults ---
+    const primaryColor = brand?.colours?.primary ?? defaults.primary_color;
+    const accentColor = brand?.colours?.secondary ?? defaults.accent_color;
+
+    // --- Fonts: prefer brand analysis over defaults ---
+    const headingFont = brand?.fonts?.heading ?? defaults.heading_font;
+    const bodyFont = brand?.fonts?.body ?? defaults.body_font;
+
+    // --- Content: prefer brand analysis over generated ---
     const tagline = generateTagline(businessName, businessType, vertical);
-    const heroDescription = generateHeroDescription(businessName, businessType, lead);
-    const aboutText = generateAboutText(businessName, businessType, lead);
-    const servicesHtml = generateServicesHtml(businessType, vertical);
-    const ctaHeading = `Ready to Get Started?`;
-    const ctaSubtext = `Contact ${businessName} today — we'd love to hear from you.`;
+    const heroDescription = brand?.description
+      ? brand.description.slice(0, 200)
+      : generateHeroDescription(businessName, businessType, lead);
+    const aboutText = brand?.description
+      ? brand.description
+      : generateAboutText(businessName, businessType, lead);
+    const servicesHtml = brand?.services && brand.services.length > 0
+      ? brand.services.map((s) => `<div class="service-card"><h3>${escapeHtml(s)}</h3><p>Professional service tailored to your needs.</p></div>`).join("\n        ")
+      : generateServicesHtml(businessType, vertical);
+
+    // --- Logo ---
+    const hasLogo = !!(brand?.logo_path && leadId);
+    const logoUrl = hasLogo ? buildAssetUrl(leadId, brand!.logo_path!) : "";
+
+    // --- Hero image ---
+    const heroPhoto = brand?.photo_inventory?.find((p) => p.usable_for.includes("hero"));
+    const hasHeroImage = !!(heroPhoto && leadId);
+    const heroImageUrl = hasHeroImage ? buildAssetUrl(leadId, heroPhoto!.filename) : "";
+
+    // --- Gallery ---
+    const galleryPhotos = brand?.photo_inventory?.filter(
+      (p) => p.usable_for.includes("gallery") && p.filename !== heroPhoto?.filename,
+    ) ?? [];
+    const hasGallery = galleryPhotos.length >= 2;
+    const galleryHtml = hasGallery
+      ? galleryPhotos.slice(0, 6).map((p) =>
+          `<img src="${buildAssetUrl(leadId, p.filename)}" alt="${escapeHtml(businessName)}" loading="lazy">`
+        ).join("\n        ")
+      : "";
+
+    // --- Menu (food vertical) ---
+    const hasMenu = !!(brand?.menu_items && brand.menu_items.length > 0);
+    const menuHtml = hasMenu
+      ? brand!.menu_items!.map((item) =>
+          `<div class="menu-item"><span class="menu-item-name">${escapeHtml(item.name)}</span>${item.price ? `<span class="menu-item-price">${escapeHtml(item.price)}</span>` : ""}</div>`
+        ).join("\n        ")
+      : "";
 
     const templateVars: Record<string, string> = {
       business_name: businessName,
@@ -76,18 +143,30 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       about_text: aboutText,
       services_html: servicesHtml,
       cta_text: defaults.cta_text,
-      cta_heading: ctaHeading,
-      cta_subtext: ctaSubtext,
-      primary_color: defaults.primary_color,
-      accent_color: defaults.accent_color,
+      cta_heading: "Ready to Get Started?",
+      cta_subtext: `Contact ${businessName} today — we'd love to hear from you.`,
+      primary_color: primaryColor,
+      accent_color: accentColor,
+      heading_font: headingFont,
+      body_font: bodyFont,
       year: new Date().getFullYear().toString(),
+      // Image/conditional vars
+      logo_url: logoUrl,
+      hero_image_url: heroImageUrl,
+      gallery_html: galleryHtml,
+      menu_html: menuHtml,
+      // Conditional flags
+      has_logo: hasLogo ? "true" : "",
+      has_hero_image: hasHeroImage ? "true" : "",
+      no_hero_image: hasHeroImage ? "" : "true",
+      has_gallery: hasGallery ? "true" : "",
+      has_menu: hasMenu ? "true" : "",
     };
 
-    // Fill template
+    // Fill template: CSS first, then inject into HTML
     let css = template.css_template;
     let html = template.html_template;
 
-    // Replace CSS vars first, then inject CSS into HTML
     for (const [key, value] of Object.entries(templateVars)) {
       css = css.replaceAll(`{{${key}}}`, value);
     }
@@ -97,8 +176,17 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       html = html.replaceAll(`{{${key}}}`, value);
     }
 
+    // Process conditional blocks
+    html = processConditionals(html, templateVars);
+
     const siteName = `${businessName} — ${businessType.charAt(0).toUpperCase() + businessType.slice(1)}`;
     const domain = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
+    // Track which assets were used
+    const assetsUsed: string[] = [];
+    if (hasLogo) assetsUsed.push(brand!.logo_path!);
+    if (hasHeroImage) assetsUsed.push(heroPhoto!.filename);
+    galleryPhotos.slice(0, 6).forEach((p) => assetsUsed.push(p.filename));
 
     generatedSites.push({
       lead_id: lead.lead_id,
@@ -110,17 +198,25 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       css_output: css,
       business_name: businessName,
       vertical,
+      assets_used_json: JSON.stringify(assetsUsed),
+      brand_source: brand?.colours?.palette_source ?? "vertical_default",
     });
   }
 
+  const withBrand = generatedSites.filter((s) => s.brand_source !== "vertical_default").length;
+
   return {
-    summary: `Generated ${generatedSites.length} landing pages across ${new Set(generatedSites.map((s) => s.vertical)).size} verticals.`,
+    summary: `Generated ${generatedSites.length} landing pages. ${withBrand} with real brand data, ${generatedSites.length - withBrand} with defaults.`,
     artifacts: {
       sites: generatedSites,
       generated_count: generatedSites.length,
     },
   };
 };
+
+// ---------------------------------------------------------------------------
+// Content generation helpers
+// ---------------------------------------------------------------------------
 
 function generateTagline(name: string, type: string, vertical: string): string {
   const taglines: Record<string, string[]> = {
@@ -178,12 +274,13 @@ function generateServicesHtml(type: string, vertical: string): string {
   };
   const services = servicesByVertical[vertical] ?? servicesByVertical.trades;
   return services
-    .map(
-      (s) =>
-        `<div class="service-card"><h3>${s}</h3><p>Professional ${type} ${s.toLowerCase()} tailored to your needs.</p></div>`,
-    )
+    .map((s) => `<div class="service-card"><h3>${s}</h3><p>Professional ${type} ${s.toLowerCase()} tailored to your needs.</p></div>`)
     .join("\n        ");
 }
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -195,4 +292,8 @@ function hashString(s: string): number {
     hash = (hash * 31 + s.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
