@@ -556,7 +556,28 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const jsonPath = join(GENERATED_DIR, `${domain}.json`);
     if (existsSync(jsonPath)) {
       try {
-        const record = JSON.parse(readFileSync(jsonPath, "utf-8")) as GeneratedSiteRecord;
+        const raw = JSON.parse(readFileSync(jsonPath, "utf-8"));
+        // Backfill missing fields for old records
+        const record: GeneratedSiteRecord = {
+          lead_id: raw.lead_id ?? "",
+          business_name: raw.business_name ?? "Unknown",
+          domain: raw.domain ?? domain,
+          vertical: raw.vertical ?? "general",
+          html: raw.html ?? "",
+          qa_score: raw.qa_score ?? 0,
+          qa_passed: raw.qa_passed ?? false,
+          qa_issues: raw.qa_issues ?? [],
+          brand_source: raw.brand_source ?? "unknown",
+          brand_colours: raw.brand_colours ?? null,
+          brand_fonts: raw.brand_fonts ?? null,
+          brand_description: raw.brand_description ?? "",
+          brand_services: raw.brand_services ?? [],
+          assets_count: raw.assets_count ?? 0,
+          assets: raw.assets ?? (raw.lead_id ? listAssets(raw.lead_id).map((a: any) => ({
+            filename: a.filename, category: a.category, size_bytes: a.size_bytes, width: a.width, height: a.height,
+          })) : []),
+          generated_at: raw.generated_at ?? "",
+        };
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(renderDetail(record));
         return;
