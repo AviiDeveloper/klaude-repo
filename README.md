@@ -20,10 +20,9 @@ It is designed to:
 - `ADR/*` architecture decision records (required for major changes)
 - `CHANGELOG/*` immutable build history
 
-## Using with Codex 5.3
-1. Paste `GOVERNANCE/CODEX_BOOT_PROMPT.md` at the start of every session.
-2. Provide `SPEC.md` + `CONSTRAINTS.md` as top context.
-3. Require a changelog entry for every implementation change.
+## Using with Claude Code
+Claude Code reads `CLAUDE.md` automatically at the start of every session.
+All project rules, key commands, and deployment context are defined there.
 
 ## Runtime modes
 - Exact Next.js Mission Control app (imported from your prior project): from repo root run `npm run mc:install` then `npm run mc:dev` and open `http://127.0.0.1:3000`.
@@ -38,7 +37,7 @@ It is designed to:
     - `bash scripts/pi/mc-start.sh` writes `apps/mission-control/.env.local` from `~/.openclaw/openclaw.json` token, starts Next on `:3001`, and prints `/api/openclaw/status`.
     - `bash scripts/pi/mc-stop.sh` stops the Mission Control dev process on `:3001`.
 - Local development on machines without OpenClaw: `INTERFACE_MODE=local npm run dev` (default).
-- OpenClaw integration mode (for the target Mac mini): `INTERFACE_MODE=openclaw npm run dev`.
+- OpenClaw integration mode (for the target Raspberry Pi 400): `INTERFACE_MODE=openclaw npm run dev`.
 - OpenClaw bridge service mode (for real transport wiring): `INTERFACE_MODE=openclaw-bridge npm run dev` (health at `/health`, inbound events at `POST /events`, session orchestration at `POST /sessions/start`, `POST /sessions/end`, `GET /sessions`, transcript history at `GET /sessions/:session_id/transcript`).
 - Voice call loop endpoints (bridge mode): `POST /calls/start`, `POST /calls/:call_id/partial`, `POST /calls/:call_id/final`, `POST /calls/:call_id/interrupt`, `POST /calls/:call_id/end`.
   - Reliability note: `POST /calls/:call_id/final` accepts optional `client_turn_id` for idempotent retry-safe responses.

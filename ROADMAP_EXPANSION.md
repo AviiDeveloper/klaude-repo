@@ -20,7 +20,7 @@
 - Add pipeline visualizer and execution timeline
 - Add approval queue and escalations
 
-## Phase E5: Mac mini Operationalization
+## Phase E5: Raspberry Pi 400 Operationalization
 - Add bridge process deployment profile
 - Add supervised services and startup orchestration
 - Add backup/restore and operational playbooks

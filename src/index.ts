@@ -19,6 +19,7 @@ import { SQLiteTraceStore } from "./trace/sqliteTraceStore.js";
 import { SQLiteSessionTranscriptStore } from "./transcript/sqliteSessionTranscriptStore.js";
 import { SQLiteNotificationStore } from "./notifications/sqliteNotificationStore.js";
 import { MultiAgentRuntime } from "./pipeline/agentRuntime.js";
+import { registerOutreachAgents } from "./agents/outreach/index.js";
 import { PipelineEngine } from "./pipeline/engine.js";
 import { NoopDispatchAdapter, WebhookDispatchAdapter } from "./pipeline/postDispatch.js";
 import { PipelineScheduler } from "./pipeline/scheduler.js";
@@ -114,9 +115,11 @@ async function main(): Promise<void> {
         : new NoopDispatchAdapter("shorts"),
     ],
   ]);
+  const agentRuntime = new MultiAgentRuntime();
+  registerOutreachAgents(agentRuntime);
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
-    new MultiAgentRuntime(),
+    agentRuntime,
     notificationStore,
     undefined,
     dispatchAdapters,

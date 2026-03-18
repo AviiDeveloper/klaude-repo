@@ -70,6 +70,49 @@ export class PipelineEngine {
     });
   }
 
+  createLeadGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
+    return this.store.upsertDefinition({
+      id: "lead-generation-v1",
+      name: "Lead Generation Pipeline",
+      enabled: true,
+      schedule_rrule: "FREQ=DAILY;INTERVAL=1",
+      max_retries: 1,
+      nodes: [
+        { id: "scout", agent_id: "lead-scout-agent", depends_on: [] },
+        {
+          id: "profile",
+          agent_id: "lead-profiler-agent",
+          depends_on: ["scout"],
+        },
+        {
+          id: "qualify",
+          agent_id: "lead-qualifier-agent",
+          depends_on: ["profile"],
+        },
+      ],
+      config: {},
+    });
+  }
+
+  createSiteGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
+    return this.store.upsertDefinition({
+      id: "site-generation-v1",
+      name: "Site Generation Pipeline",
+      enabled: true,
+      schedule_rrule: "",
+      max_retries: 1,
+      nodes: [
+        { id: "compose", agent_id: "site-composer-agent", depends_on: [] },
+        {
+          id: "qa",
+          agent_id: "site-qa-agent",
+          depends_on: ["compose"],
+        },
+      ],
+      config: {},
+    });
+  }
+
   async startRun(input: {
     definitionId: string;
     trigger: PipelineRun["trigger"];

@@ -1,12 +1,17 @@
-export type PipelineAgentId =
-  | "trend-scout-agent"
-  | "research-verifier-agent"
-  | "idea-ranker-agent"
-  | "script-writer-agent"
-  | "media-generator-agent"
-  | "compliance-reviewer-agent"
-  | "publisher-agent"
-  | "performance-analyst-agent";
+/**
+ * Pipeline agent IDs are open strings to support dynamic agent registration.
+ * Well-known content pipeline agents are listed for reference:
+ *   "trend-scout-agent", "research-verifier-agent", "idea-ranker-agent",
+ *   "script-writer-agent", "media-generator-agent", "compliance-reviewer-agent",
+ *   "publisher-agent", "performance-analyst-agent"
+ *
+ * Outreach pipeline agents:
+ *   "lead-scout-agent", "lead-profiler-agent", "lead-qualifier-agent",
+ *   "site-composer-agent", "site-qa-agent", "outreach-copywriter-agent",
+ *   "outreach-compliance-agent", "site-deployer-agent", "client-onboarding-agent",
+ *   "outreach-performance-analyst-agent", "site-maintenance-agent", "client-health-agent"
+ */
+export type PipelineAgentId = string;
 
 export type PipelineNodeStatus =
   | "pending"

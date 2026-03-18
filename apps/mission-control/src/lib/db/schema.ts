@@ -447,4 +447,112 @@ CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_created_at ON ai_request_tel
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_method ON ai_request_telemetry(method, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_session_id ON ai_request_telemetry(session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_request_telemetry_model ON ai_request_telemetry(model, created_at DESC);
+
+-- Outreach campaigns
+CREATE TABLE IF NOT EXISTS outreach_campaigns (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  target_vertical TEXT NOT NULL,
+  target_location TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed')),
+  config_json TEXT,
+  leads_count INTEGER DEFAULT 0,
+  qualified_count INTEGER DEFAULT 0,
+  converted_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Outreach leads
+CREATE TABLE IF NOT EXISTS outreach_leads (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL REFERENCES outreach_campaigns(id) ON DELETE CASCADE,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  business_name TEXT NOT NULL,
+  business_type TEXT,
+  address TEXT,
+  postcode TEXT,
+  phone TEXT,
+  email TEXT,
+  website_url TEXT,
+  google_maps_url TEXT,
+  companies_house_number TEXT,
+  source TEXT NOT NULL CHECK (source IN ('google_places', 'companies_house', 'yell', 'manual', 'facebook', 'other')),
+  source_raw_json TEXT,
+  quality_score INTEGER,
+  has_website INTEGER DEFAULT 0,
+  website_quality_score INTEGER,
+  status TEXT DEFAULT 'raw' CHECK (status IN ('raw', 'profiled', 'qualified', 'contacted', 'replied', 'converted', 'rejected')),
+  rejection_reason TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Outreach lead profiles (detailed website/social analysis)
+CREATE TABLE IF NOT EXISTS outreach_lead_profiles (
+  id TEXT PRIMARY KEY,
+  lead_id TEXT NOT NULL UNIQUE REFERENCES outreach_leads(id) ON DELETE CASCADE,
+  website_screenshot_url TEXT,
+  website_tech_stack TEXT,
+  has_ssl INTEGER,
+  is_mobile_friendly INTEGER,
+  page_speed_score INTEGER,
+  has_social_links INTEGER,
+  social_links_json TEXT,
+  last_google_review_date TEXT,
+  google_rating REAL,
+  google_review_count INTEGER,
+  competitor_analysis_json TEXT,
+  pain_points_json TEXT,
+  profiled_at TEXT,
+  profiler_run_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_outreach_campaigns_workspace ON outreach_campaigns(workspace_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_outreach_leads_campaign ON outreach_leads(campaign_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_outreach_leads_workspace ON outreach_leads(workspace_id, status);
+CREATE INDEX IF NOT EXISTS idx_outreach_leads_postcode ON outreach_leads(postcode, business_name);
+CREATE INDEX IF NOT EXISTS idx_outreach_lead_profiles_lead ON outreach_lead_profiles(lead_id);
+
+-- Site templates (industry-specific landing page templates)
+CREATE TABLE IF NOT EXISTS site_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  vertical TEXT,
+  template_type TEXT NOT NULL DEFAULT 'landing_page' CHECK (template_type IN ('landing_page', 'multi_page', 'one_pager')),
+  html_template TEXT NOT NULL,
+  css_template TEXT NOT NULL,
+  config_schema_json TEXT,
+  preview_url TEXT,
+  conversions INTEGER DEFAULT 0,
+  impressions INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Generated sites (per-lead output)
+CREATE TABLE IF NOT EXISTS generated_sites (
+  id TEXT PRIMARY KEY,
+  lead_id TEXT NOT NULL REFERENCES outreach_leads(id) ON DELETE CASCADE,
+  campaign_id TEXT NOT NULL REFERENCES outreach_campaigns(id) ON DELETE CASCADE,
+  template_id TEXT NOT NULL REFERENCES site_templates(id),
+  site_name TEXT NOT NULL,
+  domain TEXT,
+  config_json TEXT NOT NULL,
+  html_output TEXT NOT NULL,
+  css_output TEXT NOT NULL,
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'approved', 'deployed', 'live', 'archived')),
+  approved_by TEXT,
+  approved_at TEXT,
+  deployed_at TEXT,
+  lighthouse_score INTEGER,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_templates_vertical ON site_templates(vertical, template_type);
+CREATE INDEX IF NOT EXISTS idx_generated_sites_lead ON generated_sites(lead_id);
+CREATE INDEX IF NOT EXISTS idx_generated_sites_campaign ON generated_sites(campaign_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_generated_sites_status ON generated_sites(status);
 `;
