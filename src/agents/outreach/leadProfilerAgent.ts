@@ -22,6 +22,8 @@ export interface LeadToProfile {
   address?: string;
   phone?: string;
   email?: string;
+  facebook_url?: string | null;
+  instagram_url?: string | null;
 }
 
 export interface SocialProfile {
@@ -29,7 +31,29 @@ export interface SocialProfile {
   url: string;
   profile_image_url?: string;
   screenshot_path?: string;
+  bio?: string;
   post_images: string[];
+  cover_photo_path?: string;
+  page_info?: Record<string, string>;
+}
+
+export interface GoogleBusinessData {
+  photos: string[];           // saved filenames
+  reviews: GoogleReview[];
+  opening_hours?: string[];
+  categories?: string[];
+  address_formatted?: string;
+  lat?: number;
+  lng?: number;
+  maps_embed_url?: string;
+  screenshot_path?: string;
+}
+
+export interface GoogleReview {
+  author: string;
+  rating: number;
+  text: string;
+  relative_time?: string;
 }
 
 export interface ProfileResult {
@@ -49,7 +73,7 @@ export interface ProfileResult {
   website_quality_score: number;
   pain_points_json: string;
   profiled_at: string;
-  // Brand scraping fields (Phase 2)
+  // Brand scraping fields
   brand_colours_json: string;
   brand_fonts_json: string;
   brand_assets_json: string;
@@ -59,6 +83,16 @@ export interface ProfileResult {
   menu_items_json?: string;
   screenshot_path?: string;
   logo_path?: string;
+  // Google Business data
+  google_business_json: string;
+  // Opening hours
+  opening_hours_json?: string;
+  // Reviews for testimonials
+  reviews_json?: string;
+  // Location
+  lat?: number;
+  lng?: number;
+  maps_embed_url?: string;
 }
 
 interface ScrapedBrandColours {
@@ -96,8 +130,205 @@ const PI_SAFE_ARGS = [
   "--disable-setuid-sandbox",
 ];
 
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 // ---------------------------------------------------------------------------
-// Website scraping with Playwright
+// Google Business Profile scraping
+// ---------------------------------------------------------------------------
+
+async function scrapeGoogleBusiness(
+  businessName: string,
+  address: string | undefined,
+  leadId: string,
+): Promise<GoogleBusinessData | null> {
+  const pw = await getPlaywright();
+  if (!pw) return null;
+
+  let browser;
+  try {
+    browser = await pw.chromium.launch({ headless: true, args: PI_SAFE_ARGS });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, userAgent: UA });
+
+    // Search Google Maps for the business
+    const query = address
+      ? `${businessName} ${address}`
+      : businessName;
+    const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+    await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+    await page.waitForTimeout(4000);
+
+    // Accept cookies if prompted
+    try {
+      const acceptBtn = await page.$('button[aria-label*="Accept"], form[action*="consent"] button');
+      if (acceptBtn) await acceptBtn.click();
+      await page.waitForTimeout(1000);
+    } catch { /* no consent dialog */ }
+
+    // Click first result if we're on a search results page
+    try {
+      const firstResult = await page.$('a[href*="/maps/place/"]');
+      if (firstResult) {
+        await firstResult.click();
+        await page.waitForTimeout(3000);
+      }
+    } catch { /* already on place page */ }
+
+    // Screenshot the Google Maps listing
+    let screenshotPath: string | undefined;
+    try {
+      const buf = await page.screenshot({ type: "png" });
+      const meta = await saveScreenshot(leadId, "google_maps.png", buf);
+      screenshotPath = meta.filename;
+    } catch { /* non-fatal */ }
+
+    // Extract data from the Maps page
+    const gData = await page.evaluate(() => {
+      const getText = (sel: string): string | null => {
+        const el = document.querySelector(sel);
+        return el?.textContent?.trim() ?? null;
+      };
+
+      // Reviews
+      const reviews: Array<{ author: string; rating: number; text: string; relative_time?: string }> = [];
+      const reviewEls = document.querySelectorAll('[data-review-id], [jsan*="review"], .MyEned');
+      reviewEls.forEach((el) => {
+        const authorEl = el.querySelector('[class*="author"], .d4r55, [aria-label]');
+        const textEl = el.querySelector('[class*="review-text"], .wiI7pd, .MyEned');
+        const starEl = el.querySelector('[role="img"][aria-label*="star"]');
+        const timeEl = el.querySelector('[class*="time"], .rsqaWe');
+
+        const author = authorEl?.textContent?.trim() ?? "Local reviewer";
+        const text = textEl?.textContent?.trim() ?? "";
+        const starLabel = starEl?.getAttribute("aria-label") ?? "";
+        const ratingMatch = starLabel.match(/(\d)/);
+        const rating = ratingMatch ? parseInt(ratingMatch[1]) : 5;
+
+        if (text.length > 10) {
+          reviews.push({
+            author,
+            rating,
+            text: text.slice(0, 300),
+            relative_time: timeEl?.textContent?.trim(),
+          });
+        }
+      });
+
+      // Opening hours
+      const hours: string[] = [];
+      const hoursEls = document.querySelectorAll('[aria-label*="hour" i] table tr, .y0skZc tr');
+      hoursEls.forEach((tr) => {
+        const text = tr.textContent?.trim();
+        if (text) hours.push(text);
+      });
+
+      // Also try the aria-label format
+      const hoursBtn = document.querySelector('[data-item-id="oh"], [aria-label*="hour" i]');
+      const hoursLabel = hoursBtn?.getAttribute("aria-label");
+      if (hoursLabel && hours.length === 0) {
+        hours.push(hoursLabel);
+      }
+
+      // Categories
+      const catEl = document.querySelector('[jsaction*="category"], button[jsaction*="category"]');
+      const categories = catEl?.textContent?.trim() ? [catEl.textContent.trim()] : [];
+
+      // Formatted address
+      const addressEl = document.querySelector('[data-item-id="address"], [aria-label*="Address"]');
+      const addressFormatted = addressEl?.textContent?.trim() ??
+        addressEl?.getAttribute("aria-label")?.replace("Address: ", "") ?? null;
+
+      // Photos — get thumbnail URLs
+      const photoUrls: string[] = [];
+      const photoEls = document.querySelectorAll('button[jsaction*="photo"] img, .gallery img, [data-photo-index] img, img[decoding="async"]');
+      photoEls.forEach((img) => {
+        const src = (img as HTMLImageElement).src;
+        if (src && src.startsWith("http") && !src.includes("gstatic") && !src.includes("maps/vt")) {
+          photoUrls.push(src);
+        }
+      });
+
+      // Coordinates from URL
+      const urlMatch = window.location.href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      const lat = urlMatch ? parseFloat(urlMatch[1]) : null;
+      const lng = urlMatch ? parseFloat(urlMatch[2]) : null;
+
+      return {
+        reviews: reviews.slice(0, 8),
+        hours,
+        categories,
+        addressFormatted,
+        photoUrls: [...new Set(photoUrls)].slice(0, 12),
+        lat,
+        lng,
+        currentUrl: window.location.href,
+      };
+    });
+
+    // Download Google photos
+    const savedPhotos: string[] = [];
+    for (let i = 0; i < gData.photoUrls.length && i < 12; i++) {
+      try {
+        const meta = await saveFromUrl(leadId, `google_photo_${i + 1}.jpg`, gData.photoUrls[i], "gallery");
+        if (meta) savedPhotos.push(meta.filename);
+      } catch { /* non-fatal */ }
+    }
+
+    // Try to navigate to the photos tab for more images
+    if (savedPhotos.length < 3) {
+      try {
+        const photosTab = await page.$('[data-tab-index="6"], [aria-label*="Photos"], button:has-text("Photos")');
+        if (photosTab) {
+          await photosTab.click();
+          await page.waitForTimeout(3000);
+
+          const morePhotoUrls = await page.evaluate(() => {
+            const urls: string[] = [];
+            document.querySelectorAll('img[decoding="async"], [data-photo-index] img').forEach((img) => {
+              const src = (img as HTMLImageElement).src;
+              if (src && src.startsWith("http") && !src.includes("gstatic")) {
+                urls.push(src);
+              }
+            });
+            return [...new Set(urls)].slice(0, 12);
+          });
+
+          for (let i = savedPhotos.length; i < morePhotoUrls.length && savedPhotos.length < 12; i++) {
+            try {
+              const meta = await saveFromUrl(leadId, `google_photo_${savedPhotos.length + 1}.jpg`, morePhotoUrls[i], "gallery");
+              if (meta) savedPhotos.push(meta.filename);
+            } catch { /* non-fatal */ }
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    // Build maps embed URL
+    let mapsEmbedUrl: string | undefined;
+    if (gData.lat && gData.lng) {
+      mapsEmbedUrl = `https://maps.google.com/maps?q=${gData.lat},${gData.lng}&output=embed`;
+    }
+
+    await browser.close();
+
+    return {
+      photos: savedPhotos,
+      reviews: gData.reviews,
+      opening_hours: gData.hours.length > 0 ? gData.hours : undefined,
+      categories: gData.categories.length > 0 ? gData.categories : undefined,
+      address_formatted: gData.addressFormatted ?? undefined,
+      lat: gData.lat ?? undefined,
+      lng: gData.lng ?? undefined,
+      maps_embed_url: mapsEmbedUrl,
+      screenshot_path: screenshotPath,
+    };
+  } catch {
+    try { browser?.close(); } catch { /* ignore */ }
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Website scraping with Playwright (multi-page)
 // ---------------------------------------------------------------------------
 
 interface WebsiteScrapeResult {
@@ -106,15 +337,18 @@ interface WebsiteScrapeResult {
   colours: ScrapedBrandColours;
   fonts: string[];
   hero_images: string[];
+  gallery_images: string[];
   social_links: string[];
   description?: string;
   services: string[];
+  opening_hours: string[];
   has_ssl: 0 | 1;
   is_mobile_friendly: 0 | 1;
   tech_stack: string[];
   quality_score: number;
   pain_points: string[];
   html_length: number;
+  sub_page_screenshots: string[];
 }
 
 async function scrapeWebsiteWithPlaywright(
@@ -133,11 +367,11 @@ async function scrapeWebsiteWithPlaywright(
 
     const page = await browser.newPage({
       viewport: { width: 1280, height: 720 },
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      userAgent: UA,
     });
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
-    await page.waitForTimeout(2000); // let images load
+    await page.waitForTimeout(2000);
 
     // 1. Full-page screenshot
     let screenshotPath: string | undefined;
@@ -147,27 +381,21 @@ async function scrapeWebsiteWithPlaywright(
       screenshotPath = meta.filename;
     } catch { /* non-fatal */ }
 
-    // 2. Extract data from page context (runs in browser)
+    // 2. Extract data from page context
     const pageData = await page.evaluate(() => {
       const doc = document;
 
       // Logo detection
       const logoSelectors = [
-        'img[src*="logo" i]',
-        'img[alt*="logo" i]',
-        'img[class*="logo" i]',
-        'img[id*="logo" i]',
-        'a[class*="logo" i] img',
-        'header img:first-of-type',
-        '.logo img',
-        '#logo img',
+        'img[src*="logo" i]', 'img[alt*="logo" i]', 'img[class*="logo" i]',
+        'img[id*="logo" i]', 'a[class*="logo" i] img', 'header img:first-of-type',
+        '.logo img', '#logo img',
       ];
       let logoUrl: string | null = null;
       for (const sel of logoSelectors) {
         const el = doc.querySelector(sel) as HTMLImageElement | null;
         if (el?.src) { logoUrl = el.src; break; }
       }
-      // Fallback: favicon / apple-touch-icon / og:image
       if (!logoUrl) {
         const icon =
           doc.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement ??
@@ -181,7 +409,6 @@ async function scrapeWebsiteWithPlaywright(
       const themeColor = doc.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
       if (themeColor?.content) colours.primary = themeColor.content;
 
-      // Extract from computed styles on key elements
       const headerEl = doc.querySelector("header") ?? doc.querySelector("nav");
       if (headerEl) {
         const cs = getComputedStyle(headerEl);
@@ -199,7 +426,6 @@ async function scrapeWebsiteWithPlaywright(
         }
       }
 
-      // CSS custom properties from :root
       const rootStyle = getComputedStyle(doc.documentElement);
       const cssVarNames = ["--primary-color", "--primary", "--brand-color", "--main-color", "--accent-color", "--accent"];
       for (const v of cssVarNames) {
@@ -224,13 +450,28 @@ async function scrapeWebsiteWithPlaywright(
         imgs.forEach((img) => {
           if (img.src && img.naturalWidth > 200) heroImages.push(img.src);
         });
-        // background-image
         const bg = getComputedStyle(firstSection).backgroundImage;
         if (bg && bg !== "none") {
           const match = bg.match(/url\(["']?(.*?)["']?\)/);
           if (match?.[1]) heroImages.push(match[1]);
         }
       }
+
+      // ALL images on the page > 150px (gallery candidates)
+      const allImages: string[] = [];
+      doc.querySelectorAll("img").forEach((img) => {
+        if (img.src && img.naturalWidth > 150 && !img.src.includes("data:")) {
+          allImages.push(img.src);
+        }
+      });
+      // Also background images on major sections
+      doc.querySelectorAll("section, div[class*='gallery'], div[class*='portfolio'], div[class*='work']").forEach((el) => {
+        const bg = getComputedStyle(el).backgroundImage;
+        if (bg && bg !== "none") {
+          const match = bg.match(/url\(["']?(.*?)["']?\)/);
+          if (match?.[1]) allImages.push(match[1]);
+        }
+      });
 
       // Social links
       const socialLinks: string[] = [];
@@ -240,6 +481,7 @@ async function scrapeWebsiteWithPlaywright(
         /https?:\/\/(?:www\.)?twitter\.com\/[^\s"'<>]+/gi,
         /https?:\/\/(?:www\.)?linkedin\.com\/[^\s"'<>]+/gi,
         /https?:\/\/(?:www\.)?tiktok\.com\/[^\s"'<>]+/gi,
+        /https?:\/\/(?:www\.)?youtube\.com\/[^\s"'<>]+/gi,
       ];
       const html = doc.documentElement.outerHTML;
       for (const pattern of socialPatterns) {
@@ -268,6 +510,16 @@ async function scrapeWebsiteWithPlaywright(
         if (text && text.length < 100) services.push(text);
       });
 
+      // Opening hours
+      const openingHours: string[] = [];
+      const hoursEls = doc.querySelectorAll(
+        '[class*="hour" i], [class*="opening" i], [class*="schedule" i], [class*="time" i] table tr'
+      );
+      hoursEls.forEach((el) => {
+        const text = el.textContent?.trim();
+        if (text && text.length < 200 && /\d/.test(text)) openingHours.push(text);
+      });
+
       // Tech stack
       const techStack: string[] = [];
       const htmlLower = html.toLowerCase();
@@ -280,7 +532,23 @@ async function scrapeWebsiteWithPlaywright(
       if (htmlLower.includes("next")) techStack.push("Next.js");
       if (techStack.length === 0) techStack.push("Unknown/Custom");
 
-      // Mobile-friendly
+      // Internal links for sub-page scraping
+      const internalLinks: Array<{ href: string; text: string }> = [];
+      const baseHost = location.hostname;
+      doc.querySelectorAll("a[href]").forEach((a) => {
+        const href = (a as HTMLAnchorElement).href;
+        const text = a.textContent?.trim()?.toLowerCase() ?? "";
+        try {
+          const u = new URL(href);
+          if (u.hostname === baseHost && !href.includes("#")) {
+            const relevant = ["about", "service", "menu", "gallery", "portfolio", "contact", "team", "work", "price", "testimonial", "review"];
+            if (relevant.some((k) => text.includes(k) || u.pathname.toLowerCase().includes(k))) {
+              internalLinks.push({ href, text });
+            }
+          }
+        } catch { /* invalid URL */ }
+      });
+
       const hasViewport = !!doc.querySelector('meta[name="viewport"]');
       const hasSSL = location.protocol === "https:";
 
@@ -288,11 +556,14 @@ async function scrapeWebsiteWithPlaywright(
         logoUrl,
         colours,
         fonts,
-        heroImages: heroImages.slice(0, 3),
+        heroImages: heroImages.slice(0, 5),
+        allImages: [...new Set(allImages)].slice(0, 20),
         socialLinks: [...new Set(socialLinks)],
         description,
-        services: services.slice(0, 10),
+        services: services.slice(0, 15),
+        openingHours: openingHours.slice(0, 10),
         techStack,
+        internalLinks: internalLinks.slice(0, 6),
         hasViewport,
         hasSSL,
         htmlLength: html.length,
@@ -310,14 +581,75 @@ async function scrapeWebsiteWithPlaywright(
 
     // 4. Download hero images
     const heroImages: string[] = [];
-    for (let i = 0; i < pageData.heroImages.length && i < 3; i++) {
+    for (let i = 0; i < pageData.heroImages.length && i < 5; i++) {
       try {
         const meta = await saveFromUrl(leadId, `hero_${i + 1}.jpg`, pageData.heroImages[i], "hero");
         if (meta) heroImages.push(meta.filename);
       } catch { /* non-fatal */ }
     }
 
-    // 5. Calculate quality score
+    // 5. Download ALL gallery-worthy images
+    const galleryImages: string[] = [];
+    const seenUrls = new Set(pageData.heroImages);
+    for (const imgUrl of pageData.allImages) {
+      if (seenUrls.has(imgUrl)) continue;
+      seenUrls.add(imgUrl);
+      if (galleryImages.length >= 15) break;
+      try {
+        const meta = await saveFromUrl(leadId, `gallery_${galleryImages.length + 1}.jpg`, imgUrl, "gallery");
+        if (meta) galleryImages.push(meta.filename);
+      } catch { /* non-fatal */ }
+    }
+
+    // 6. Scrape sub-pages (about, services, gallery, contact)
+    const subPageScreenshots: string[] = [];
+    for (const link of pageData.internalLinks.slice(0, 4)) {
+      try {
+        await page.goto(link.href, { waitUntil: "domcontentloaded", timeout: 10_000 });
+        await page.waitForTimeout(1500);
+
+        const pageName = link.text.replace(/[^a-z0-9]/g, "_").slice(0, 20) || "subpage";
+        const buf = await page.screenshot({ fullPage: true, type: "png" });
+        const meta = await saveScreenshot(leadId, `page_${pageName}.png`, buf);
+        subPageScreenshots.push(meta.filename);
+
+        // Extract images from sub-pages too
+        const subImages = await page.evaluate(() => {
+          const imgs: string[] = [];
+          document.querySelectorAll("img").forEach((img) => {
+            if (img.src && img.naturalWidth > 150 && !img.src.includes("data:")) {
+              imgs.push(img.src);
+            }
+          });
+          return imgs.slice(0, 8);
+        });
+
+        for (const subImg of subImages) {
+          if (seenUrls.has(subImg)) continue;
+          seenUrls.add(subImg);
+          if (galleryImages.length >= 20) break;
+          try {
+            const meta = await saveFromUrl(leadId, `gallery_${galleryImages.length + 1}.jpg`, subImg, "gallery");
+            if (meta) galleryImages.push(meta.filename);
+          } catch { /* non-fatal */ }
+        }
+
+        // Extract extra services from services page
+        if (link.text.includes("service") || link.text.includes("work")) {
+          const extraServices = await page.evaluate(() => {
+            const items: string[] = [];
+            document.querySelectorAll("h2, h3, h4, .service-card, [class*='service'] li").forEach((el) => {
+              const text = el.textContent?.trim();
+              if (text && text.length > 3 && text.length < 100) items.push(text);
+            });
+            return items.slice(0, 10);
+          });
+          pageData.services.push(...extraServices);
+        }
+      } catch { /* non-fatal — sub-page scrape is best-effort */ }
+    }
+
+    // 7. Quality score
     let qualityScore = 50;
     if (pageData.hasSSL) qualityScore += 10;
     if (pageData.hasViewport) qualityScore += 15;
@@ -325,17 +657,17 @@ async function scrapeWebsiteWithPlaywright(
     qualityScore += 15; // page loaded
     qualityScore = Math.min(qualityScore, 100);
 
-    // 6. Pain points
+    // 8. Pain points
     const painPoints: string[] = [];
     if (!pageData.hasSSL) painPoints.push("No SSL certificate — looks unprofessional and hurts SEO");
     if (!pageData.hasViewport) painPoints.push("Not mobile-friendly — losing mobile customers");
     if (pageData.socialLinks.length === 0) painPoints.push("No social media integration");
     if (pageData.htmlLength < 5000) painPoints.push("Very thin content — may not rank well in search");
-    if (pageData.techStack.includes("WordPress") && pageData.htmlLength > 0) {
+    if (pageData.techStack.includes("WordPress")) {
       painPoints.push("Generic WordPress theme — looks like many other sites");
     }
 
-    // Parse colours — convert rgb() to hex
+    // Parse colours
     const rawColours = pageData.colours as Record<string, string | undefined>;
     const colours: ScrapedBrandColours = {
       source: rawColours.primary ? "css" : "default",
@@ -354,15 +686,18 @@ async function scrapeWebsiteWithPlaywright(
       colours,
       fonts: pageData.fonts,
       hero_images: heroImages,
+      gallery_images: galleryImages,
       social_links: pageData.socialLinks,
       description: pageData.description || undefined,
       services: pageData.services,
+      opening_hours: pageData.openingHours,
       has_ssl: pageData.hasSSL ? 1 : 0,
       is_mobile_friendly: pageData.hasViewport ? 1 : 0,
       tech_stack: pageData.techStack,
       quality_score: qualityScore,
       pain_points: painPoints,
       html_length: pageData.htmlLength,
+      sub_page_screenshots: subPageScreenshots,
     };
   } catch (err) {
     try { browser?.close(); } catch { /* ignore */ }
@@ -371,7 +706,7 @@ async function scrapeWebsiteWithPlaywright(
 }
 
 // ---------------------------------------------------------------------------
-// Social media scraping
+// Social media scraping (improved)
 // ---------------------------------------------------------------------------
 
 async function scrapeSocialProfiles(
@@ -387,59 +722,33 @@ async function scrapeSocialProfiles(
   try {
     browser = await pw.chromium.launch({ headless: true, args: PI_SAFE_ARGS });
 
-    for (const url of socialLinks.slice(0, 4)) {
+    for (const url of socialLinks.slice(0, 5)) {
       const platform = detectPlatform(url);
       if (!platform) continue;
-      // Skip duplicates
       if (profiles.some((p) => p.platform === platform)) continue;
 
       const profile: SocialProfile = { platform, url, post_images: [] };
 
       try {
-        const page = await browser.newPage({
-          viewport: { width: 1280, height: 720 },
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        });
-
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 12_000 });
-        await page.waitForTimeout(3000);
-
-        // Screenshot
+        if (platform === "facebook") {
+          await scrapeFacebook(browser, url, leadId, profile);
+        } else if (platform === "instagram") {
+          await scrapeInstagram(browser, url, leadId, profile);
+        } else {
+          // Generic social scrape — screenshot + any images
+          await scrapeGenericSocial(browser, url, leadId, profile, platform);
+        }
+      } catch {
+        // Social scraping is best-effort — try screenshot at minimum
         try {
+          const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, userAgent: UA });
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 10_000 });
+          await page.waitForTimeout(2000);
           const buf = await page.screenshot({ type: "png" });
           const meta = await saveScreenshot(leadId, `${platform}_screenshot.png`, buf);
           profile.screenshot_path = meta.filename;
-        } catch { /* non-fatal */ }
-
-        // Platform-specific image extraction
-        if (platform === "instagram") {
-          const imgUrls = await page.evaluate(() => {
-            const imgs = Array.from(document.querySelectorAll("article img, main img"));
-            return imgs.map((i) => (i as HTMLImageElement).src).filter(Boolean).slice(0, 6);
-          });
-          for (let i = 0; i < imgUrls.length && i < 6; i++) {
-            try {
-              const meta = await saveFromUrl(leadId, `instagram_${i + 1}.jpg`, imgUrls[i], "social");
-              if (meta) profile.post_images.push(meta.filename);
-            } catch { /* non-fatal */ }
-          }
-        } else if (platform === "facebook") {
-          const imgUrls = await page.evaluate(() => {
-            const cover = document.querySelector('[data-imgperflogname="profileCoverPhoto"] img, .cover img') as HTMLImageElement;
-            const profileImg = document.querySelector('svg image, [role="img"] img, .profilePic') as HTMLImageElement;
-            return [cover?.src, profileImg?.src].filter(Boolean) as string[];
-          });
-          for (let i = 0; i < imgUrls.length; i++) {
-            try {
-              const meta = await saveFromUrl(leadId, `facebook_${i + 1}.jpg`, imgUrls[i], "social");
-              if (meta) profile.post_images.push(meta.filename);
-            } catch { /* non-fatal */ }
-          }
-        }
-
-        await page.close();
-      } catch {
-        // Social scraping is best-effort
+          await page.close();
+        } catch { /* truly non-fatal */ }
       }
 
       profiles.push(profile);
@@ -451,6 +760,217 @@ async function scrapeSocialProfiles(
   }
 
   return profiles;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function scrapeFacebook(browser: any, url: string, leadId: string, profile: SocialProfile): Promise<void> {
+  // Use mobile Facebook — shows more data without login
+  const mobileUrl = url.replace("www.facebook.com", "m.facebook.com");
+
+  const page = await browser.newPage({
+    viewport: { width: 414, height: 896 },
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  });
+
+  await page.goto(mobileUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
+  await page.waitForTimeout(3000);
+
+  // Close login popups
+  try {
+    const closeBtn = await page.$('[aria-label="Close"], [data-sigil="m-login-upsell-close"]');
+    if (closeBtn) await closeBtn.click();
+    await page.waitForTimeout(500);
+  } catch { /* no popup */ }
+
+  // Screenshot
+  try {
+    const buf = await page.screenshot({ fullPage: false, type: "png" });
+    const meta = await saveScreenshot(leadId, "facebook_screenshot.png", buf);
+    profile.screenshot_path = meta.filename;
+  } catch { /* non-fatal */ }
+
+  // Extract page info
+  const fbData = await page.evaluate(() => {
+    const getText = (sel: string): string | null => {
+      const el = document.querySelector(sel);
+      return el?.textContent?.trim() ?? null;
+    };
+
+    // Bio / About text
+    const bio =
+      getText('[data-sigil="m-profile-cover-intro"]') ??
+      getText('.bio') ??
+      getText('[data-testid="profile_intro_card"]') ??
+      null;
+
+    // Cover photo
+    const coverImg = document.querySelector(
+      '[data-sigil="m-profile-cover-photo"] img, .cover img, img[data-store*="cover"]'
+    ) as HTMLImageElement | null;
+    const coverUrl = coverImg?.src ?? null;
+
+    // Profile picture
+    const profileImg = document.querySelector(
+      '[data-sigil="m-profile-photo"] img, .profpic img, img[alt*="profile"]'
+    ) as HTMLImageElement | null;
+    const profileUrl = profileImg?.src ?? null;
+
+    // Page info items
+    const pageInfo: Record<string, string> = {};
+    document.querySelectorAll('[data-sigil="m-profile-field"], ._5cds, ._52jh').forEach((el) => {
+      const text = el.textContent?.trim();
+      if (text && text.length < 200) {
+        if (text.toLowerCase().includes("hour") || text.toLowerCase().includes("open")) pageInfo.hours = text;
+        else if (text.toLowerCase().includes("phone") || /\d{4,}/.test(text)) pageInfo.phone = text;
+        else if (text.toLowerCase().includes("@") || text.toLowerCase().includes("email")) pageInfo.email = text;
+        else if (!pageInfo.about) pageInfo.about = text;
+      }
+    });
+
+    // Post images (visible without login)
+    const postImgs: string[] = [];
+    document.querySelectorAll('img[data-store], img[data-sigil*="photo"]').forEach((img) => {
+      const src = (img as HTMLImageElement).src;
+      if (src && src.startsWith("http") && !src.includes("emoji") && !src.includes("rsrc")) {
+        postImgs.push(src);
+      }
+    });
+
+    return { bio, coverUrl, profileUrl, pageInfo, postImgs: postImgs.slice(0, 9) };
+  });
+
+  profile.bio = fbData.bio ?? undefined;
+  profile.page_info = Object.keys(fbData.pageInfo).length > 0 ? fbData.pageInfo : undefined;
+
+  // Download cover photo
+  if (fbData.coverUrl) {
+    try {
+      const meta = await saveFromUrl(leadId, "facebook_cover.jpg", fbData.coverUrl, "hero");
+      if (meta) profile.cover_photo_path = meta.filename;
+    } catch { /* non-fatal */ }
+  }
+
+  // Download profile picture
+  if (fbData.profileUrl) {
+    try {
+      const meta = await saveFromUrl(leadId, "facebook_profile.jpg", fbData.profileUrl, "logo");
+      if (meta) profile.profile_image_url = meta.filename;
+    } catch { /* non-fatal */ }
+  }
+
+  // Download post images
+  for (let i = 0; i < fbData.postImgs.length && i < 9; i++) {
+    try {
+      const meta = await saveFromUrl(leadId, `facebook_post_${i + 1}.jpg`, fbData.postImgs[i], "social");
+      if (meta) profile.post_images.push(meta.filename);
+    } catch { /* non-fatal */ }
+  }
+
+  await page.close();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function scrapeInstagram(browser: any, url: string, leadId: string, profile: SocialProfile): Promise<void> {
+  const page = await browser.newPage({
+    viewport: { width: 414, height: 896 },
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  });
+
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
+  await page.waitForTimeout(3000);
+
+  // Close login popup
+  try {
+    const notNowBtn = await page.$('button:has-text("Not Now"), button:has-text("Not now"), [role="dialog"] button');
+    if (notNowBtn) await notNowBtn.click();
+    await page.waitForTimeout(500);
+  } catch { /* no popup */ }
+
+  // Screenshot
+  try {
+    const buf = await page.screenshot({ fullPage: false, type: "png" });
+    const meta = await saveScreenshot(leadId, "instagram_screenshot.png", buf);
+    profile.screenshot_path = meta.filename;
+  } catch { /* non-fatal */ }
+
+  // Extract profile data
+  const igData = await page.evaluate(() => {
+    // Bio
+    const bioEl = document.querySelector('header section div:not(:first-child) span, .-vDIg span, header section > div');
+    const bio = bioEl?.textContent?.trim() ?? null;
+
+    // Profile picture
+    const profileImg = document.querySelector('header img, img[data-testid="user-avatar"]') as HTMLImageElement | null;
+    const profileUrl = profileImg?.src ?? null;
+
+    // Post thumbnails
+    const postImgs: string[] = [];
+    document.querySelectorAll('article img, main a img, ._aagv img').forEach((img) => {
+      const src = (img as HTMLImageElement).src;
+      if (src && src.startsWith("http") && !src.includes("s150x150")) {
+        postImgs.push(src);
+      }
+    });
+
+    return { bio, profileUrl, postImgs: [...new Set(postImgs)].slice(0, 9) };
+  });
+
+  profile.bio = igData.bio ?? undefined;
+
+  // Download profile picture
+  if (igData.profileUrl) {
+    try {
+      const meta = await saveFromUrl(leadId, "instagram_profile.jpg", igData.profileUrl, "logo");
+      if (meta) profile.profile_image_url = meta.filename;
+    } catch { /* non-fatal */ }
+  }
+
+  // Download post images
+  for (let i = 0; i < igData.postImgs.length && i < 9; i++) {
+    try {
+      const meta = await saveFromUrl(leadId, `instagram_post_${i + 1}.jpg`, igData.postImgs[i], "social");
+      if (meta) profile.post_images.push(meta.filename);
+    } catch { /* non-fatal */ }
+  }
+
+  await page.close();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function scrapeGenericSocial(browser: any, url: string, leadId: string, profile: SocialProfile, platform: string): Promise<void> {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, userAgent: UA });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 12_000 });
+  await page.waitForTimeout(3000);
+
+  // Screenshot
+  try {
+    const buf = await page.screenshot({ type: "png" });
+    const meta = await saveScreenshot(leadId, `${platform}_screenshot.png`, buf);
+    profile.screenshot_path = meta.filename;
+  } catch { /* non-fatal */ }
+
+  // Try to grab profile image and any visible images
+  const socialData = await page.evaluate(() => {
+    const imgs: string[] = [];
+    document.querySelectorAll("img").forEach((img) => {
+      if (img.src && img.naturalWidth > 80 && !img.src.includes("emoji")) {
+        imgs.push(img.src);
+      }
+    });
+    const bio = document.querySelector('[data-testid*="bio"], .bio, [class*="description"]')?.textContent?.trim() ?? null;
+    return { imgs: imgs.slice(0, 6), bio };
+  });
+
+  profile.bio = socialData.bio ?? undefined;
+
+  for (let i = 0; i < socialData.imgs.length && i < 6; i++) {
+    try {
+      const meta = await saveFromUrl(leadId, `${platform}_img_${i + 1}.jpg`, socialData.imgs[i], "social");
+      if (meta) profile.post_images.push(meta.filename);
+    } catch { /* non-fatal */ }
+  }
+
+  await page.close();
 }
 
 // ---------------------------------------------------------------------------
@@ -474,7 +994,6 @@ async function extractMenuFromUrl(
     clearTimeout(timer);
     const html = await res.text();
 
-    // Find menu links
     const menuLinkMatch = html.match(/href=["']([^"']*menu[^"']*)["']/i);
     if (!menuLinkMatch) return [];
 
@@ -484,17 +1003,14 @@ async function extractMenuFromUrl(
       menuUrl = `${base.origin}${menuUrl}`;
     }
 
-    // If PDF, download it
     if (menuUrl.toLowerCase().endsWith(".pdf")) {
       await saveFromUrl(leadId, "menu.pdf", menuUrl, "menu");
       return [];
     }
 
-    // Fetch menu page and extract items
     const menuRes = await fetch(menuUrl, { signal: AbortSignal.timeout(10_000) });
     const menuHtml = await menuRes.text();
 
-    // Simple regex for "Item Name ... £XX.XX" patterns
     const items: MenuItem[] = [];
     const pricePattern = /([A-Z][^£$\n]{2,50})\s*[£$]\s*(\d+(?:\.\d{2})?)/g;
     let match;
@@ -509,7 +1025,7 @@ async function extractMenuFromUrl(
 }
 
 // ---------------------------------------------------------------------------
-// Fallback: basic fetch profiler (original logic)
+// Fallback: basic fetch profiler (no Playwright)
 // ---------------------------------------------------------------------------
 
 async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileResult>> {
@@ -530,6 +1046,7 @@ async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileRes
       brand_assets_json: JSON.stringify({}),
       social_profiles_json: JSON.stringify([]),
       services_extracted_json: JSON.stringify([]),
+      google_business_json: JSON.stringify({}),
     };
   }
 
@@ -567,8 +1084,6 @@ async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileRes
     if (htmlLower.includes("wix.com")) techStack.push("Wix");
     if (htmlLower.includes("squarespace")) techStack.push("Squarespace");
     if (htmlLower.includes("shopify")) techStack.push("Shopify");
-    if (htmlLower.includes("react")) techStack.push("React");
-    if (htmlLower.includes("bootstrap")) techStack.push("Bootstrap");
     if (techStack.length === 0) techStack.push("Unknown/Custom");
     result.website_tech_stack = JSON.stringify(techStack);
 
@@ -580,13 +1095,11 @@ async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileRes
     result.website_quality_score = Math.min(qualityScore, 100);
 
     const painPoints: string[] = [];
-    if (!result.has_ssl) painPoints.push("No SSL certificate — looks unprofessional and hurts SEO");
-    if (!result.is_mobile_friendly) painPoints.push("Not mobile-friendly — losing mobile customers");
+    if (!result.has_ssl) painPoints.push("No SSL certificate");
+    if (!result.is_mobile_friendly) painPoints.push("Not mobile-friendly");
     if (!result.has_social_links) painPoints.push("No social media integration");
-    if (html.length < 5000) painPoints.push("Very thin content — may not rank well in search");
     result.pain_points_json = JSON.stringify(painPoints);
 
-    // Extract description
     const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)/i);
     result.business_description_raw = descMatch?.[1] ?? undefined;
 
@@ -595,6 +1108,7 @@ async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileRes
     result.brand_assets_json = JSON.stringify({});
     result.social_profiles_json = JSON.stringify([]);
     result.services_extracted_json = JSON.stringify([]);
+    result.google_business_json = JSON.stringify({});
   } catch {
     result.website_quality_score = 0;
     result.pain_points_json = JSON.stringify(["Website unreachable or very slow"]);
@@ -613,11 +1127,11 @@ function detectPlatform(url: string): string | null {
   if (url.includes("twitter.com") || url.includes("x.com")) return "twitter";
   if (url.includes("linkedin.com")) return "linkedin";
   if (url.includes("tiktok.com")) return "tiktok";
+  if (url.includes("youtube.com")) return "youtube";
   return null;
 }
 
 function rgbToHex(rgb: string): string | null {
-  // Already hex?
   if (rgb.startsWith("#")) return rgb;
   const match = rgb.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
   if (!match) return null;
@@ -678,71 +1192,132 @@ export const leadProfilerAgent: AgentHandler = async (input) => {
       brand_assets_json: "{}",
       social_profiles_json: "[]",
       services_extracted_json: "[]",
+      google_business_json: "{}",
     };
 
-    if (!lead.website_url) {
-      // No website — highest opportunity
-      const fallback = await profileWithFetch(lead);
-      Object.assign(profile, fallback);
-      profile.profiled_at = new Date().toISOString();
-      profiles.push(profile);
-      continue;
+    // ---------------------------------------------------------------
+    // 1. Google Business Profile (ALWAYS try — primary data source)
+    // ---------------------------------------------------------------
+    const googleData = await scrapeGoogleBusiness(
+      lead.business_name,
+      lead.address,
+      leadId,
+    );
+
+    if (googleData) {
+      profile.google_business_json = JSON.stringify(googleData);
+      profile.reviews_json = JSON.stringify(googleData.reviews);
+      profile.opening_hours_json = googleData.opening_hours ? JSON.stringify(googleData.opening_hours) : undefined;
+      profile.lat = googleData.lat;
+      profile.lng = googleData.lng;
+      profile.maps_embed_url = googleData.maps_embed_url;
+
+      if (googleData.address_formatted) {
+        profile.address = googleData.address_formatted;
+      }
     }
 
-    // Try Playwright first, fall back to fetch
-    const scrapeResult = await scrapeWebsiteWithPlaywright(lead.website_url, leadId);
+    // ---------------------------------------------------------------
+    // 2. Website scraping (OPTIONAL — only if they have one)
+    // ---------------------------------------------------------------
+    if (lead.website_url) {
+      const scrapeResult = await scrapeWebsiteWithPlaywright(lead.website_url, leadId);
 
-    if (scrapeResult) {
-      // Playwright succeeded — rich data
-      profile.has_ssl = scrapeResult.has_ssl;
-      profile.is_mobile_friendly = scrapeResult.is_mobile_friendly;
-      profile.has_social_links = scrapeResult.social_links.length > 0 ? 1 : 0;
-      profile.social_links_json = JSON.stringify(scrapeResult.social_links);
-      profile.website_tech_stack = JSON.stringify(scrapeResult.tech_stack);
-      profile.website_quality_score = scrapeResult.quality_score;
-      profile.pain_points_json = JSON.stringify(scrapeResult.pain_points);
-      profile.brand_colours_json = JSON.stringify(scrapeResult.colours);
-      profile.brand_fonts_json = JSON.stringify(scrapeResult.fonts);
-      profile.screenshot_path = scrapeResult.screenshot_path;
-      profile.logo_path = scrapeResult.logo_path;
-      profile.business_description_raw = scrapeResult.description;
-      profile.services_extracted_json = JSON.stringify(scrapeResult.services);
+      if (scrapeResult) {
+        profile.has_ssl = scrapeResult.has_ssl;
+        profile.is_mobile_friendly = scrapeResult.is_mobile_friendly;
+        profile.has_social_links = scrapeResult.social_links.length > 0 ? 1 : 0;
+        profile.social_links_json = JSON.stringify(scrapeResult.social_links);
+        profile.website_tech_stack = JSON.stringify(scrapeResult.tech_stack);
+        profile.website_quality_score = scrapeResult.quality_score;
+        profile.pain_points_json = JSON.stringify(scrapeResult.pain_points);
+        profile.brand_colours_json = JSON.stringify(scrapeResult.colours);
+        profile.brand_fonts_json = JSON.stringify(scrapeResult.fonts);
+        profile.screenshot_path = scrapeResult.screenshot_path;
+        profile.logo_path = scrapeResult.logo_path;
+        profile.business_description_raw = scrapeResult.description;
+        profile.services_extracted_json = JSON.stringify(scrapeResult.services);
 
-      profile.brand_assets_json = JSON.stringify({
-        screenshot: scrapeResult.screenshot_path,
-        logo: scrapeResult.logo_path,
-        hero_images: scrapeResult.hero_images,
-      });
-
-      // Scrape social profiles
-      if (scrapeResult.social_links.length > 0) {
-        const socialProfiles = await scrapeSocialProfiles(scrapeResult.social_links, leadId);
-        profile.social_profiles_json = JSON.stringify(socialProfiles);
-      }
-
-      // Extract menu for food businesses
-      if (isFoodVertical(lead.business_type, lead.business_name)) {
-        const menuItems = await extractMenuFromUrl(lead.website_url, leadId);
-        if (menuItems.length > 0) {
-          profile.menu_items_json = JSON.stringify(menuItems);
+        if (scrapeResult.opening_hours.length > 0 && !profile.opening_hours_json) {
+          profile.opening_hours_json = JSON.stringify(scrapeResult.opening_hours);
         }
+
+        profile.brand_assets_json = JSON.stringify({
+          screenshot: scrapeResult.screenshot_path,
+          logo: scrapeResult.logo_path,
+          hero_images: scrapeResult.hero_images,
+          gallery_images: scrapeResult.gallery_images,
+          sub_page_screenshots: scrapeResult.sub_page_screenshots,
+        });
+
+        // Collect social links from website for social scraping
+        if (scrapeResult.social_links.length > 0) {
+          const socialProfiles = await scrapeSocialProfiles(scrapeResult.social_links, leadId);
+          profile.social_profiles_json = JSON.stringify(socialProfiles);
+        }
+
+        // Extract menu for food businesses
+        if (isFoodVertical(lead.business_type, lead.business_name)) {
+          const menuItems = await extractMenuFromUrl(lead.website_url, leadId);
+          if (menuItems.length > 0) {
+            profile.menu_items_json = JSON.stringify(menuItems);
+          }
+        }
+      } else {
+        // Playwright failed on website — use fetch fallback
+        const fallback = await profileWithFetch(lead);
+        Object.assign(profile, fallback);
       }
     } else {
-      // Playwright unavailable or failed — use fetch fallback
-      const fallback = await profileWithFetch(lead);
-      Object.assign(profile, fallback);
+      // ---------------------------------------------------------------
+      // 3. No website — scrape socials directly from lead data or Google
+      // ---------------------------------------------------------------
+      profile.website_quality_score = 0;
+      profile.pain_points_json = JSON.stringify([
+        "No website at all — missing out on online customers",
+        "No online presence beyond social media or directory listings",
+        "Competitors with websites are capturing their potential customers",
+      ]);
+
+      // Gather social links from lead data
+      const socialLinks: string[] = [];
+      if (lead.facebook_url) socialLinks.push(lead.facebook_url);
+      if (lead.instagram_url) socialLinks.push(lead.instagram_url);
+
+      // If we got social links from Google Business page, use those too
+      // (The Google Maps listing sometimes links to social profiles)
+
+      if (socialLinks.length > 0) {
+        profile.has_social_links = 1;
+        profile.social_links_json = JSON.stringify(socialLinks);
+        const socialProfiles = await scrapeSocialProfiles(socialLinks, leadId);
+        profile.social_profiles_json = JSON.stringify(socialProfiles);
+
+        // Use social bio as business description if we don't have one
+        for (const sp of socialProfiles) {
+          if (sp.bio && !profile.business_description_raw) {
+            profile.business_description_raw = sp.bio;
+          }
+        }
+      }
     }
 
     profile.profiled_at = new Date().toISOString();
     profiles.push(profile);
   }
 
+  // Build summary
+  const noWebsite = profiles.filter((p) => p.website_quality_score === 0).length;
+  const withLogos = profiles.filter((p) => p.logo_path).length;
+  const withGoogle = profiles.filter((p) => p.google_business_json !== "{}").length;
+  const withSocial = profiles.filter((p) => p.social_profiles_json !== "[]").length;
+
   return {
-    summary: `Profiled ${profiles.length} leads. ${profiles.filter((p) => p.website_quality_score < 40).length} have poor/no websites. ${profiles.filter((p) => p.logo_path).length} logos scraped.`,
+    summary: `Profiled ${profiles.length} leads. ${noWebsite} have no/poor website. ${withGoogle} Google profiles scraped. ${withSocial} social profiles scraped. ${withLogos} logos found.`,
     artifacts: {
       profiles,
       profiled_count: profiles.length,
-      high_opportunity_count: profiles.filter((p) => p.website_quality_score < 40).length,
+      high_opportunity_count: noWebsite,
     },
   };
 };
