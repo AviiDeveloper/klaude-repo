@@ -4,6 +4,7 @@ import {
   saveBuffer,
   saveScreenshot,
   saveFromUrl,
+  getManifest,
   type AssetMetadata,
 } from "../../lib/assetStore.js";
 
@@ -237,12 +238,20 @@ async function scrapeGoogleBusiness(
       const addressFormatted = addressEl?.textContent?.trim() ??
         addressEl?.getAttribute("aria-label")?.replace("Address: ", "") ?? null;
 
-      // Photos — get thumbnail URLs
+      // Photos — get URLs and upscale to high-res
       const photoUrls: string[] = [];
       const photoEls = document.querySelectorAll('button[jsaction*="photo"] img, .gallery img, [data-photo-index] img, img[decoding="async"]');
       photoEls.forEach((img) => {
-        const src = (img as HTMLImageElement).src;
-        if (src && src.startsWith("http") && !src.includes("gstatic") && !src.includes("maps/vt")) {
+        let src = (img as HTMLImageElement).src;
+        if (src && src.startsWith("http") && !src.includes("gstatic") && !src.includes("maps/vt") && !src.includes("data:")) {
+          // Google Maps images use =wNNN-hNNN-k-no params for sizing
+          // Replace small sizes with larger ones (up to 800px wide)
+          src = src.replace(/=w\d+-h\d+/, "=w800-h600");
+          src = src.replace(/=s\d+/, "=s800");
+          // If no size param, append one
+          if (!src.includes("=w") && !src.includes("=s") && src.includes("googleusercontent.com")) {
+            src = src + "=w800-h600";
+          }
           photoUrls.push(src);
         }
       });
@@ -273,33 +282,93 @@ async function scrapeGoogleBusiness(
       } catch { /* non-fatal */ }
     }
 
-    // Try to navigate to the photos tab for more images
-    if (savedPhotos.length < 3) {
-      try {
-        const photosTab = await page.$('[data-tab-index="6"], [aria-label*="Photos"], button:has-text("Photos")');
-        if (photosTab) {
-          await photosTab.click();
+    // Navigate to the photos tab/gallery for higher-res images
+    try {
+      // Click the main photo or "Photos" tab to open the gallery view
+      const photosEntry = await page.$('[data-tab-index="6"], [aria-label*="Photos"], button:has-text("Photos"), .aoRNLd');
+      if (photosEntry) {
+        await photosEntry.click();
+        await page.waitForTimeout(3000);
+      } else {
+        // Try clicking the main image/photo area
+        const mainPhoto = await page.$('.RZ66Rb, .ZKbJE img, [jsaction*="heroHeaderImage"]');
+        if (mainPhoto) {
+          await mainPhoto.click();
           await page.waitForTimeout(3000);
-
-          const morePhotoUrls = await page.evaluate(() => {
-            const urls: string[] = [];
-            document.querySelectorAll('img[decoding="async"], [data-photo-index] img').forEach((img) => {
-              const src = (img as HTMLImageElement).src;
-              if (src && src.startsWith("http") && !src.includes("gstatic")) {
-                urls.push(src);
-              }
-            });
-            return [...new Set(urls)].slice(0, 12);
-          });
-
-          for (let i = savedPhotos.length; i < morePhotoUrls.length && savedPhotos.length < 12; i++) {
-            try {
-              const meta = await saveFromUrl(leadId, `google_photo_${savedPhotos.length + 1}.jpg`, morePhotoUrls[i], "gallery");
-              if (meta) savedPhotos.push(meta.filename);
-            } catch { /* non-fatal */ }
-          }
         }
-      } catch { /* non-fatal */ }
+      }
+
+      // Now in gallery view — grab all high-res images
+      const galleryPhotoUrls = await page.evaluate(() => {
+        const urls: string[] = [];
+        document.querySelectorAll('img[decoding="async"], [data-photo-index] img, .gallery-image img, div[style*="background-image"]').forEach((el) => {
+          let src: string | null = null;
+          if (el.tagName === "IMG") {
+            src = (el as HTMLImageElement).src;
+          } else {
+            const bg = (el as HTMLElement).style.backgroundImage;
+            const match = bg?.match(/url\(["']?(.*?)["']?\)/);
+            if (match) src = match[1];
+          }
+          if (src && src.startsWith("http") && !src.includes("gstatic") && !src.includes("maps/vt") && !src.includes("data:")) {
+            // Upscale to high resolution
+            src = src.replace(/=w\d+-h\d+[^&]*/g, "=w800-h600");
+            src = src.replace(/=s\d+/g, "=s800");
+            if (!src.includes("=w") && !src.includes("=s") && src.includes("googleusercontent.com")) {
+              src = src + "=w800-h600";
+            }
+            urls.push(src);
+          }
+        });
+        return [...new Set(urls)].slice(0, 15);
+      });
+
+      // Download any new photos we didn't already get
+      const existingUrls = new Set<string>(gData.photoUrls);
+      for (const photoUrl of galleryPhotoUrls) {
+        if (savedPhotos.length >= 12) break;
+        // Check if this is a genuinely new image (not just a resized version of one we have)
+        const baseUrl = photoUrl.replace(/=w\d+-h\d+[^&]*/g, "").replace(/=s\d+/g, "");
+        const isDuplicate = [...existingUrls].some((u: string) => u.replace(/=w\d+-h\d+[^&]*/g, "").replace(/=s\d+/g, "") === baseUrl);
+        if (isDuplicate) continue;
+
+        try {
+          const meta = await saveFromUrl(leadId, `google_photo_${savedPhotos.length + 1}.jpg`, photoUrl, "gallery");
+          if (meta && (meta.size_bytes ?? 0) > 2000) {
+            savedPhotos.push(meta.filename);
+          }
+        } catch { /* non-fatal */ }
+      }
+
+      // If photos are still tiny, try screenshotting the gallery grid as a fallback
+      if (savedPhotos.length > 0 && savedPhotos.length < 4) {
+        try {
+          const galleryBuf = await page.screenshot({ fullPage: false, type: "png" });
+          await saveScreenshot(leadId, "google_gallery.png", galleryBuf);
+        } catch { /* non-fatal */ }
+      }
+    } catch { /* non-fatal — photo gallery scrape is best-effort */ }
+
+    // Re-download any existing photos that are too small (< 5KB = thumbnail)
+    for (let i = 0; i < savedPhotos.length; i++) {
+      const origUrl = gData.photoUrls[i];
+      if (!origUrl) continue;
+      const existingMeta = getManifest(leadId).assets.find((a) => a.filename === savedPhotos[i]);
+      if (existingMeta && (existingMeta.size_bytes ?? 0) < 5000) {
+        // Try to get a bigger version
+        let bigUrl = origUrl;
+        bigUrl = bigUrl.replace(/=w\d+-h\d+[^&]*/g, "=w1200-h900");
+        bigUrl = bigUrl.replace(/=s\d+/g, "=s1200");
+        if (!bigUrl.includes("=w") && !bigUrl.includes("=s") && bigUrl.includes("googleusercontent.com")) {
+          bigUrl = bigUrl + "=w1200-h900";
+        }
+        try {
+          const meta = await saveFromUrl(leadId, savedPhotos[i], bigUrl, "gallery");
+          if (meta && (meta.size_bytes ?? 0) > (existingMeta.size_bytes ?? 0)) {
+            // Successfully replaced with bigger version
+          }
+        } catch { /* keep the small one */ }
+      }
     }
 
     // Build maps embed URL
@@ -457,10 +526,26 @@ async function scrapeWebsiteWithPlaywright(
         }
       }
 
-      // ALL images on the page > 150px (gallery candidates)
+      // ALL images on the page > 150px (gallery candidates) — prefer srcset for higher-res
       const allImages: string[] = [];
       doc.querySelectorAll("img").forEach((img) => {
-        if (img.src && img.naturalWidth > 150 && !img.src.includes("data:")) {
+        if (img.naturalWidth < 150 && !img.getAttribute("srcset")) return;
+        if (img.src.includes("data:")) return;
+
+        // Check srcset for higher resolution
+        const srcset = img.getAttribute("srcset");
+        if (srcset) {
+          const parts = srcset.split(",").map(s => s.trim());
+          let bestUrl = "";
+          let bestWidth = 0;
+          for (const part of parts) {
+            const [url, widthStr] = part.split(/\s+/);
+            const w = parseInt(widthStr) || 0;
+            if (w > bestWidth && url) { bestWidth = w; bestUrl = url; }
+          }
+          if (bestUrl && bestWidth >= 400) { allImages.push(bestUrl); return; }
+        }
+        if (img.src && img.naturalWidth > 150) {
           allImages.push(img.src);
         }
       });
@@ -827,11 +912,16 @@ async function scrapeFacebook(browser: any, url: string, leadId: string, profile
       }
     });
 
-    // Post images (visible without login)
+    // Post images (visible without login) — try to get highest resolution
     const postImgs: string[] = [];
-    document.querySelectorAll('img[data-store], img[data-sigil*="photo"]').forEach((img) => {
-      const src = (img as HTMLImageElement).src;
-      if (src && src.startsWith("http") && !src.includes("emoji") && !src.includes("rsrc")) {
+    document.querySelectorAll('img[data-store], img[data-sigil*="photo"], img[src*="scontent"], img[src*="fbcdn"]').forEach((img) => {
+      let src = (img as HTMLImageElement).src;
+      if (src && src.startsWith("http") && !src.includes("emoji") && !src.includes("rsrc") && !src.includes("static")) {
+        // Facebook image URLs: replace small dimensions with larger
+        // e.g. s720x720 -> s1080x1080, or p75x225 -> p960x960
+        src = src.replace(/\/s\d+x\d+\//, "/s1080x1080/");
+        src = src.replace(/\/p\d+x\d+\//, "/p960x960/");
+        src = src.replace(/\/c\d+\.\d+\.\d+\.\d+\//, "/"); // remove crop params
         postImgs.push(src);
       }
     });
@@ -903,11 +993,27 @@ async function scrapeInstagram(browser: any, url: string, leadId: string, profil
     const profileImg = document.querySelector('header img, img[data-testid="user-avatar"]') as HTMLImageElement | null;
     const profileUrl = profileImg?.src ?? null;
 
-    // Post thumbnails
+    // Post images — grab largest available version
     const postImgs: string[] = [];
-    document.querySelectorAll('article img, main a img, ._aagv img').forEach((img) => {
-      const src = (img as HTMLImageElement).src;
-      if (src && src.startsWith("http") && !src.includes("s150x150")) {
+    document.querySelectorAll('article img, main a img, ._aagv img, img[srcset]').forEach((img) => {
+      const imgEl = img as HTMLImageElement;
+      // Prefer srcset (has higher-res versions) over src
+      const srcset = imgEl.getAttribute("srcset");
+      if (srcset) {
+        // srcset format: "url1 640w, url2 750w, url3 1080w"
+        const parts = srcset.split(",").map(s => s.trim());
+        // Get the largest one
+        let bestUrl = "";
+        let bestWidth = 0;
+        for (const part of parts) {
+          const [url, widthStr] = part.split(/\s+/);
+          const w = parseInt(widthStr) || 0;
+          if (w > bestWidth && url) { bestWidth = w; bestUrl = url; }
+        }
+        if (bestUrl) { postImgs.push(bestUrl); return; }
+      }
+      const src = imgEl.src;
+      if (src && src.startsWith("http") && !src.includes("s150x150") && !src.includes("data:")) {
         postImgs.push(src);
       }
     });
