@@ -1,6 +1,7 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { siteTemplates, verticalDefaults, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
+import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
+import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
 import type { BrandAnalysis, PhotoInventoryItem } from "./brandAnalyser.js";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +84,6 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const vertical = resolveVertical(lead.business_type ?? "general");
     const templateId = config.template_id ?? `${vertical}-v1`;
     const template = siteTemplates.find((t) => t.id === templateId) ?? siteTemplates[0];
-    const defaults = verticalDefaults[vertical] ?? verticalDefaults.general;
 
     const brand = brandAnalyses.get(leadId);
 
@@ -93,19 +93,50 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const email = lead.email ?? `info@${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "")}.co.uk`;
     const address = lead.address ?? "";
 
-    // --- Colours ---
-    const primaryColor = brand?.colours?.primary ?? defaults.primary_color;
-    const accentColor = brand?.colours?.secondary ?? defaults.accent_color;
+    // --- Gather asset availability ---
+    const heroPhoto = brand?.photo_inventory?.find((p) => p.usable_for.includes("hero"));
+    const hasHeroImage = !!(heroPhoto && leadId);
+    const galleryPhotos = brand?.photo_inventory?.filter(
+      (p) => p.usable_for.includes("gallery") && p.filename !== heroPhoto?.filename,
+    ) ?? [];
+    const socialPhotos = brand?.photo_inventory?.filter((p) => p.category === "social") ?? [];
+    const hasGallery = galleryPhotos.length >= 2;
+    const hasLogo = !!(brand?.logo_path && leadId);
+    const reviews = safeJsonParse<GoogleReview[]>(lead.reviews_json, []);
+    const goodReviews = reviews.filter((r) => r.rating >= 4 && r.text.length > 20);
+    const hasReviews = goodReviews.length > 0;
+    const hours = safeJsonParse<string[]>(lead.opening_hours_json, []);
+    const hasHours = hours.length > 0;
+    const hasMap = !!(lead.maps_embed_url);
+    const hasMenu = !!(brand?.menu_items && brand.menu_items.length > 0);
 
-    // --- Fonts ---
-    const headingFont = brand?.fonts?.heading?.split(",")[0]?.trim() ?? defaults.heading_font;
-    const bodyFont = brand?.fonts?.body?.split(",")[0]?.trim() ?? defaults.body_font;
-    const headingFontImport = headingFont === defaults.heading_font
-      ? defaults.heading_font_import
-      : `${headingFont.replace(/\s+/g, "+")}:wght@400;600;700;800`;
-    const bodyFontImport = bodyFont === defaults.body_font
-      ? defaults.body_font_import
-      : `${bodyFont.replace(/\s+/g, "+")}:wght@400;500;600`;
+    // --- DESIGN SYSTEM: consult the design brain ---
+    const designInput: DesignInput = {
+      vertical,
+      businessName,
+      businessType,
+      scrapedPrimary: brand?.colours?.primary,
+      scrapedSecondary: brand?.colours?.secondary,
+      scrapedAccent: brand?.colours?.accent,
+      scrapedFonts: brand?.fonts ? [brand.fonts.heading, brand.fonts.body].filter(Boolean) : undefined,
+      paletteSource: brand?.colours?.palette_source,
+      hasLogo,
+      hasHeroImage,
+      hasGallery,
+      galleryCount: galleryPhotos.length + socialPhotos.length,
+      hasReviews,
+      reviewCount: goodReviews.length,
+      hasHours,
+      hasMap,
+      hasMenu,
+      hasSocialImages: socialPhotos.length > 0,
+      socialImageCount: socialPhotos.length,
+      googleRating: lead.google_rating ?? undefined,
+      googleReviewCount: lead.google_review_count ?? undefined,
+    };
+
+    const design = makeDesignDecision(designInput);
+    const designCss = generateCss(design);
 
     // --- Content ---
     const tagline = generateTagline(businessName, businessType, vertical);
@@ -124,30 +155,15 @@ export const siteComposerAgent: AgentHandler = async (input) => {
         ).join("\n        ")
       : generateServicesHtml(businessType, vertical);
 
-    // --- Logo ---
-    const hasLogo = !!(brand?.logo_path && leadId);
     const logoUrl = hasLogo ? buildAssetUrl(leadId, brand!.logo_path!) : "";
-
-    // --- Hero image ---
-    const heroPhoto = brand?.photo_inventory?.find((p) => p.usable_for.includes("hero"));
-    const hasHeroImage = !!(heroPhoto && leadId);
     const heroImageUrl = hasHeroImage ? buildAssetUrl(leadId, heroPhoto!.filename) : "";
 
-    // --- Gallery (include social images) ---
-    const galleryPhotos = brand?.photo_inventory?.filter(
-      (p) => p.usable_for.includes("gallery") && p.filename !== heroPhoto?.filename,
-    ) ?? [];
-    const hasGallery = galleryPhotos.length >= 2;
     const galleryHtml = hasGallery
       ? galleryPhotos.slice(0, 8).map((p) =>
           `<div class="gallery-item"><img src="${buildAssetUrl(leadId, p.filename)}" alt="${escapeHtml(businessName)}" loading="lazy"></div>`
         ).join("\n        ")
       : "";
 
-    // --- Reviews / Testimonials ---
-    const reviews = safeJsonParse<GoogleReview[]>(lead.reviews_json, []);
-    const goodReviews = reviews.filter((r) => r.rating >= 4 && r.text.length > 20);
-    const hasReviews = goodReviews.length > 0;
     const reviewsHtml = goodReviews.slice(0, 3).map((r) => `
         <div class="testimonial-card">
           <p class="testimonial-text">${escapeHtml(smartTruncate(r.text, 200))}</p>
@@ -155,17 +171,12 @@ export const siteComposerAgent: AgentHandler = async (input) => {
           <p class="testimonial-rating">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</p>
         </div>`).join("\n");
 
-    // --- Star rating ---
     const hasRating = !!(lead.google_rating && lead.google_review_count && lead.google_review_count > 3);
     const starsHtml = hasRating
       ? "★".repeat(Math.round(lead.google_rating!)) + "☆".repeat(5 - Math.round(lead.google_rating!))
       : "";
 
-    // --- Opening hours ---
-    const hours = safeJsonParse<string[]>(lead.opening_hours_json, []);
-    const hasHours = hours.length > 0;
     const hoursHtml = hours.slice(0, 7).map((h) => {
-      // Try to split "Monday 9AM–5PM" style
       const parts = h.match(/^(\w+(?:day)?)\s*[:\s]\s*(.+)$/i);
       if (parts) {
         return `<div class="hours-row"><span class="hours-day">${escapeHtml(parts[1])}</span><span class="hours-time">${escapeHtml(parts[2])}</span></div>`;
@@ -173,21 +184,22 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       return `<div class="hours-row"><span class="hours-time">${escapeHtml(h)}</span></div>`;
     }).join("\n        ");
 
-    // --- Google Maps ---
-    const hasMap = !!(lead.maps_embed_url);
     const mapsEmbedUrl = lead.maps_embed_url ?? "";
 
-    // --- Menu (food vertical) ---
-    const hasMenu = !!(brand?.menu_items && brand.menu_items.length > 0);
     const menuHtml = hasMenu
       ? brand!.menu_items!.slice(0, 20).map((item) =>
           `<div class="menu-item"><span class="menu-item-name">${escapeHtml(item.name)}</span>${item.price ? `<span class="menu-item-price">${escapeHtml(item.price)}</span>` : ""}${item.description ? `<br><span class="menu-item-desc">${escapeHtml(item.description)}</span>` : ""}</div>`
         ).join("\n        ")
       : "";
 
-    // --- CTA content ---
     const ctaHeading = generateCtaHeading(businessName, vertical);
     const ctaSubtext = generateCtaSubtext(businessName, businessType, vertical);
+
+    // --- CTA text from design system vertical defaults ---
+    const ctaTextMap: Record<string, string> = {
+      trades: "Call Now — Free Quote", food: "Book A Table", health: "Book An Appointment",
+      professional: "Get In Touch", retail: "Visit Us Today",
+    };
 
     const templateVars: Record<string, string> = {
       business_name: businessName,
@@ -198,16 +210,17 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       hero_description: heroDescription,
       about_text: aboutText,
       services_html: servicesHtml,
-      services_subtitle: servicesSubtitle,
-      cta_text: defaults.cta_text,
+      services_subtitle: `Professional ${businessType} services tailored to your needs`,
+      cta_text: ctaTextMap[vertical] ?? "Contact Us",
       cta_heading: ctaHeading,
       cta_subtext: ctaSubtext,
-      primary_color: primaryColor,
-      accent_color: accentColor,
-      heading_font: headingFont,
-      heading_font_import: headingFontImport,
-      body_font: bodyFont,
-      body_font_import: bodyFontImport,
+      // Design system colours (for any remaining template placeholders)
+      primary_color: design.colours.primary,
+      accent_color: design.colours.secondary,
+      heading_font: design.fonts.heading,
+      heading_font_import: design.fonts.headingImport,
+      body_font: design.fonts.body,
+      body_font_import: design.fonts.bodyImport,
       year: new Date().getFullYear().toString(),
       // Data-driven sections
       logo_url: logoUrl,
@@ -220,6 +233,10 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       google_rating: lead.google_rating?.toString() ?? "",
       google_review_count: lead.google_review_count?.toString() ?? "",
       stars_html: starsHtml,
+      // Design rationale (for debug)
+      design_rationale: design.rationale.join(" | "),
+      component_style: design.componentStyle,
+      hero_variant: design.hero.variant,
       // Conditional flags
       has_logo: hasLogo ? "true" : "",
       has_hero_image: hasHeroImage ? "true" : "",
@@ -231,10 +248,11 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       has_hours: hasHours ? "true" : "",
       has_map: hasMap ? "true" : "",
       has_address: address ? "true" : "",
+      has_trust_badges: design.hero.showTrustBadges ? "true" : "",
     };
 
-    // Fill CSS then HTML
-    let css = template.css_template;
+    // Use design system CSS instead of template CSS
+    let css = designCss;
     let html = template.html_template;
 
     for (const [key, value] of Object.entries(templateVars)) {
@@ -267,14 +285,18 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       business_name: businessName,
       vertical,
       assets_used_json: JSON.stringify(assetsUsed),
-      brand_source: brand?.colours?.palette_source ?? "vertical_default",
-      // New metadata
+      brand_source: design.colours.source,
+      // Design system metadata
       has_reviews: hasReviews,
       has_map: hasMap,
       has_hours: hasHours,
       has_gallery: hasGallery,
       has_menu: hasMenu,
       sections_count: countSections(templateVars),
+      design_rationale: design.rationale,
+      component_style: design.componentStyle,
+      hero_variant: design.hero.variant,
+      font_pairing: `${design.fonts.heading} / ${design.fonts.body}`,
     });
   }
 
