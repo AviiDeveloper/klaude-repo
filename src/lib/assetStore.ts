@@ -327,9 +327,9 @@ export async function extractDominantColours(
     // Count colour frequencies (quantise to 16-step buckets)
     const counts = new Map<string, number>();
     for (let i = 0; i < data.length; i += 3) {
-      const r = Math.round(data[i] / 16) * 16;
-      const g = Math.round(data[i + 1] / 16) * 16;
-      const b = Math.round(data[i + 2] / 16) * 16;
+      const r = Math.min(255, Math.round(data[i] / 16) * 16);
+      const g = Math.min(255, Math.round(data[i + 1] / 16) * 16);
+      const b = Math.min(255, Math.round(data[i + 2] / 16) * 16);
 
       // Skip near-white and near-black
       const brightness = (r + g + b) / 3;
