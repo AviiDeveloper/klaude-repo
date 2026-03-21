@@ -2,8 +2,11 @@ import { AgentHandler } from "../../pipeline/agentRuntime.js";
 import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
 import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
+import { generateSiteWithAI, type AIComposerAssets } from "./aiComposer.js";
 import type { BrandAnalysis } from "./brandAnalyser.js";
 import type { SiteBrief } from "./briefGenerator.js";
+
+const AI_COMPOSER_ENABLED = (process.env.AI_COMPOSER_ENABLED ?? "true") !== "false";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,6 +84,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
   }
 
   const generatedSites: Array<Record<string, unknown>> = [];
+  let totalCost = 0;
 
   for (const lead of targetLeads) {
     const leadId = lead.lead_id ?? "";
@@ -142,7 +146,70 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const design = makeDesignDecision(designInput);
     const designCss = generateCss(design);
 
-    // --- BRIEF-DRIVEN CONTENT (no more generic generators) ---
+    // --- Gather asset URLs ---
+    const logoUrl = hasLogo ? buildAssetUrl(leadId, brand?.logo_path ?? "logo.png") : "";
+    const heroImageUrl = hasHeroImage && heroPhoto ? buildAssetUrl(leadId, heroPhoto.filename) : "";
+    const galleryUrlList = hasGallery
+      ? galleryPhotos.slice(0, 8).map((p) => buildAssetUrl(leadId, p.filename))
+      : [];
+
+    // ─────────────────────────────────────────────────────────────
+    // AI COMPOSER PATH — generates unique HTML via Claude
+    // ─────────────────────────────────────────────────────────────
+    if (AI_COMPOSER_ENABLED && brief) {
+      try {
+        const aiAssets: AIComposerAssets = { logoUrl, heroUrl: heroImageUrl, galleryUrls: galleryUrlList };
+        const aiResult = await generateSiteWithAI(brief, design, aiAssets, leadId);
+
+        const domain = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+        const siteName = `${businessName} — ${businessType.charAt(0).toUpperCase() + businessType.slice(1)}`;
+
+        const assetsUsed: string[] = [];
+        if (hasLogo && brand?.logo_path) assetsUsed.push(brand.logo_path);
+        if (hasHeroImage && heroPhoto) assetsUsed.push(heroPhoto.filename);
+        galleryPhotos.slice(0, 8).forEach((p) => assetsUsed.push(p.filename));
+
+        totalCost += aiResult.costUsd;
+
+        generatedSites.push({
+          lead_id: lead.lead_id,
+          template_id: "ai-generated",
+          site_name: siteName,
+          domain,
+          config_json: "{}",
+          html_output: aiResult.html,
+          css_output: "",
+          business_name: businessName,
+          vertical,
+          assets_used_json: JSON.stringify(assetsUsed),
+          brand_source: design.colours.source,
+          brief_used: true,
+          has_reviews: hasReviews,
+          has_map: hasMap,
+          has_hours: hasHours,
+          has_gallery: hasGallery,
+          has_menu: hasMenu,
+          sections_count: brief.sectionOrder.length,
+          design_rationale: design.rationale,
+          component_style: design.componentStyle,
+          hero_variant: design.hero.variant,
+          font_pairing: `${design.fonts.heading} / ${design.fonts.body}`,
+          avoid_topics: brief.avoidTopics,
+          ai_generated: true,
+          ai_tokens_used: aiResult.tokensUsed,
+          ai_cost_usd: aiResult.costUsd,
+        });
+
+        continue; // Skip template fallback
+      } catch (err) {
+        console.error(`[Composer] AI generation failed for ${businessName}, falling back to template:`, err);
+        // Fall through to template path below
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // TEMPLATE FALLBACK PATH — deterministic template filling
+    // ─────────────────────────────────────────────────────────────
     const tagline = brief?.heroHeadline ?? generateFallbackTagline(businessName, businessType, vertical);
     const heroDescription = brief?.heroSubtext ?? generateFallbackHeroDesc(businessName, businessType, lead);
     const aboutText = brief?.aboutCopy ?? generateFallbackAbout(businessName, businessType, lead);
@@ -153,9 +220,6 @@ export const siteComposerAgent: AgentHandler = async (input) => {
           `<div class="service-card"><h3>${escapeHtml(s.name)}</h3><p>${escapeHtml(s.description)}</p></div>`
         ).join("\n        ")
       : generateFallbackServicesHtml(businessType, vertical);
-
-    const logoUrl = hasLogo ? buildAssetUrl(leadId, brand?.logo_path ?? "logo.png") : "";
-    const heroImageUrl = hasHeroImage && heroPhoto ? buildAssetUrl(leadId, heroPhoto.filename) : "";
 
     const galleryHtml = hasGallery
       ? galleryPhotos.slice(0, 8).map((p) =>
@@ -321,15 +385,17 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 
   const withBrand = generatedSites.filter((s) => s.brand_source !== "vertical_default").length;
   const withBrief = generatedSites.filter((s) => s.brief_used).length;
+  const withAI = generatedSites.filter((s) => s.ai_generated).length;
   const withReviews = generatedSites.filter((s) => s.has_reviews).length;
   const withMaps = generatedSites.filter((s) => s.has_map).length;
 
   return {
-    summary: `Generated ${generatedSites.length} landing pages. ${withBrief} with brief data. ${withBrand} with real brand data. ${withReviews} with testimonials. ${withMaps} with maps.`,
+    summary: `Generated ${generatedSites.length} landing pages. ${withAI} AI-generated. ${withBrief} with brief data. ${withBrand} with real brand data. ${withReviews} with testimonials. ${withMaps} with maps.${totalCost > 0 ? ` Cost: $${totalCost.toFixed(4)}` : ""}`,
     artifacts: {
       sites: generatedSites,
       generated_count: generatedSites.length,
     },
+    cost_usd: totalCost,
   };
 };
 
