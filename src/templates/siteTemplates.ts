@@ -332,11 +332,9 @@ const tradesHtml = `<!DOCTYPE html>
           <a href="tel:{{phone}}" class="btn btn-white">{{cta_text}}</a>
           <a href="#services" class="btn btn-outline" style="border-color:#fff;color:#fff">View Services</a>
         </div>
-        <div class="hero-trust">
-          <div class="trust-item"><span class="trust-check">✓</span> Free Quotes</div>
-          <div class="trust-item"><span class="trust-check">✓</span> Fully Insured</div>
-          <div class="trust-item"><span class="trust-check">✓</span> Local & Reliable</div>
-        </div>
+        {{#has_trust_badges}}<div class="hero-trust">
+          {{trust_badges_html}}
+        </div>{{/has_trust_badges}}
       </div>
     </div>
   </section>

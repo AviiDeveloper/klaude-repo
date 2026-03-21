@@ -156,7 +156,7 @@ function hslToHex(h: number, s: number, l: number): string {
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
     const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, "0");
+    return Math.max(0, Math.min(255, Math.round(255 * color))).toString(16).padStart(2, "0");
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
@@ -234,6 +234,14 @@ function ensureReadable(textHex: string, bgHex: string, minRatio = 4.5): string 
 /** Generate a CSS gradient from primary colour */
 function generateGradient(primary: string, secondary: string, angle = 135): string {
   return `linear-gradient(${angle}deg, ${primary}, ${secondary})`;
+}
+
+/** Convert hex colour to rgba with alpha (avoids broken hex+alpha strings) */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -469,7 +477,9 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   const textMuted = ensureReadable("#64748b", background, 3);
   const textOnPrimary = ensureReadable("#ffffff", primary);
   const border = "#e2e8f0";
-  const shadow = `${primary}15`;
+  // Shadow colour: primary at 8% opacity (use rgba instead of hex+alpha for compatibility)
+  const [shR, shG, shB] = [parseInt(primary.slice(1, 3), 16), parseInt(primary.slice(3, 5), 16), parseInt(primary.slice(5, 7), 16)];
+  const shadow = `rgba(${shR},${shG},${shB},0.08)`;
   const gradient = generateGradient(primary, secondary, profile.gradientAngle);
 
   const colours: ResolvedPalette = {
@@ -716,14 +726,14 @@ export function generateCss(design: DesignDecision): string {
     case "image_overlay":
       heroCss = `
         .hero { background-size: cover; background-position: center; position: relative; padding: var(--spacing-section) 0; color: #fff; }
-        .hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, ${colours.gradient.replace(/linear-gradient\(\d+deg,\s*/, "").replace(")", "").split(",")[0]}cc, rgba(0,0,0,0.7)); }
+        .hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, ${hexToRgba(colours.primary, 0.8)}, rgba(0,0,0,0.7)); }
         .hero .container { position: relative; z-index: 1; }
         .hero .btn-primary { background: #fff; color: var(--color-primary); }
       `;
       break;
     case "split_image":
       heroCss = `
-        .hero { padding: var(--spacing-section) 0; background: linear-gradient(160deg, ${colours.primaryLight}20 0%, ${colours.surface} 100%); }
+        .hero { padding: var(--spacing-section) 0; background: linear-gradient(160deg, ${hexToRgba(colours.primaryLight, 0.13)} 0%, ${colours.surface} 100%); }
         .hero-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
         .hero-image-col img { border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.1); max-height: 420px; width: 100%; object-fit: cover; }
         @media (max-width: 768px) { .hero-two-col { grid-template-columns: 1fr; } .hero-image-col { order: -1; } }
@@ -769,8 +779,8 @@ a { color: inherit; text-decoration: none; }
   transition: all 0.3s ease; border: none; text-align: center;
   font-family: var(--font-body);
 }
-.btn-primary { background: var(--color-primary); color: var(--color-text-on-primary); box-shadow: 0 4px 14px ${colours.primary}40; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px ${colours.primary}60; }
+.btn-primary { background: var(--color-primary); color: var(--color-text-on-primary); box-shadow: 0 4px 14px ${hexToRgba(colours.primary, 0.25)}; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px ${hexToRgba(colours.primary, 0.38)}; }
 .btn-outline { border: 2px solid var(--color-primary); color: var(--color-primary); background: transparent; }
 .btn-outline:hover { background: var(--color-primary); color: var(--color-text-on-primary); }
 .btn-white { background: #fff; color: var(--color-primary); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
@@ -842,7 +852,7 @@ ${heroCss}
 }
 .testimonial-card::before {
   content: '\\201C'; position: absolute; top: 8px; left: 16px;
-  font-size: 3.5rem; color: ${colours.primary}18; font-family: Georgia, serif; line-height: 1;
+  font-size: 3.5rem; color: ${hexToRgba(colours.primary, 0.1)}; font-family: Georgia, serif; line-height: 1;
 }
 .testimonial-text { font-size: 1rem; color: var(--color-text-muted); margin-bottom: 16px; font-style: italic; padding-top: 16px; }
 .testimonial-author { font-weight: 700; font-size: 0.9rem; color: var(--color-text); }

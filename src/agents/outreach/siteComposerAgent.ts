@@ -86,7 +86,10 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const leadId = lead.lead_id ?? "";
     const vertical = resolveVertical(lead.business_type ?? "general");
     const templateId = config.template_id ?? `${vertical}-v1`;
-    const template = siteTemplates.find((t) => t.id === templateId) ?? siteTemplates[0];
+    // Find by ID first, then fall back to matching by vertical, then first template
+    const template = siteTemplates.find((t) => t.id === templateId)
+      ?? siteTemplates.find((t) => t.vertical === vertical)
+      ?? siteTemplates[0];
 
     const brand = brandAnalyses.get(leadId);
     const brief = briefsByName.get(lead.business_name);
@@ -208,7 +211,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 
     // --- Trust badges from brief (type-specific, no "Free Quotes" on a barber!) ---
     const trustBadgesHtml = brief?.trustBadges
-      ? brief.trustBadges.map((b) => `<span class="trust-badge">${escapeHtml(b)}</span>`).join("\n        ")
+      ? brief.trustBadges.map((b) => `<div class="trust-item"><span class="trust-check">✓</span> ${escapeHtml(b)}</div>`).join("\n          ")
       : "";
 
     const templateVars: Record<string, string> = {
