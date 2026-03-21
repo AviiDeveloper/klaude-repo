@@ -107,7 +107,12 @@ export class PipelineEngine {
       schedule_rrule: "",
       max_retries: 1,
       nodes: [
-        { id: "compose", agent_id: "site-composer-agent", depends_on: [] },
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: [] },
+        {
+          id: "compose",
+          agent_id: "site-composer-agent",
+          depends_on: ["brief"],
+        },
         {
           id: "qa",
           agent_id: "site-qa-agent",

@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { leadProfilerAgent } from "../agents/outreach/leadProfilerAgent.js";
 import { brandAnalyserAgent } from "../agents/outreach/brandAnalyser.js";
+import { briefGeneratorAgent } from "../agents/outreach/briefGenerator.js";
 import { siteComposerAgent } from "../agents/outreach/siteComposerAgent.js";
 import { siteQaAgent } from "../agents/outreach/siteQaAgent.js";
 import { getLeadDir, listAssets, buildAssetUrl } from "../lib/assetStore.js";
@@ -104,7 +105,6 @@ async function runPipeline(url: string, name: string, type: string): Promise<Gen
 
   const analysis = (brandResult.artifacts as any).analyses?.[0];
 
-  console.log(`[Pipeline] Composing site...`);
   const lead = {
     lead_id: leadId,
     business_name: name,
@@ -113,13 +113,31 @@ async function runPipeline(url: string, name: string, type: string): Promise<Gen
     address: inputAddress,
   };
 
+  // --- Brief generation: produces business-type-aware copy directives ---
+  console.log(`[Pipeline] Generating brief...`);
+  const briefResult = await briefGeneratorAgent({
+    run_id: "preview",
+    node_id: "brief",
+    agent_id: "brief-generator-agent",
+    config: {},
+    upstreamArtifacts: {
+      profile: {
+        profiles: [{ ...lead, ...(profileResult.artifacts as any).profiles?.[0] }],
+        analyses: analysis ? [analysis] : [],
+      },
+    },
+  });
+  console.log(`[Pipeline] Brief: ${briefResult.summary}`);
+
+  console.log(`[Pipeline] Composing site...`);
   const composeResult = await siteComposerAgent({
     run_id: "preview",
     node_id: "compose",
     agent_id: "site-composer-agent",
     config: {},
     upstreamArtifacts: {
-      qualify: {
+      brief: {
+        ...briefResult.artifacts,
         qualified: [lead],
         analyses: analysis ? [analysis] : [],
       },

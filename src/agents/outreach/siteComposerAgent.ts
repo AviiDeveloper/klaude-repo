@@ -2,7 +2,8 @@ import { AgentHandler } from "../../pipeline/agentRuntime.js";
 import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
 import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
-import type { BrandAnalysis, PhotoInventoryItem } from "./brandAnalyser.js";
+import type { BrandAnalysis } from "./brandAnalyser.js";
+import type { SiteBrief } from "./briefGenerator.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,7 +20,6 @@ interface LeadData {
   google_review_count?: number;
   qualification_score?: number;
   pain_points_json?: string;
-  // New fields from upgraded profiler
   reviews_json?: string;
   opening_hours_json?: string;
   maps_embed_url?: string;
@@ -29,18 +29,12 @@ interface LeadData {
   business_description_raw?: string;
 }
 
-interface GoogleReview {
-  author: string;
-  rating: number;
-  text: string;
-  relative_time?: string;
-}
-
 interface UpstreamData {
   qualified?: LeadData[];
   leads?: LeadData[];
   analyses?: BrandAnalysis[];
   profiles?: LeadData[];
+  briefs?: SiteBrief[];
 }
 
 // ---------------------------------------------------------------------------
@@ -52,14 +46,23 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 
   const leads: LeadData[] = [];
   const brandAnalyses = new Map<string, BrandAnalysis>();
+  const briefsByName = new Map<string, SiteBrief>();
 
   for (const nodeOutput of Object.values(upstream)) {
     if (nodeOutput?.qualified) leads.push(...nodeOutput.qualified);
     else if (nodeOutput?.leads) leads.push(...nodeOutput.leads);
+    else if (nodeOutput?.profiles) leads.push(...nodeOutput.profiles);
 
     if (nodeOutput?.analyses) {
       for (const analysis of nodeOutput.analyses) {
         brandAnalyses.set(analysis.lead_id, analysis);
+      }
+    }
+
+    // Collect briefs from the brief generator node
+    if (nodeOutput?.briefs) {
+      for (const brief of nodeOutput.briefs) {
+        briefsByName.set(brief.businessName, brief);
       }
     }
   }
@@ -86,29 +89,27 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const template = siteTemplates.find((t) => t.id === templateId) ?? siteTemplates[0];
 
     const brand = brandAnalyses.get(leadId);
+    const brief = briefsByName.get(lead.business_name);
 
-    const businessName = lead.business_name;
-    const businessType = lead.business_type ?? "business";
-    const phone = lead.phone ?? "";
-    const email = lead.email ?? `info@${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "")}.co.uk`;
-    const address = lead.address ?? "";
+    const businessName = brief?.businessName ?? lead.business_name;
+    const businessType = brief?.businessType ?? lead.business_type ?? "business";
+    const phone = brief?.phone ?? lead.phone ?? "";
+    const email = brief?.email ?? lead.email ?? `info@${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "")}.co.uk`;
+    const address = brief?.address ?? lead.address ?? "";
 
     // --- Gather asset availability ---
     const heroPhoto = brand?.photo_inventory?.find((p) => p.usable_for.includes("hero"));
-    const hasHeroImage = !!(heroPhoto && leadId);
+    const hasHeroImage = brief?.hasHeroImage ?? !!(heroPhoto && leadId);
     const galleryPhotos = brand?.photo_inventory?.filter(
       (p) => p.usable_for.includes("gallery") && p.filename !== heroPhoto?.filename,
     ) ?? [];
     const socialPhotos = brand?.photo_inventory?.filter((p) => p.category === "social") ?? [];
-    const hasGallery = galleryPhotos.length >= 2;
-    const hasLogo = !!(brand?.logo_path && leadId);
-    const reviews = safeJsonParse<GoogleReview[]>(lead.reviews_json, []);
-    const goodReviews = reviews.filter((r) => r.rating >= 4 && r.text.length > 20);
-    const hasReviews = goodReviews.length > 0;
-    const hours = safeJsonParse<string[]>(lead.opening_hours_json, []);
-    const hasHours = hours.length > 0;
-    const hasMap = !!(lead.maps_embed_url);
-    const hasMenu = !!(brand?.menu_items && brand.menu_items.length > 0);
+    const hasGallery = brief?.galleryImageCount ? brief.galleryImageCount >= 2 : galleryPhotos.length >= 2;
+    const hasLogo = brief?.hasLogo ?? !!(brand?.logo_path && leadId);
+    const hasReviews = brief ? brief.bestReviews.length > 0 : false;
+    const hasHours = brief ? brief.openingHours.length > 0 : false;
+    const hasMap = !!(brief?.mapsEmbedUrl ?? lead.maps_embed_url);
+    const hasMenu = brief?.menuItems ? brief.menuItems.length > 0 : !!(brand?.menu_items && brand.menu_items.length > 0);
 
     // --- DESIGN SYSTEM: consult the design brain ---
     const designInput: DesignInput = {
@@ -125,38 +126,33 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       hasGallery,
       galleryCount: galleryPhotos.length + socialPhotos.length,
       hasReviews,
-      reviewCount: goodReviews.length,
+      reviewCount: brief?.bestReviews.length ?? 0,
       hasHours,
       hasMap,
       hasMenu,
       hasSocialImages: socialPhotos.length > 0,
       socialImageCount: socialPhotos.length,
-      googleRating: lead.google_rating ?? undefined,
-      googleReviewCount: lead.google_review_count ?? undefined,
+      googleRating: brief?.googleRating ?? lead.google_rating ?? undefined,
+      googleReviewCount: brief?.googleReviewCount ?? lead.google_review_count ?? undefined,
     };
 
     const design = makeDesignDecision(designInput);
     const designCss = generateCss(design);
 
-    // --- Content ---
-    const tagline = generateTagline(businessName, businessType, vertical);
-    const heroDescription = brand?.description
-      ? smartTruncate(brand.description, 180)
-      : generateHeroDescription(businessName, businessType, lead);
-    const aboutText = brand?.description
-      ? brand.description
-      : generateAboutText(businessName, businessType, lead);
-    const servicesSubtitle = `Professional ${businessType} services tailored to your needs`;
+    // --- BRIEF-DRIVEN CONTENT (no more generic generators) ---
+    const tagline = brief?.heroHeadline ?? generateFallbackTagline(businessName, businessType, vertical);
+    const heroDescription = brief?.heroSubtext ?? generateFallbackHeroDesc(businessName, businessType, lead);
+    const aboutText = brief?.aboutCopy ?? generateFallbackAbout(businessName, businessType, lead);
 
-    // --- Services HTML ---
-    const servicesHtml = brand?.services && brand.services.length > 0
-      ? brand.services.slice(0, 6).map((s) =>
-          `<div class="service-card"><h3>${escapeHtml(s)}</h3><p>${generateServiceDesc(s, businessType)}</p></div>`
+    // --- Services HTML: driven by brief, not generic ---
+    const servicesHtml = brief?.services && brief.services.length > 0
+      ? brief.services.slice(0, 6).map((s) =>
+          `<div class="service-card"><h3>${escapeHtml(s.name)}</h3><p>${escapeHtml(s.description)}</p></div>`
         ).join("\n        ")
-      : generateServicesHtml(businessType, vertical);
+      : generateFallbackServicesHtml(businessType, vertical);
 
-    const logoUrl = hasLogo ? buildAssetUrl(leadId, brand!.logo_path!) : "";
-    const heroImageUrl = hasHeroImage ? buildAssetUrl(leadId, heroPhoto!.filename) : "";
+    const logoUrl = hasLogo ? buildAssetUrl(leadId, brand?.logo_path ?? "logo.png") : "";
+    const heroImageUrl = hasHeroImage && heroPhoto ? buildAssetUrl(leadId, heroPhoto.filename) : "";
 
     const galleryHtml = hasGallery
       ? galleryPhotos.slice(0, 8).map((p) =>
@@ -164,18 +160,25 @@ export const siteComposerAgent: AgentHandler = async (input) => {
         ).join("\n        ")
       : "";
 
-    const reviewsHtml = goodReviews.slice(0, 3).map((r) => `
+    // --- Reviews from brief ---
+    const reviewsHtml = brief?.bestReviews && brief.bestReviews.length > 0
+      ? brief.bestReviews.slice(0, 3).map((r) => `
         <div class="testimonial-card">
           <p class="testimonial-text">${escapeHtml(smartTruncate(r.text, 200))}</p>
           <p class="testimonial-author">${escapeHtml(r.author)}</p>
           <p class="testimonial-rating">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</p>
-        </div>`).join("\n");
-
-    const hasRating = !!(lead.google_rating && lead.google_review_count && lead.google_review_count > 3);
-    const starsHtml = hasRating
-      ? "★".repeat(Math.round(lead.google_rating!)) + "☆".repeat(5 - Math.round(lead.google_rating!))
+        </div>`).join("\n")
       : "";
 
+    const googleRating = brief?.googleRating ?? lead.google_rating;
+    const googleReviewCount = brief?.googleReviewCount ?? lead.google_review_count;
+    const hasRating = !!(googleRating && googleReviewCount && googleReviewCount > 3);
+    const starsHtml = hasRating
+      ? "★".repeat(Math.round(googleRating!)) + "☆".repeat(5 - Math.round(googleRating!))
+      : "";
+
+    // --- Hours from brief ---
+    const hours = brief?.openingHours ?? safeJsonParse<string[]>(lead.opening_hours_json, []);
     const hoursHtml = hours.slice(0, 7).map((h) => {
       const parts = h.match(/^(\w+(?:day)?)\s*[:\s]\s*(.+)$/i);
       if (parts) {
@@ -184,22 +187,29 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       return `<div class="hours-row"><span class="hours-time">${escapeHtml(h)}</span></div>`;
     }).join("\n        ");
 
-    const mapsEmbedUrl = lead.maps_embed_url ?? "";
+    const mapsEmbedUrl = brief?.mapsEmbedUrl ?? lead.maps_embed_url ?? "";
 
-    const menuHtml = hasMenu
-      ? brand!.menu_items!.slice(0, 20).map((item) =>
+    // --- Menu from brief ---
+    const menuItems = brief?.menuItems ?? brand?.menu_items;
+    const menuHtml = menuItems && menuItems.length > 0
+      ? menuItems.slice(0, 20).map((item) =>
           `<div class="menu-item"><span class="menu-item-name">${escapeHtml(item.name)}</span>${item.price ? `<span class="menu-item-price">${escapeHtml(item.price)}</span>` : ""}${item.description ? `<br><span class="menu-item-desc">${escapeHtml(item.description)}</span>` : ""}</div>`
         ).join("\n        ")
       : "";
 
-    const ctaHeading = generateCtaHeading(businessName, vertical);
-    const ctaSubtext = generateCtaSubtext(businessName, businessType, vertical);
+    // --- CTA from brief (business-type-appropriate, not generic!) ---
+    const ctaText = brief?.ctaPrimary.text ?? "Contact Us";
+    const ctaHeading = brief
+      ? `Ready? ${brief.ctaPrimary.text}`
+      : generateFallbackCtaHeading(businessName, vertical);
+    const ctaSubtext = brief
+      ? brief.ctaPrimary.why
+      : generateFallbackCtaSubtext(businessName, businessType, vertical);
 
-    // --- CTA text from design system vertical defaults ---
-    const ctaTextMap: Record<string, string> = {
-      trades: "Call Now — Free Quote", food: "Book A Table", health: "Book An Appointment",
-      professional: "Get In Touch", retail: "Visit Us Today",
-    };
+    // --- Trust badges from brief (type-specific, no "Free Quotes" on a barber!) ---
+    const trustBadgesHtml = brief?.trustBadges
+      ? brief.trustBadges.map((b) => `<span class="trust-badge">${escapeHtml(b)}</span>`).join("\n        ")
+      : "";
 
     const templateVars: Record<string, string> = {
       business_name: businessName,
@@ -210,11 +220,14 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       hero_description: heroDescription,
       about_text: aboutText,
       services_html: servicesHtml,
-      services_subtitle: `Professional ${businessType} services tailored to your needs`,
-      cta_text: ctaTextMap[vertical] ?? "Contact Us",
+      services_subtitle: brief
+        ? `What ${businessName} offers`
+        : `Professional ${businessType} services tailored to your needs`,
+      cta_text: ctaText,
       cta_heading: ctaHeading,
       cta_subtext: ctaSubtext,
-      // Design system colours (for any remaining template placeholders)
+      trust_badges_html: trustBadgesHtml,
+      // Design system colours
       primary_color: design.colours.primary,
       accent_color: design.colours.secondary,
       heading_font: design.fonts.heading,
@@ -230,13 +243,14 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       reviews_html: reviewsHtml,
       hours_html: hoursHtml,
       maps_embed_url: mapsEmbedUrl,
-      google_rating: lead.google_rating?.toString() ?? "",
-      google_review_count: lead.google_review_count?.toString() ?? "",
+      google_rating: googleRating?.toString() ?? "",
+      google_review_count: googleReviewCount?.toString() ?? "",
       stars_html: starsHtml,
       // Design rationale (for debug)
       design_rationale: design.rationale.join(" | "),
       component_style: design.componentStyle,
       hero_variant: design.hero.variant,
+      brief_source: brief ? "brief" : "fallback",
       // Conditional flags
       has_logo: hasLogo ? "true" : "",
       has_hero_image: hasHeroImage ? "true" : "",
@@ -248,7 +262,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       has_hours: hasHours ? "true" : "",
       has_map: hasMap ? "true" : "",
       has_address: address ? "true" : "",
-      has_trust_badges: design.hero.showTrustBadges ? "true" : "",
+      has_trust_badges: (brief?.trustBadges.length ?? 0) > 0 || design.hero.showTrustBadges ? "true" : "",
     };
 
     // Use design system CSS instead of template CSS
@@ -270,8 +284,8 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const domain = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 
     const assetsUsed: string[] = [];
-    if (hasLogo) assetsUsed.push(brand!.logo_path!);
-    if (hasHeroImage) assetsUsed.push(heroPhoto!.filename);
+    if (hasLogo && brand?.logo_path) assetsUsed.push(brand.logo_path);
+    if (hasHeroImage && heroPhoto) assetsUsed.push(heroPhoto.filename);
     galleryPhotos.slice(0, 8).forEach((p) => assetsUsed.push(p.filename));
 
     generatedSites.push({
@@ -286,6 +300,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       vertical,
       assets_used_json: JSON.stringify(assetsUsed),
       brand_source: design.colours.source,
+      brief_used: !!brief,
       // Design system metadata
       has_reviews: hasReviews,
       has_map: hasMap,
@@ -297,15 +312,17 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       component_style: design.componentStyle,
       hero_variant: design.hero.variant,
       font_pairing: `${design.fonts.heading} / ${design.fonts.body}`,
+      avoid_topics: brief?.avoidTopics ?? [],
     });
   }
 
   const withBrand = generatedSites.filter((s) => s.brand_source !== "vertical_default").length;
+  const withBrief = generatedSites.filter((s) => s.brief_used).length;
   const withReviews = generatedSites.filter((s) => s.has_reviews).length;
   const withMaps = generatedSites.filter((s) => s.has_map).length;
 
   return {
-    summary: `Generated ${generatedSites.length} landing pages. ${withBrand} with real brand data. ${withReviews} with testimonials. ${withMaps} with maps.`,
+    summary: `Generated ${generatedSites.length} landing pages. ${withBrief} with brief data. ${withBrand} with real brand data. ${withReviews} with testimonials. ${withMaps} with maps.`,
     artifacts: {
       sites: generatedSites,
       generated_count: generatedSites.length,
@@ -314,131 +331,37 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 };
 
 // ---------------------------------------------------------------------------
-// Content generation — smarter, more varied
+// Fallback content generators — only used when no brief is available
+// The brief generator should be the primary source of all copy.
 // ---------------------------------------------------------------------------
 
-function generateTagline(name: string, type: string, vertical: string): string {
-  const taglines: Record<string, string[]> = {
-    trades: [
-      `Your Trusted Local ${capitalize(type)}`,
-      `${capitalize(type)} Services Done Right, Every Time`,
-      `Reliable ${capitalize(type)} You Can Count On`,
-      `Quality ${capitalize(type)} Work — Guaranteed`,
-    ],
-    food: [
-      `Welcome to ${name}`,
-      `Good Food, Great Company`,
-      `Fresh Flavours, Warm Welcome`,
-      `A Taste of Something Special`,
-    ],
-    health: [
-      `Look Good, Feel Amazing`,
-      `Your Wellbeing, Our Passion`,
-      `Where Self-Care Meets Excellence`,
-      `Premium ${capitalize(type)} Services`,
-    ],
-    professional: [
-      `Expert ${capitalize(type)} You Can Trust`,
-      `Professional. Reliable. Results.`,
-      `Your Success Is Our Business`,
-      `Trusted ${capitalize(type)} Advice`,
-    ],
-    retail: [
-      `Welcome to ${name}`,
-      `Quality Products, Personal Service`,
-      `Discover Something Special`,
-      `Your Local ${capitalize(type)} — Since Day One`,
-    ],
-  };
-  const options = taglines[vertical] ?? taglines.trades;
-  return options[hashString(name) % options.length];
+function generateFallbackTagline(name: string, _type: string, _vertical: string): string {
+  return `Welcome to ${name}`;
 }
 
-function generateHeroDescription(name: string, type: string, lead: LeadData): string {
+function generateFallbackHeroDesc(name: string, type: string, lead: LeadData): string {
   const ratingText = lead.google_rating && lead.google_review_count && lead.google_review_count > 3
     ? ` Rated ${lead.google_rating} stars by ${lead.google_review_count} happy customers.`
     : "";
   const locationText = lead.address ? ` Serving ${lead.address} and surrounding areas.` : "";
-  return `${name} provides reliable, professional ${type} services you can count on.${ratingText}${locationText}`;
+  return `${name} — your local ${type}.${ratingText}${locationText}`;
 }
 
-function generateAboutText(name: string, type: string, lead: LeadData): string {
-  const reviewMention = lead.google_review_count && lead.google_review_count > 10
-    ? ` With over ${lead.google_review_count} positive reviews, we've built a reputation for quality and reliability.`
-    : "";
+function generateFallbackAbout(name: string, type: string, lead: LeadData): string {
   const locationMention = lead.address ? ` Based in ${lead.address}, we serve` : " We serve";
-  return `${name} is a dedicated local ${type}${locationMention} customers across the area. We take pride in delivering excellent results every time — because your satisfaction is what drives us.${reviewMention}`;
+  return `${name} is a dedicated local ${type}.${locationMention} customers across the area.`;
 }
 
-function generateServiceDesc(service: string, businessType: string): string {
-  const lower = service.toLowerCase();
-  if (lower.includes("repair")) return "Fast, reliable repairs when you need them most.";
-  if (lower.includes("install")) return "Professional installation with attention to detail.";
-  if (lower.includes("emergency")) return "Available when you need us — fast response guaranteed.";
-  if (lower.includes("consult")) return "Expert guidance tailored to your specific needs.";
-  if (lower.includes("maintenance")) return "Keep everything running smoothly with regular maintenance.";
-  return `Quality ${businessType} service delivered with care and professionalism.`;
+function generateFallbackServicesHtml(_type: string, _vertical: string): string {
+  return `<div class="service-card"><h3>Our Services</h3><p>Contact us for more information about what we offer.</p></div>`;
 }
 
-function generateServicesHtml(type: string, vertical: string): string {
-  const servicesByVertical: Record<string, Array<{ name: string; desc: string }>> = {
-    trades: [
-      { name: "Emergency Repairs", desc: "Fast response when you need us most — available 7 days a week." },
-      { name: "New Installations", desc: "Professional installation with quality materials and a clean finish." },
-      { name: "Regular Maintenance", desc: "Preventative maintenance to keep everything running smoothly." },
-      { name: "Free Quotes", desc: "No-obligation quotes with transparent, competitive pricing." },
-    ],
-    food: [
-      { name: "Dine In", desc: "Enjoy a relaxed meal in our welcoming atmosphere." },
-      { name: "Takeaway", desc: "All your favourites, ready to enjoy at home." },
-      { name: "Catering", desc: "Let us cater your next event — from small gatherings to large parties." },
-      { name: "Private Events", desc: "Host your special occasion with us for an unforgettable experience." },
-    ],
-    health: [
-      { name: "Consultations", desc: "Personalised consultations to understand exactly what you need." },
-      { name: "Treatments", desc: "Professional treatments using premium products and techniques." },
-      { name: "Wellness Plans", desc: "Tailored plans designed around your goals and lifestyle." },
-      { name: "Walk-Ins Welcome", desc: "No appointment? No problem — walk-ins are always welcome." },
-    ],
-    professional: [
-      { name: "Initial Consultation", desc: "A no-obligation conversation to understand your needs." },
-      { name: "Specialist Advice", desc: "Expert guidance from qualified professionals." },
-      { name: "Ongoing Support", desc: "We're here for the long term — not just a one-off service." },
-      { name: "Flexible Plans", desc: "Solutions that fit your budget and timeline." },
-    ],
-    retail: [
-      { name: "In-Store Shopping", desc: "Browse our curated selection in a friendly, relaxed setting." },
-      { name: "Click & Collect", desc: "Order online and pick up at your convenience." },
-      { name: "Special Orders", desc: "Can't find what you need? We'll source it for you." },
-      { name: "Gift Cards", desc: "The perfect gift for someone special." },
-    ],
-  };
-  const services = servicesByVertical[vertical] ?? servicesByVertical.trades;
-  return services
-    .map((s) => `<div class="service-card"><h3>${s.name}</h3><p>${s.desc}</p></div>`)
-    .join("\n        ");
+function generateFallbackCtaHeading(_name: string, _vertical: string): string {
+  return "Get In Touch Today";
 }
 
-function generateCtaHeading(_name: string, vertical: string): string {
-  const headings: Record<string, string> = {
-    trades: "Ready to Get Started?",
-    food: "Hungry? Come Visit Us",
-    health: "Book Your Appointment Today",
-    professional: "Let's Talk About Your Needs",
-    retail: "Come See Us In Store",
-  };
-  return headings[vertical] ?? "Get In Touch Today";
-}
-
-function generateCtaSubtext(name: string, type: string, vertical: string): string {
-  const texts: Record<string, string> = {
-    trades: `Get a free, no-obligation quote from ${name}. We're here to help.`,
-    food: `We'd love to welcome you to ${name}. Reserve your table or order for collection.`,
-    health: `Take the first step — book with ${name} and experience the difference.`,
-    professional: `Contact ${name} for a confidential, no-obligation conversation.`,
-    retail: `Pop into ${name} and discover something special. We're always happy to help.`,
-  };
-  return texts[vertical] ?? `Contact ${name} today — we'd love to hear from you.`;
+function generateFallbackCtaSubtext(name: string, _type: string, _vertical: string): string {
+  return `Contact ${name} today — we'd love to hear from you.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -454,18 +377,6 @@ function countSections(vars: Record<string, string>): number {
   if (vars.has_menu) count++;
   count++; // CTA section
   return count;
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function hashString(s: string): number {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    hash = (hash * 31 + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
 }
 
 function escapeHtml(s: string): string {

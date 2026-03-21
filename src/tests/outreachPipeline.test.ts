@@ -288,12 +288,12 @@ describe("site generation pipeline", () => {
 
     engine.createSiteGenerationDefinition();
 
-    // Simulate: inject qualified leads as the starting input by overriding the compose node config
-    // In production, the compose node receives leads from a prior pipeline run or API call
+    // Simulate: inject qualified leads as the starting input via the brief node config
+    // In production, the brief node receives leads from a prior pipeline run or API call
     const def = store.getDefinition("site-generation-v1")!;
     def.nodes[0].config = {
       _upstream_inject: {
-        qualified: [{
+        profiles: [{
           lead_id: "test-lead",
           business_name: "Manchester Plumbers Ltd",
           business_type: "plumber",
@@ -313,7 +313,7 @@ describe("site generation pipeline", () => {
     assert.equal(run.status, "completed", `Pipeline: ${run.status}`);
 
     const nodes = store.listNodeRuns(run.id);
-    assert.equal(nodes.length, 2);
+    assert.equal(nodes.length, 3, `Expected 3 nodes (brief → compose → qa), got ${nodes.length}`);
     for (const node of nodes) {
       assert.equal(node.status, "completed", `Node ${node.node_id}: ${node.status}`);
     }
