@@ -1,172 +1,234 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { SalesUser, SalesStats } from '@/lib/types';
-import {
-  LogOut, Loader2, Eye,
-  MessageCircle, CheckCircle, XCircle, Clock,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Calendar, Award, TrendingUp, DollarSign } from 'lucide-react';
 
-interface ActivityItem {
-  action: string;
-  notes: string | null;
-  business_name: string | null;
-  created_at: string;
+interface UserProfile {
+  name: string;
+  username: string;
+  area: string;
+  joined_date: string;
+  stats: {
+    total_leads: number;
+    total_sales: number;
+    total_commission: number;
+    close_rate: number;
+  };
+  recent_activity: {
+    id: string;
+    action: string;
+    business_name: string;
+    timestamp: string;
+  }[];
 }
 
-const ACTION_CONFIG: Record<string, { label: string; icon: typeof Eye; color: string }> = {
-  status_visited: { label: 'Visited', icon: Eye, color: 'text-amber-500' },
-  status_pitched: { label: 'Pitched', icon: MessageCircle, color: 'text-violet-500' },
-  status_sold: { label: 'Sold', icon: CheckCircle, color: 'text-emerald-500' },
-  status_rejected: { label: 'Rejected', icon: XCircle, color: 'text-slate-400' },
-  status_new: { label: 'Reopened', icon: Clock, color: 'text-blue-500' },
-};
-
 export default function ProfilePage() {
-  const [user, setUser] = useState<SalesUser | null>(null);
-  const [stats, setStats] = useState<SalesStats | null>(null);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/auth/me').then((r) => r.json()),
-      fetch('/api/stats').then((r) => r.json()),
-      fetch('/api/activity').then((r) => r.json()),
-    ]).then(([userRes, statsRes, activityRes]) => {
-      setUser(userRes.data ?? null);
-      setStats(statsRes.data ?? null);
-      setActivity(activityRes.data ?? []);
-      setLoading(false);
-    });
+    fetchProfile();
   }, []);
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
-  }
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch('/api/profile');
+      const data = await res.json();
+      setProfile(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch profile', err);
+      setLoading(false);
+    }
+  };
 
-  if (loading) {
+  if (loading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center pb-16">
-        <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-slate-400">Loading...</div>
       </div>
     );
   }
 
-  const conversionRate = stats && stats.total_assigned > 0
-    ? ((stats.sold_count / stats.total_assigned) * 100).toFixed(0)
-    : '0';
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'visited':
+        return '👋';
+      case 'pitched':
+        return '💼';
+      case 'sold':
+        return '✅';
+      case 'rejected':
+        return '❌';
+      default:
+        return '📋';
+    }
+  };
+
+  const getActionColor = (action: string) => {
+    const colors = {
+      visited: 'text-amber-700',
+      pitched: 'text-purple-700',
+      sold: 'text-emerald-700',
+      rejected: 'text-slate-600',
+    };
+    return colors[action as keyof typeof colors] || 'text-slate-700';
+  };
 
   return (
-    <>
-      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
-        <h1 className="text-[15px] font-semibold text-slate-900">Account</h1>
-        <p className="text-[11px] text-slate-400 mt-0.5">Your profile and performance</p>
-      </div>
-      <div className="px-6 md:px-8 py-5">
-        {/* User header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-lg font-semibold text-primary tracking-tight">{user?.name ?? 'Account'}</h1>
-            <p className="text-[11px] text-muted mt-0.5">
-              {user?.area_postcode ? `${user.area_postcode} area` : 'Contractor'}
-              {user?.commission_rate ? ` · ${(user.commission_rate * 100).toFixed(0)}% commission` : ''}
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="bg-white rounded-xl border border-slate-200 p-8 mb-8">
+          <div className="flex items-start gap-6">
+            {/* Avatar */}
+            <div className="w-20 h-20 rounded-full bg-slate-900 text-white flex items-center justify-center text-[28px] font-semibold flex-shrink-0">
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+
+            {/* User Info */}
+            <div className="flex-1">
+              <h1 className="text-[28px] font-semibold text-slate-900 tracking-tight mb-2">
+                {profile.name}
+              </h1>
+              <p className="text-[15px] text-slate-500 mb-4">@{profile.username}</p>
+
+              <div className="flex flex-wrap gap-4 text-[13px] text-slate-600">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  {profile.area}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  Joined {new Date(profile.joined_date).toLocaleDateString('en-GB', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Total Leads</p>
+            </div>
+            <p className="text-[28px] font-semibold text-slate-900">{profile.stats.total_leads}</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <Award className="w-4 h-4 text-emerald-600" />
+              </div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Total Sales</p>
+            </div>
+            <p className="text-[28px] font-semibold text-emerald-600">{profile.stats.total_sales}</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-purple-600" />
+              </div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Commission</p>
+            </div>
+            <p className="text-[28px] font-semibold text-slate-900">
+              £{profile.stats.total_commission.toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="flex items-center gap-1.5 text-[11px] text-muted hover:text-red-500 transition-colors py-1.5 px-3 rounded-lg border border-slate-200"
-          >
-            {loggingOut ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogOut className="w-3 h-3" />}
-            Sign out
-          </button>
-        </div>
 
-        {/* Key metrics */}
-        <div className="grid grid-cols-3 gap-px bg-slate-100 rounded-xl overflow-hidden mb-6">
-          <MetricCell label="Conversion" value={`${conversionRate}%`} />
-          <MetricCell label="Sales" value={String(stats?.sold_count ?? 0)} />
-          <MetricCell label="Earned" value={`£${(stats?.total_commission ?? 0).toFixed(0)}`} highlight />
-        </div>
-
-        {/* Pipeline breakdown */}
-        <div className="mb-6">
-          <h4 className="text-[10px] font-semibold text-muted uppercase tracking-[0.08em] mb-3">Your Pipeline</h4>
-          <div className="space-y-0">
-            {[
-              { label: 'New', value: stats?.new_count ?? 0, dot: 'bg-blue-500' },
-              { label: 'Visited', value: stats?.visited_count ?? 0, dot: 'bg-amber-500' },
-              { label: 'Pitched', value: stats?.pitched_count ?? 0, dot: 'bg-violet-500' },
-              { label: 'Sold', value: stats?.sold_count ?? 0, dot: 'bg-emerald-500' },
-              { label: 'Rejected', value: stats?.rejected_count ?? 0, dot: 'bg-slate-300' },
-            ].map(({ label, value, dot }) => (
-              <div key={label} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-2 h-2 rounded-full ${dot}`} />
-                  <span className="text-[13px] text-secondary">{label}</span>
-                </div>
-                <span className="text-[13px] font-semibold text-primary tabular-nums">{value}</span>
-              </div>
-            ))}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">Close Rate</p>
+            </div>
+            <p className="text-[28px] font-semibold text-white">{profile.stats.close_rate}%</p>
           </div>
         </div>
 
-        {/* Recent activity */}
-        <div>
-          <h4 className="text-[10px] font-semibold text-muted uppercase tracking-[0.08em] mb-3">Recent Activity</h4>
-          {activity.length === 0 ? (
-            <p className="text-[13px] text-muted py-6 text-center">No activity yet</p>
-          ) : (
-            <div className="space-y-0">
-              {activity.slice(0, 20).map((item, i) => {
-                const config = ACTION_CONFIG[item.action] ?? { label: item.action, icon: Clock, color: 'text-muted' };
-                const Icon = config.icon;
-                return (
-                  <div key={i} className="flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                    <Icon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${config.color}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] text-primary leading-snug">
-                        <span className="font-medium">{config.label}</span>
-                        {item.business_name && (
-                          <span className="text-secondary"> — {item.business_name}</span>
-                        )}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums">{formatRelativeTime(item.created_at)}</span>
-                  </div>
-                );
-              })}
+        {/* Performance Summary */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+          <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Performance Summary</h2>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Average per Week</p>
+              <p className="text-[20px] font-semibold text-slate-900 mb-1">
+                {Math.round(profile.stats.total_leads / 12)} leads
+              </p>
+              <p className="text-[13px] text-slate-500">
+                {Math.round(profile.stats.total_sales / 12)} sales
+              </p>
             </div>
-          )}
+
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Best Month</p>
+              <p className="text-[20px] font-semibold text-slate-900 mb-1">£850</p>
+              <p className="text-[13px] text-slate-500">17 sales in February</p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Current Streak</p>
+              <p className="text-[20px] font-semibold text-slate-900 mb-1">5 days</p>
+              <p className="text-[13px] text-slate-500">Keep it up! 🔥</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <h2 className="text-[15px] font-semibold text-slate-900">Recent Activity</h2>
+          </div>
+
+          <div className="divide-y divide-slate-50">
+            {profile.recent_activity.map((activity) => {
+              const timeAgo = getTimeAgo(new Date(activity.timestamp));
+
+              return (
+                <div key={activity.id} className="p-5 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <span className="text-2xl flex-shrink-0">{getActionIcon(activity.action)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-slate-900">
+                        <span className={`font-medium ${getActionColor(activity.action)} capitalize`}>
+                          {activity.action}
+                        </span>{' '}
+                        <span className="text-slate-600">{activity.business_name}</span>
+                      </p>
+                      <p className="text-[12px] text-slate-400 mt-0.5">{timeAgo}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </>
-  );
-}
-
-function MetricCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="bg-white py-4 text-center">
-      <div className={`text-xl font-semibold tabular-nums ${highlight ? 'text-emerald-600' : 'text-primary'}`}>{value}</div>
-      <div className="text-[10px] text-muted uppercase tracking-wider mt-0.5">{label}</div>
     </div>
   );
 }
 
-function formatRelativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const diff = now - then;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Now';
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) {
+    return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  } else if (diffDays < 7) {
+    return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  } else {
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
 }

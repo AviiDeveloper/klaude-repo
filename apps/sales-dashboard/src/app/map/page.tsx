@@ -1,123 +1,199 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { LeadCard as LeadCardType } from '@/lib/types';
-import { Navigation, MapPin, Loader2, ExternalLink, Star } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { MapPin, Navigation, Phone, ExternalLink } from 'lucide-react';
 
-const STATUS_STYLES: Record<string, string> = {
-  new: 'text-blue-700 bg-blue-50',
-  visited: 'text-amber-700 bg-amber-50',
-  pitched: 'text-violet-700 bg-violet-50',
-  sold: 'text-emerald-700 bg-emerald-50',
-  rejected: 'text-slate-500 bg-slate-100',
-};
+interface Lead {
+  id: string;
+  business_name: string;
+  business_type: string;
+  postcode: string;
+  phone: string;
+  status: 'new' | 'visited' | 'pitched' | 'sold' | 'rejected';
+  has_demo_site: boolean;
+}
+
+interface AreaGroup {
+  postcode_prefix: string;
+  leads: Lead[];
+  count: number;
+}
 
 export default function MapPage() {
-  const [leads, setLeads] = useState<LeadCardType[]>([]);
+  const router = useRouter();
+  const [areas, setAreas] = useState<AreaGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/leads')
-      .then((r) => r.json())
-      .then((d) => setLeads(d.data ?? []))
-      .finally(() => setLoading(false));
+    fetchAreas();
   }, []);
 
-  // Group by postcode
-  const grouped = leads.reduce<Record<string, LeadCardType[]>>((acc, lead) => {
-    const key = lead.postcode ?? 'Unknown';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(lead);
-    return acc;
-  }, {});
+  const fetchAreas = async () => {
+    try {
+      const res = await fetch('/api/leads/by-area');
+      const data = await res.json();
+      setAreas(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch areas', err);
+      setLoading(false);
+    }
+  };
 
-  const postcodes = Object.keys(grouped).sort();
+  const getStatusColor = (status: string) => {
+    const colors = {
+      new: 'bg-blue-500',
+      visited: 'bg-amber-500',
+      pitched: 'bg-purple-500',
+      sold: 'bg-emerald-500',
+      rejected: 'bg-slate-400',
+    };
+    return colors[status as keyof typeof colors] || colors.new;
+  };
+
+  const getBusinessEmoji = (type: string) => {
+    const emojis: Record<string, string> = {
+      barber: '💈',
+      cafe: '☕',
+      plumber: '🔧',
+      restaurant: '🍽️',
+      salon: '💅',
+      gym: '💪',
+      dentist: '🦷',
+      default: '🏪',
+    };
+    return emojis[type] || emojis.default;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-slate-400">Loading map...</div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {/* Header */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[15px] font-semibold text-slate-900">Map</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">{leads.length} leads across {postcodes.length} areas</p>
-          </div>
-          {leads.length > 0 && (
-            <a
-              href={`https://www.google.com/maps/dir/${leads.filter((l) => l.address).map((l) => encodeURIComponent(l.address ?? l.postcode ?? '')).join('/')}`}
-              target="_blank"
-              rel="noopener"
-              className="flex items-center gap-1.5 text-[12px] font-medium text-slate-700 border border-slate-200 rounded-lg py-2 px-3 hover:bg-slate-50 transition-colors"
-            >
-              <Navigation className="w-3 h-3" />
-              Route all
-            </a>
-          )}
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-[28px] font-semibold text-slate-900 tracking-tight mb-1">Territory Map</h1>
+          <p className="text-[15px] text-slate-500">
+            Leads organized by postcode area
+          </p>
         </div>
-      </div>
 
-      <div className="px-6 md:px-8 py-5">
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
-          </div>
-        ) : postcodes.length === 0 ? (
-          <p className="text-[13px] text-slate-400 text-center py-20">No leads assigned yet</p>
-        ) : (
-          <div className="space-y-8">
-            {postcodes.map((postcode) => (
-              <div key={postcode}>
-                {/* Postcode header */}
-                <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em]">{postcode}</h3>
-                  <span className="text-[10px] text-slate-300">{grouped[postcode].length} leads</span>
+        {/* Area Grid */}
+        <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {areas.map((area) => {
+            const newCount = area.leads.filter(l => l.status === 'new').length;
+            const visitedCount = area.leads.filter(l => l.status === 'visited').length;
+            const soldCount = area.leads.filter(l => l.status === 'sold').length;
+
+            return (
+              <div key={area.postcode_prefix} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                {/* Area Header */}
+                <div className="bg-slate-900 text-white p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-amber-400" />
+                      <h2 className="text-[20px] font-semibold tracking-tight">{area.postcode_prefix}</h2>
+                    </div>
+                    <span className="px-2.5 py-1 bg-white/10 rounded-lg text-[13px] font-medium">
+                      {area.count} leads
+                    </span>
+                  </div>
+
+                  {/* Stats Row */}
+                  <div className="flex items-center gap-4 text-[11px]">
+                    {newCount > 0 && (
+                      <span className="flex items-center gap-1.5 text-white/80">
+                        <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                        {newCount} new
+                      </span>
+                    )}
+                    {visitedCount > 0 && (
+                      <span className="flex items-center gap-1.5 text-white/80">
+                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                        {visitedCount} visited
+                      </span>
+                    )}
+                    {soldCount > 0 && (
+                      <span className="flex items-center gap-1.5 text-white/80">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        {soldCount} sold
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Leads table for this area */}
-                <div className="border border-slate-100 rounded-xl overflow-hidden">
-                  {grouped[postcode].map((lead, i) => (
-                    <div key={lead.assignment_id} className={`flex items-center gap-4 px-4 py-3 hover:bg-slate-50/50 transition-colors ${i > 0 ? 'border-t border-slate-50' : ''}`}>
-                      <Link href={`/lead/${lead.assignment_id}`} className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</span>
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[lead.assignment_status] ?? ''}`}>
-                            {lead.assignment_status}
-                          </span>
+                {/* Leads List */}
+                <div className="divide-y divide-slate-100">
+                  {area.leads.slice(0, 5).map((lead) => (
+                    <div
+                      key={lead.id}
+                      onClick={() => router.push(`/lead/${lead.id}`)}
+                      className="p-4 hover:bg-slate-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">{getBusinessEmoji(lead.business_type)}</span>
+                          <div>
+                            <p className="text-[13px] font-medium text-slate-900">{lead.business_name}</p>
+                            <p className="text-[11px] text-slate-500 capitalize">{lead.business_type}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                          {lead.business_type && <span className="capitalize">{lead.business_type}</span>}
-                          {lead.google_rating && (
-                            <>
-                              <span className="text-slate-200">·</span>
-                              <span className="inline-flex items-center gap-0.5">
-                                <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                                {lead.google_rating}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </Link>
+                        <span className={`w-2 h-2 rounded-full ${getStatusColor(lead.status)} flex-shrink-0 mt-1.5`}></span>
+                      </div>
 
-                      {/* Directions */}
-                      <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(lead.address ?? lead.postcode ?? '')}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="p-2 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
-                        title="Get directions"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                      </a>
+                      <div className="flex items-center gap-3 ml-8">
+                        <a
+                          href={`tel:${lead.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] text-slate-500 hover:text-slate-900 transition-colors"
+                        >
+                          <Phone className="w-3.5 h-3.5 inline mr-1" />
+                          Call
+                        </a>
+                        {lead.has_demo_site && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`/demo/${lead.id}`, '_blank');
+                            }}
+                            className="text-[11px] text-slate-500 hover:text-slate-900 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 inline mr-1" />
+                            Demo
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
+
+                  {area.leads.length > 5 && (
+                    <div className="p-4 text-center">
+                      <button className="text-[12px] text-slate-500 hover:text-slate-900 transition-colors">
+                        +{area.leads.length - 5} more
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            );
+          })}
+        </div>
+
+        {/* Empty State */}
+        {areas.length === 0 && (
+          <div className="text-center py-16">
+            <Navigation className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-[15px] text-slate-500">No leads assigned to your territory yet</p>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

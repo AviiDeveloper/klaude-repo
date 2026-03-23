@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight, Check } from 'lucide-react';
 
 interface DemoData {
   business_name: string;
@@ -17,7 +17,7 @@ export default function CustomerDemoPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<'viewing' | 'buying' | 'done'>('viewing');
-  const [step, setStep] = useState(0); // 0: intro, 1: name, 2: phone, 3: changes, 4: confirm
+  const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
@@ -25,333 +25,340 @@ export default function CustomerDemoPage() {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 2000);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    fetch(`/api/demo-links/${code}`)
-      .then(r => {
-        if (r.status === 410) throw new Error('expired');
-        if (r.status === 404) throw new Error('not_found');
-        return r.json();
-      })
-      .then(d => setDemo(d.data))
-      .catch(e => setError(e.message === 'expired' ? 'expired' : 'not_found'))
-      .finally(() => setLoading(false));
+    fetchDemo();
   }, [code]);
 
-  async function handlePurchase() {
-    setSubmitting(true);
+  useEffect(() => {
+    if (phase === 'viewing' && demo) {
+      const timer = setTimeout(() => setVisible(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, demo]);
+
+  const fetchDemo = async () => {
     try {
-      await fetch(`/api/demo-links/${code}`, {
+      const res = await fetch(`/api/demo-links/${code}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Demo not found');
+        setLoading(false);
+        return;
+      }
+
+      setDemo(data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load demo');
+      setLoading(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (step < 4) {
+      setStep(step + 1);
+    } else {
+      submitPurchase();
+    }
+  };
+
+  const handleSkipNotes = () => {
+    setNotes('');
+    setStep(4);
+  };
+
+  const submitPurchase = async () => {
+    setSubmitting(true);
+
+    try {
+      const res = await fetch(`/api/demo-links/${code}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), notes: notes.trim() || undefined }),
+        body: JSON.stringify({ name, phone, notes }),
       });
-    } catch { /* */ }
-    setSubmitting(false);
-    setPhase('done');
-  }
 
-  function nextStep() {
-    if (step === 0) setStep(1);
-    else if (step === 1 && name.trim()) setStep(2);
-    else if (step === 2 && phone.trim()) setStep(3);
-    else if (step === 3) setStep(4);
-    else if (step === 4) handlePurchase();
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') { e.preventDefault(); nextStep(); }
-  }
+      if (res.ok) {
+        setPhase('done');
+      } else {
+        alert('Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      alert('Failed to submit. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="h-screen bg-white flex items-center justify-center">
-        <Loader2 className="w-4 h-4 text-neutral-200 animate-spin" />
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !demo?.demo_domain) {
     return (
-      <div className="h-screen bg-white flex items-center justify-center px-8">
-        <div className="text-center max-w-[280px]">
-          <p className="text-[28px] font-semibold tracking-[-0.03em] text-neutral-900 mb-2.5 leading-[1.1]">
-            {error === 'expired' ? 'This link has expired.' : 'Link not found.'}
-          </p>
-          <p className="text-[14px] text-neutral-400 leading-relaxed">
-            Ask the person who sent this for a fresh link.
-          </p>
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[15px] text-slate-600">{error || 'Demo site not ready yet'}</p>
         </div>
       </div>
     );
   }
 
-  if (!demo) return null;
-
-  const demoSiteUrl = demo.demo_domain ? `/demo-sites/${demo.demo_domain}.html` : null;
-  const firstName = name.split(' ')[0];
-
-  // Step validation
-  const canProceed = step === 0 || (step === 1 && name.trim().length > 0) || (step === 2 && phone.trim().length > 0) || step === 3 || step === 4;
+  const demoUrl = `/demo-sites/${demo.demo_domain}.html`;
 
   return (
-    <div className="h-screen bg-neutral-100 relative overflow-hidden">
+    <div className="fixed inset-0 bg-white">
+      {/* Demo Site (Full Screen) */}
+      <iframe
+        src={demoUrl}
+        className="w-full h-full border-0"
+        title={`${demo.business_name} Demo Site`}
+      />
 
-      {/* Demo site — full viewport */}
-      {demoSiteUrl ? (
-        <iframe
-          src={demoSiteUrl}
-          className="w-full h-full border-0"
-          title={demo.business_name}
-        />
-      ) : (
-        <div className="h-full flex items-center justify-center">
-          <p className="text-[15px] text-neutral-400 tracking-[-0.01em]">
-            Your website is being prepared.
-          </p>
-        </div>
+      {/* Overlay (when buying) */}
+      {phase === 'buying' && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-[1px]" onClick={() => setPhase('viewing')} />
       )}
 
-      {/* ── CTA button ── */}
+      {/* Floating CTA Button (viewing phase) */}
       {phase === 'viewing' && (
         <button
-          onClick={() => { setPhase('buying'); setStep(0); }}
-          className="fixed bottom-8 left-1/2 z-50 flex items-center gap-2.5 bg-neutral-900/95 backdrop-blur-sm text-white pl-5 pr-4 py-3 rounded-full text-[14px] font-medium tracking-[-0.01em] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_32px_rgba(0,0,0,0.18)] hover:bg-neutral-800/95 active:scale-[0.97] transition-all"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible
-              ? 'translateX(-50%) translateY(0)'
-              : 'translateX(-50%) translateY(10px)',
-            transition: visible
-              ? 'opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1), background-color 0.15s'
-              : 'none',
+          onClick={() => {
+            setPhase('buying');
+            setStep(0);
           }}
+          className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 bg-slate-900 text-white rounded-full text-[15px] font-medium shadow-2xl hover:bg-slate-800 transition-all ${
+            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          } duration-500`}
         >
-          <span>Get this website</span>
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-[12px] leading-none">↗</span>
+          Get this website
         </button>
       )}
 
-      {/* ── Confirmation ── */}
-      {phase === 'done' && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-neutral-900/95 backdrop-blur-sm text-white pl-4 pr-5 py-3 rounded-full text-[14px] font-medium tracking-[-0.01em] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_32px_rgba(0,0,0,0.18)] confirm-enter">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/90 text-[11px] shrink-0">✓</span>
-          <span>Order received{firstName ? `, ${firstName}` : ''}.</span>
+      {/* Purchase Card (buying phase) */}
+      {phase === 'buying' && (
+        <div
+          className="fixed bottom-4 right-4 w-[380px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden card-enter"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Progress Dots */}
+          <div className="flex gap-1.5 justify-center pt-4 pb-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === step ? 'w-6 bg-slate-900' : 'w-1.5 bg-slate-200'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Card Content */}
+          <div className="p-6">
+            {/* Step 0: Intro */}
+            {step === 0 && (
+              <div className="step-enter">
+                <h2 className="text-[24px] font-semibold text-slate-900 mb-3">Make it yours</h2>
+                <p className="text-[15px] text-slate-600 mb-6">
+                  This website is ready to go live for your business
+                </p>
+
+                <div className="bg-slate-50 rounded-xl p-5 mb-6">
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="text-[36px] font-semibold text-slate-900">£350</span>
+                    <span className="text-[15px] text-slate-500">one-time</span>
+                  </div>
+                  <div className="text-[13px] text-slate-600">
+                    Or <span className="font-semibold text-slate-900">£25/month</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleNext}
+                  className="w-full px-6 py-4 bg-slate-900 text-white rounded-xl text-[15px] font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 group"
+                >
+                  I'm interested
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            )}
+
+            {/* Step 1: Name */}
+            {step === 1 && (
+              <div className="step-enter">
+                <h2 className="text-[24px] font-semibold text-slate-900 mb-2">What's your name?</h2>
+                <p className="text-[13px] text-slate-500 mb-6">So we know who to contact</p>
+
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  autoFocus
+                  className="w-full text-[17px] text-slate-900 placeholder:text-slate-300 bg-transparent border-b-2 border-slate-200 focus:border-slate-900 outline-none pb-3 mb-8 transition-colors"
+                />
+
+                <button
+                  onClick={handleNext}
+                  disabled={!name.trim()}
+                  className="w-full px-6 py-4 bg-slate-900 text-white rounded-xl text-[15px] font-medium hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Phone */}
+            {step === 2 && (
+              <div className="step-enter">
+                <h2 className="text-[24px] font-semibold text-slate-900 mb-2">Best number to reach you?</h2>
+                <p className="text-[13px] text-slate-500 mb-6">We'll send order confirmation here</p>
+
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="07xxx xxxxxx"
+                  autoFocus
+                  className="w-full text-[17px] text-slate-900 placeholder:text-slate-300 bg-transparent border-b-2 border-slate-200 focus:border-slate-900 outline-none pb-3 mb-8 transition-colors"
+                />
+
+                <button
+                  onClick={handleNext}
+                  disabled={!phone.trim()}
+                  className="w-full px-6 py-4 bg-slate-900 text-white rounded-xl text-[15px] font-medium hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: Changes */}
+            {step === 3 && (
+              <div className="step-enter">
+                <h2 className="text-[24px] font-semibold text-slate-900 mb-2">Any changes you'd like?</h2>
+                <p className="text-[13px] text-slate-500 mb-6">Optional - we can tweak anything</p>
+
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. different photos, add opening hours..."
+                  rows={4}
+                  autoFocus
+                  className="w-full text-[15px] text-slate-900 placeholder:text-slate-300 bg-slate-50 border border-slate-200 focus:border-slate-900 outline-none p-4 rounded-lg mb-4 transition-colors resize-none"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSkipNotes}
+                    className="flex-1 px-6 py-4 bg-slate-100 text-slate-700 rounded-xl text-[15px] font-medium hover:bg-slate-200 transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="flex-1 px-6 py-4 bg-slate-900 text-white rounded-xl text-[15px] font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 group"
+                  >
+                    Continue
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Confirm */}
+            {step === 4 && (
+              <div className="step-enter">
+                <h2 className="text-[24px] font-semibold text-slate-900 mb-6">Confirm your order</h2>
+
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                    <span className="text-[13px] text-slate-600">Website for {demo.business_name}</span>
+                    <span className="text-[15px] font-semibold text-slate-900">£350</span>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Order Details</p>
+                    <div className="space-y-1.5 text-[13px]">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Name:</span>
+                        <span className="text-slate-900 font-medium">{name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Phone:</span>
+                        <span className="text-slate-900 font-medium">{phone}</span>
+                      </div>
+                      {notes && (
+                        <div className="pt-2 mt-2 border-t border-slate-200">
+                          <span className="text-slate-600 block mb-1">Requested changes:</span>
+                          <span className="text-slate-900">{notes}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleNext}
+                  disabled={submitting}
+                  className="w-full px-6 py-4 bg-slate-900 text-white rounded-xl text-[15px] font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Purchase
+                    </>
+                  )}
+                </button>
+
+                <p className="text-[11px] text-slate-500 text-center mt-3">
+                  Someone will call you within 24 hours to arrange payment
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* ── Multi-step card ── */}
-      {phase === 'buying' && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/10 overlay-enter" onClick={() => setPhase('viewing')} />
-
-          <div className="fixed bottom-4 inset-x-4 md:bottom-6 md:left-auto md:right-6 md:max-w-[380px] z-50 sheet-enter">
-            <div className="bg-white rounded-[20px] shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_8px_40px_rgba(0,0,0,0.14)] overflow-hidden">
-
-              {/* Progress dots */}
-              <div className="flex justify-center gap-1.5 pt-5 pb-1">
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div
-                    key={i}
-                    className={`h-[3px] rounded-full transition-all duration-300 ${
-                      i === step ? 'w-5 bg-neutral-900' : i < step ? 'w-2 bg-neutral-900' : 'w-2 bg-neutral-200'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <div className="px-6 pt-5 pb-6">
-
-                {/* ── Step 0: Intro ── */}
-                {step === 0 && (
-                  <div className="text-center step-content">
-                    <p className="text-[11px] font-medium tracking-[0.08em] uppercase text-neutral-400 mb-2">
-                      {demo.business_name}
-                    </p>
-                    <h2 className="text-[22px] font-semibold text-neutral-900 tracking-[-0.03em] leading-tight mb-1">
-                      Make it yours.
-                    </h2>
-                    <p className="text-[14px] text-neutral-400 mb-6">
-                      Your own website, live in 48 hours.
-                    </p>
-                    <div className="flex items-center justify-center gap-4 mb-7">
-                      <div className="text-center">
-                        <p className="text-[20px] font-semibold text-neutral-900 tracking-tight">{'\u00A3'}350</p>
-                        <p className="text-[11px] text-neutral-400">one-time setup</p>
-                      </div>
-                      <div className="w-px h-8 bg-neutral-100" />
-                      <div className="text-center">
-                        <p className="text-[20px] font-semibold text-neutral-900 tracking-tight">{'\u00A3'}25<span className="text-neutral-300 font-normal text-[14px]">/mo</span></p>
-                        <p className="text-[11px] text-neutral-400">hosting &amp; support</p>
-                      </div>
-                    </div>
-                    <button onClick={nextStep} className="w-full bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 active:bg-neutral-700 transition-colors">
-                      I&apos;m interested
-                    </button>
-                  </div>
-                )}
-
-                {/* ── Step 1: Name ── */}
-                {step === 1 && (
-                  <div className="step-content">
-                    <p className="text-[13px] text-neutral-400 mb-1">Step 1 of 4</p>
-                    <h2 className="text-[20px] font-semibold text-neutral-900 tracking-[-0.02em] mb-6">
-                      What&apos;s your name?
-                    </h2>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Full name"
-                      autoFocus
-                      className="w-full bg-transparent border-b border-neutral-200 py-3 text-[17px] text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-900 transition-colors"
-                    />
-                    <div className="flex gap-2 mt-8">
-                      <button onClick={() => setStep(0)} className="px-5 py-3 text-[14px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">Back</button>
-                      <button onClick={nextStep} disabled={!name.trim()} className="flex-1 bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 disabled:opacity-20 transition-all">
-                        Continue
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Step 2: Phone ── */}
-                {step === 2 && (
-                  <div className="step-content">
-                    <p className="text-[13px] text-neutral-400 mb-1">Step 2 of 4</p>
-                    <h2 className="text-[20px] font-semibold text-neutral-900 tracking-[-0.02em] mb-6">
-                      Best number to reach you?
-                    </h2>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Phone number"
-                      autoFocus
-                      className="w-full bg-transparent border-b border-neutral-200 py-3 text-[17px] text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-900 transition-colors"
-                    />
-                    <div className="flex gap-2 mt-8">
-                      <button onClick={() => setStep(1)} className="px-5 py-3 text-[14px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">Back</button>
-                      <button onClick={nextStep} disabled={!phone.trim()} className="flex-1 bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 disabled:opacity-20 transition-all">
-                        Continue
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Step 3: Changes ── */}
-                {step === 3 && (
-                  <div className="step-content">
-                    <p className="text-[13px] text-neutral-400 mb-1">Step 3 of 4</p>
-                    <h2 className="text-[20px] font-semibold text-neutral-900 tracking-[-0.02em] mb-2">
-                      Any changes you&apos;d like?
-                    </h2>
-                    <p className="text-[13px] text-neutral-400 mb-6">Optional — we can discuss later too.</p>
-                    <textarea
-                      value={notes}
-                      onChange={e => setNotes(e.target.value)}
-                      placeholder="e.g. add online booking, different colours, a price list page..."
-                      rows={3}
-                      autoFocus
-                      className="w-full bg-transparent border-b border-neutral-200 py-3 text-[15px] text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-900 transition-colors resize-none"
-                    />
-                    <div className="flex gap-2 mt-8">
-                      <button onClick={() => setStep(2)} className="px-5 py-3 text-[14px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">Back</button>
-                      <button onClick={nextStep} className="flex-1 bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 transition-all">
-                        {notes.trim() ? 'Continue' : 'Skip'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Step 4: Confirm ── */}
-                {step === 4 && (
-                  <div className="step-content">
-                    <p className="text-[13px] text-neutral-400 mb-1">Step 4 of 4</p>
-                    <h2 className="text-[20px] font-semibold text-neutral-900 tracking-[-0.02em] mb-6">
-                      Confirm your order
-                    </h2>
-
-                    <div className="space-y-3 mb-6">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-neutral-400">Name</span>
-                        <span className="text-[14px] text-neutral-900 font-medium">{name}</span>
-                      </div>
-                      <div className="h-px bg-neutral-100" />
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-neutral-400">Phone</span>
-                        <span className="text-[14px] text-neutral-900 font-medium">{phone}</span>
-                      </div>
-                      {notes.trim() && (
-                        <>
-                          <div className="h-px bg-neutral-100" />
-                          <div className="flex justify-between items-start">
-                            <span className="text-[13px] text-neutral-400 shrink-0">Changes</span>
-                            <span className="text-[13px] text-neutral-600 text-right ml-4">{notes}</span>
-                          </div>
-                        </>
-                      )}
-                      <div className="h-px bg-neutral-100" />
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-neutral-400">Total</span>
-                        <span className="text-[16px] text-neutral-900 font-semibold">{'\u00A3'}350</span>
-                      </div>
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-neutral-400">Monthly</span>
-                        <span className="text-[14px] text-neutral-600">{'\u00A3'}25/mo</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button onClick={() => setStep(3)} className="px-5 py-3 text-[14px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">Back</button>
-                      <button onClick={handlePurchase} disabled={submitting} className="flex-1 bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 disabled:opacity-50 transition-all">
-                        {submitting ? 'Processing\u2026' : 'Purchase'}
-                      </button>
-                    </div>
-
-                    <p className="text-[11px] text-neutral-300 text-center mt-4">
-                      Your site goes live within 48 hours.
-                    </p>
-                  </div>
-                )}
-
-              </div>
+      {/* Done Confirmation Pill */}
+      {phase === 'done' && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 text-white rounded-full shadow-2xl confirm-enter">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <Check className="w-4 h-4" />
             </div>
+            <span className="text-[15px] font-medium">Order received! We'll be in touch soon.</span>
           </div>
-        </>
+        </div>
       )}
-
       <style jsx>{`
-        @keyframes sheetEnter {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+        @keyframes cardEnter {
+          from { opacity: 0; transform: translateX(16px); }
+          to { opacity: 1; transform: translateX(0); }
         }
-        .sheet-enter { animation: sheetEnter 0.5s cubic-bezier(0.32, 0.72, 0, 1); }
+        .card-enter { animation: cardEnter 0.3s ease-out; }
 
-        @keyframes overlayEnter {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .overlay-enter { animation: overlayEnter 0.3s ease; }
-
-        @keyframes confirmEnter {
-          from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.97); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-        }
-        .confirm-enter { animation: confirmEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
-
-        .step-content {
-          animation: stepIn 0.25s ease-out;
-        }
-        @keyframes stepIn {
+        @keyframes stepEnter {
           from { opacity: 0; transform: translateX(8px); }
           to { opacity: 1; transform: translateX(0); }
         }
+        .step-enter { animation: stepEnter 0.25s ease-out; }
+
+        @keyframes confirmEnter {
+          from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .confirm-enter { animation: confirmEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
     </div>
   );

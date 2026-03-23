@@ -1,416 +1,281 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
-import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
-import {
-  Search, Loader2, TrendingUp, MapPin, Star, ChevronRight,
-  MonitorSmartphone, Phone, Briefcase, Eye, MessageCircle, CheckCircle2,
-  CalendarDays, UserCircle, AlertTriangle, RotateCcw,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Phone, MapPin, Star, ExternalLink, Clock } from 'lucide-react';
 
-const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
+interface Lead {
+  id: string;
+  business_name: string;
+  business_type: string;
+  postcode: string;
+  phone: string;
+  google_rating: number;
+  google_review_count: number;
+  status: 'new' | 'visited' | 'pitched' | 'sold' | 'rejected';
+  has_demo_site: boolean;
+  follow_up_date?: string;
+  contact_name?: string;
+  contact_role?: string;
+  opening_hours: string[];
+  services: string[];
+}
 
-const STATUS_STYLES: Record<string, string> = {
-  new: 'text-blue-700 bg-blue-50',
-  visited: 'text-amber-700 bg-amber-50',
-  pitched: 'text-violet-700 bg-violet-50',
-  sold: 'text-emerald-700 bg-emerald-50',
-  rejected: 'text-slate-500 bg-slate-100',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  new: 'New',
-  visited: 'Visited',
-  pitched: 'Pitched',
-  sold: 'Sold',
-  rejected: 'Rejected',
-};
+interface Stats {
+  queue: number;
+  visited: number;
+  pitched: number;
+  sold: number;
+  total_commission: number;
+}
 
 export default function DashboardPage() {
-  const [leads, setLeads] = useState<LeadCardType[]>([]);
-  const [stats, setStats] = useState<SalesStats | null>(null);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const router = useRouter();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [filter, setFilter] = useState<'all' | 'new' | 'visited' | 'pitched' | 'sold'>('all');
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (filter !== 'all') params.set('status', filter);
-    if (search) params.set('search', search);
-
-    const [leadsRes, statsRes] = await Promise.all([
-      fetch(`/api/leads?${params}`),
-      fetch('/api/stats'),
-    ]);
-
-    if (leadsRes.ok) {
-      const d = await leadsRes.json();
-      setLeads(d.data ?? []);
-    }
-    if (statsRes.ok) {
-      const d = await statsRes.json();
-      setStats(d.data ?? null);
-    }
-  }, [filter, search]);
-
   useEffect(() => {
-    setLoading(true);
-    fetchData().finally(() => setLoading(false));
-  }, [fetchData]);
+    fetchData();
+  }, []);
 
-  const commission = stats?.total_commission ?? 0;
-  const newCount = stats?.new_count ?? 0;
-  const visitedCount = stats?.visited_count ?? 0;
-  const pitchedCount = stats?.pitched_count ?? 0;
-  const soldCount = stats?.sold_count ?? 0;
-  const totalAssigned = stats?.total_assigned ?? 0;
+  const fetchData = async () => {
+    try {
+      const [statsRes, leadsRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/leads'),
+      ]);
 
-  return (
-    <>
-      {/* Top bar */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[15px] font-semibold text-slate-900">Leads</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">{totalAssigned} assigned to you</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {commission > 0 && (
-              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                <TrendingUp className="w-3 h-3 text-emerald-600" />
-                <span className="text-[12px] font-semibold text-emerald-700 tabular-nums">£{commission.toFixed(0)}</span>
-                <span className="text-[10px] text-emerald-500">earned</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      const statsData = await statsRes.json();
+      const leadsData = await leadsRes.json();
 
-      <div className="px-6 md:px-8 py-5">
-        {/* Metric cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <MetricCard icon={Briefcase} label="Queue" value={newCount} sub="new leads" />
-          <MetricCard icon={Eye} label="Visited" value={visitedCount} sub="in progress" />
-          <MetricCard icon={MessageCircle} label="Pitched" value={pitchedCount} sub="awaiting decision" />
-          <MetricCard icon={CheckCircle2} label="Sold" value={soldCount} sub="closed deals" accent />
-        </div>
-
-        {/* Follow-up reminders */}
-        <FollowUpSection leads={leads} />
-        <ReEngagementSection leads={leads} />
-
-        {/* Search + Filters */}
-        <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
-            <input
-              type="text"
-              placeholder="Search businesses..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg py-2 pl-9 pr-3 text-[13px] text-slate-900 bg-slate-50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:bg-white border border-transparent focus:border-slate-200 transition-all"
-            />
-          </div>
-          <div className="flex gap-1 overflow-x-auto">
-            {FILTERS.map((f) => {
-              const active = filter === f;
-              const count = f === 'all' ? totalAssigned : f === 'new' ? newCount : f === 'visited' ? visitedCount : f === 'pitched' ? pitchedCount : soldCount;
-              return (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
-                    active ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  {f === 'all' ? 'All' : STATUS_LABEL[f]}
-                  <span className={`tabular-nums ${active ? 'text-slate-400' : 'text-slate-300'}`}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Lead table */}
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
-          </div>
-        ) : leads.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-[13px] text-slate-400">No leads found</p>
-            <p className="text-[11px] text-slate-300 mt-1">
-              {filter !== 'all' ? 'Try a different filter' : 'Leads appear when the pipeline assigns them'}
-            </p>
-          </div>
-        ) : (
-          <div className="border border-slate-100 rounded-xl overflow-hidden">
-            {/* Desktop table header */}
-            <div className="hidden md:grid grid-cols-[1fr_100px_80px_100px_80px_100px_32px] gap-4 px-5 py-2.5 bg-slate-50 border-b border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Business</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Type</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Area</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Rating</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Demo</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Status</span>
-              <span></span>
-            </div>
-
-            {leads.map((lead, i) => (
-              <LeadRow key={lead.assignment_id} lead={lead} index={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-function LeadRow({ lead, index }: { lead: LeadCardType; index: number }) {
-  const hasDemo = !!lead.demo_site_domain;
-
-  return (
-    <Link
-      href={`/lead/${lead.assignment_id}`}
-      className="block border-b border-slate-50 last:border-0 hover:bg-slate-50/50 active:bg-slate-50 transition-colors animate-fade-in"
-      style={{ animationDelay: `${index * 15}ms` }}
-    >
-      {/* Desktop row */}
-      <div className="hidden md:grid grid-cols-[1fr_100px_80px_100px_80px_100px_32px] gap-4 items-center px-5 py-3.5">
-        {/* Business */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</h3>
-          </div>
-          {lead.phone && (
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-              <Phone className="w-2.5 h-2.5" />
-              {lead.phone}
-            </div>
-          )}
-        </div>
-
-        {/* Type */}
-        <span className="text-[12px] text-slate-500 capitalize">{lead.business_type ?? '—'}</span>
-
-        {/* Area */}
-        <span className="text-[12px] text-slate-500">{lead.postcode ?? '—'}</span>
-
-        {/* Rating */}
-        <div className="text-center">
-          {lead.google_rating ? (
-            <span className="text-[12px] text-slate-700 inline-flex items-center gap-0.5">
-              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-              {lead.google_rating}
-              {lead.google_review_count && <span className="text-slate-300 text-[10px]">({lead.google_review_count})</span>}
-            </span>
-          ) : (
-            <span className="text-[11px] text-slate-300">—</span>
-          )}
-        </div>
-
-        {/* Demo */}
-        <div className="text-center">
-          {hasDemo ? (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <MonitorSmartphone className="w-2.5 h-2.5" />
-              Ready
-            </span>
-          ) : (
-            <span className="text-[10px] text-slate-300">—</span>
-          )}
-        </div>
-
-        {/* Status */}
-        <div className="text-center">
-          <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[lead.assignment_status] ?? 'text-slate-500 bg-slate-50'}`}>
-            {STATUS_LABEL[lead.assignment_status] ?? lead.assignment_status}
-          </span>
-        </div>
-
-        {/* Arrow */}
-        <ChevronRight className="w-4 h-4 text-slate-200" />
-      </div>
-
-      {/* Mobile row */}
-      <div className="md:hidden px-4 py-3.5 flex items-start gap-3">
-        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
-          lead.assignment_status === 'new' ? 'bg-blue-500' :
-          lead.assignment_status === 'visited' ? 'bg-amber-500' :
-          lead.assignment_status === 'pitched' ? 'bg-violet-500' :
-          lead.assignment_status === 'sold' ? 'bg-emerald-500' : 'bg-slate-300'
-        }`} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <h3 className="text-[14px] font-semibold text-slate-900 truncate">{lead.business_name}</h3>
-            {hasDemo && <MonitorSmartphone className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            {lead.business_type && <span className="capitalize">{lead.business_type}</span>}
-            {lead.postcode && <><span className="text-slate-200">·</span><span>{lead.postcode}</span></>}
-            {lead.google_rating && (
-              <><span className="text-slate-200">·</span><span className="inline-flex items-center gap-0.5"><Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />{lead.google_rating}</span></>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[lead.assignment_status] ?? ''}`}>
-            {STATUS_LABEL[lead.assignment_status]}
-          </span>
-          <ChevronRight className="w-4 h-4 text-slate-200" />
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function ReEngagementSection({ leads }: { leads: LeadCardType[] }) {
-  const STALE_DAYS = 7;
-  const now = new Date();
-  const staleLeads = leads.filter((l) => {
-    if (l.assignment_status !== 'pitched' || !l.pitched_at) return false;
-    const pitchedDate = new Date(l.pitched_at);
-    const daysSince = Math.floor((now.getTime() - pitchedDate.getTime()) / 86400000);
-    return daysSince >= STALE_DAYS;
-  }).map((l) => ({
-    ...l,
-    daysSincePitch: Math.floor((now.getTime() - new Date(l.pitched_at!).getTime()) / 86400000),
-  })).sort((a, b) => b.daysSincePitch - a.daysSincePitch);
-
-  if (staleLeads.length === 0) return null;
-
-  return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <RotateCcw className="w-3.5 h-3.5 text-violet-400" />
-        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em]">Needs Follow-up</h2>
-        <span className="text-[10px] text-slate-300 tabular-nums">{staleLeads.length}</span>
-      </div>
-
-      <div className="border border-violet-100 bg-violet-50/30 rounded-xl overflow-hidden">
-        {staleLeads.map((lead, i) => (
-          <Link
-            key={lead.assignment_id}
-            href={`/lead/${lead.assignment_id}`}
-            className={`flex items-center gap-4 px-4 py-3 hover:bg-violet-50/50 transition-colors ${i > 0 ? 'border-t border-violet-100/50' : ''}`}
-          >
-            <div className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</span>
-                {lead.contact_name && (
-                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                    <UserCircle className="w-2.5 h-2.5" />
-                    {lead.contact_name}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Pitched {lead.daysSincePitch} days ago — chase for decision
-              </p>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-200 flex-shrink-0" />
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FollowUpSection({ leads }: { leads: LeadCardType[] }) {
-  const now = new Date();
-  const followUps = leads
-    .filter((l) => l.follow_up_at)
-    .map((l) => ({
-      ...l,
-      followUpDate: new Date(l.follow_up_at!),
-      isOverdue: new Date(l.follow_up_at!) < now,
-      isToday: new Date(l.follow_up_at!).toDateString() === now.toDateString(),
-    }))
-    .sort((a, b) => a.followUpDate.getTime() - b.followUpDate.getTime());
-
-  if (followUps.length === 0) return null;
-
-  const overdue = followUps.filter((f) => f.isOverdue);
-  const upcoming = followUps.filter((f) => !f.isOverdue);
-
-  function formatFollowUpDate(d: Date, isOverdue: boolean, isToday: boolean): string {
-    if (isToday) return 'Today';
-    if (isOverdue) {
-      const days = Math.ceil((now.getTime() - d.getTime()) / 86400000);
-      return days === 1 ? '1 day overdue' : `${days} days overdue`;
+      setStats(statsData);
+      setLeads(leadsData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch data', err);
+      setLoading(false);
     }
-    const days = Math.ceil((d.getTime() - now.getTime()) / 86400000);
-    if (days === 1) return 'Tomorrow';
-    if (days < 7) return d.toLocaleDateString('en-GB', { weekday: 'long' });
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+
+  const filteredLeads = filter === 'all'
+    ? leads
+    : leads.filter(lead => lead.status === filter);
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      new: 'bg-blue-50 text-blue-700 border-blue-200',
+      visited: 'bg-amber-50 text-amber-700 border-amber-200',
+      pitched: 'bg-purple-50 text-purple-700 border-purple-200',
+      sold: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      rejected: 'bg-slate-50 text-slate-600 border-slate-200',
+    };
+    return colors[status as keyof typeof colors] || colors.new;
+  };
+
+  const getBusinessEmoji = (type: string) => {
+    const emojis: Record<string, string> = {
+      barber: '💈',
+      cafe: '☕',
+      plumber: '🔧',
+      restaurant: '🍽️',
+      salon: '💅',
+      gym: '💪',
+      dentist: '🦷',
+      default: '🏪',
+    };
+    return emojis[type] || emojis.default;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em]">Follow-ups</h2>
-        <span className="text-[10px] text-slate-300 tabular-nums">{followUps.length}</span>
-      </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-[28px] font-semibold text-slate-900 tracking-tight mb-1">Your Leads</h1>
+          <p className="text-[15px] text-slate-500">
+            {filteredLeads.length} {filter === 'all' ? 'total' : filter} leads
+          </p>
+        </div>
 
-      <div className="border border-slate-100 rounded-xl overflow-hidden">
-        {followUps.map((lead, i) => (
-          <Link
-            key={lead.assignment_id}
-            href={`/lead/${lead.assignment_id}`}
-            className={`flex items-center gap-4 px-4 py-3 hover:bg-slate-50/50 transition-colors ${i > 0 ? 'border-t border-slate-50' : ''}`}
-          >
-            {/* Urgency indicator */}
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              lead.isOverdue ? 'bg-red-500' : lead.isToday ? 'bg-amber-500' : 'bg-blue-400'
-            }`} />
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Queue</p>
+            <p className="text-[28px] font-semibold text-slate-900">{stats?.queue || 0}</p>
+          </div>
 
-            {/* Business info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</span>
-                {lead.contact_name && (
-                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                    <UserCircle className="w-2.5 h-2.5" />
-                    {lead.contact_name}
-                  </span>
-                )}
-              </div>
-              {lead.follow_up_note && (
-                <p className="text-[11px] text-slate-400 truncate mt-0.5">{lead.follow_up_note}</p>
-              )}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Visited</p>
+            <p className="text-[28px] font-semibold text-slate-900">{stats?.visited || 0}</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Pitched</p>
+            <p className="text-[28px] font-semibold text-slate-900">{stats?.pitched || 0}</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Sold</p>
+            <p className="text-[28px] font-semibold text-emerald-600">{stats?.sold || 0}</p>
+          </div>
+
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-5 col-span-2 lg:col-span-1">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">Earnings</p>
+            <p className="text-[28px] font-semibold text-white">£{stats?.total_commission || 0}</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {[
+            { key: 'all', label: 'All leads' },
+            { key: 'new', label: 'New' },
+            { key: 'visited', label: 'Visited' },
+            { key: 'pitched', label: 'Pitched' },
+            { key: 'sold', label: 'Sold' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key as any)}
+              className={`px-4 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors ${
+                filter === tab.key
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Leads Table */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {filteredLeads.length === 0 ? (
+            <div className="p-12 text-center text-slate-400">
+              <p className="text-[15px]">No leads found</p>
             </div>
-
-            {/* Date */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`text-[11px] font-medium ${
-                lead.isOverdue ? 'text-red-600' : lead.isToday ? 'text-amber-600' : 'text-slate-500'
-              }`}>
-                {formatFollowUpDate(lead.followUpDate, lead.isOverdue, lead.isToday)}
-              </span>
-              {lead.isOverdue && <AlertTriangle className="w-3 h-3 text-red-400" />}
-              <ChevronRight className="w-3.5 h-3.5 text-slate-200" />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Business
+                    </th>
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Type
+                    </th>
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Location
+                    </th>
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Rating
+                    </th>
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Status
+                    </th>
+                    <th className="text-left py-4 px-6 text-[11px] uppercase tracking-wide font-medium text-slate-500">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map((lead) => (
+                    <tr
+                      key={lead.id}
+                      onClick={() => router.push(`/lead/${lead.id}`)}
+                      className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{getBusinessEmoji(lead.business_type)}</span>
+                          <div>
+                            <p className="text-[15px] font-medium text-slate-900">{lead.business_name}</p>
+                            {lead.contact_name && (
+                              <p className="text-[13px] text-slate-500">
+                                {lead.contact_name} {lead.contact_role && `· ${lead.contact_role}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="text-[13px] text-slate-600 capitalize">{lead.business_type}</span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2 text-[13px] text-slate-600">
+                          <MapPin className="w-4 h-4 text-slate-400" />
+                          {lead.postcode}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        {lead.google_rating > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                            <span className="text-[13px] font-medium text-slate-900">{lead.google_rating}</span>
+                            <span className="text-[13px] text-slate-400">({lead.google_review_count})</span>
+                          </div>
+                        ) : (
+                          <span className="text-[13px] text-slate-400">No reviews</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wide border ${getStatusColor(
+                            lead.status
+                          )}`}
+                        >
+                          {lead.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`tel:${lead.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Call"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </a>
+                          {lead.has_demo_site && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/demo/${lead.id}`, '_blank');
+                              }}
+                              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              title="View demo"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                          )}
+                          {lead.follow_up_date && (
+                            <div className="flex items-center gap-1.5 text-amber-600 text-[11px] bg-amber-50 px-2 py-1 rounded">
+                              <Clock className="w-3 h-3" />
+                              Follow up
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </Link>
-        ))}
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, sub, accent }: {
-  icon: typeof Briefcase; label: string; value: number; sub: string; accent?: boolean;
-}) {
-  return (
-    <div className={`rounded-xl px-4 py-3.5 ${accent ? 'bg-slate-900' : 'bg-slate-50'}`}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-medium uppercase tracking-[0.06em]" style={{ color: accent ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}>{label}</span>
-        <Icon className="w-3.5 h-3.5" style={{ color: accent ? 'rgba(255,255,255,0.2)' : '#e2e8f0' }} />
-      </div>
-      <div className={`text-xl font-semibold tabular-nums ${accent ? 'text-white' : 'text-slate-900'}`}>{value}</div>
-      <div className="text-[10px] mt-0.5" style={{ color: accent ? 'rgba(255,255,255,0.35)' : '#94a3b8' }}>{sub}</div>
     </div>
   );
 }

@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [name, setName] = useState('');
+  const router = useRouter();
+  const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  async function handleLogin(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -18,81 +20,116 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), pin: pin.trim() }),
+        body: JSON.stringify({ username, pin }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.error || 'Login failed');
         setLoading(false);
         return;
       }
-      window.location.href = '/dashboard';
-    } catch {
-      setError('Connection error');
+
+      router.push('/dashboard');
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-surface">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <div className="mb-10">
-          <h1 className="text-2xl font-bold text-primary tracking-tight">SalesFlow</h1>
-          <p className="text-muted text-sm mt-1">Sign in to your account</p>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* Logo + Brand */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-slate-900 mb-6">
+            <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">SalesFlow</h1>
+          <p className="text-[15px] text-slate-500">Walk in. Pitch. Sell.</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-secondary mb-1.5">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border border-border rounded-lg py-2.5 px-3 text-sm text-primary bg-white placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-colors"
-              placeholder="Your name"
-              autoCapitalize="words"
-              autoComplete="username"
-            />
-          </div>
+        {/* Login Form */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="username" className="block text-[13px] font-medium text-slate-900 mb-2">
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                required
+                className="w-full px-4 py-3 text-[15px] bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-secondary mb-1.5">PIN</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={6}
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              className="w-full border border-border rounded-lg py-2.5 px-3 text-sm text-primary bg-white placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-colors tracking-widest"
-              placeholder="Enter PIN"
-              autoComplete="current-password"
-            />
-          </div>
+            <div>
+              <label htmlFor="pin" className="block text-[13px] font-medium text-slate-900 mb-2">
+                PIN
+              </label>
+              <input
+                id="pin"
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="Enter your PIN"
+                required
+                className="w-full px-4 py-3 text-[15px] bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+              />
+            </div>
 
-          {error && (
-            <p className="text-status-rejected text-xs">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || name.trim().length === 0 || pin.trim().length === 0}
-            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition-opacity"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                Sign in
-                <ArrowRight className="w-3.5 h-3.5" />
-              </>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-[13px] text-red-700">
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        <p className="text-faint text-xs mt-8 text-center">
-          New here? <a href="/signup" className="text-primary font-medium hover:underline">Create an account</a>
-        </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-slate-900 text-white py-3 px-4 rounded-lg text-[15px] font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Signup Link */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-[13px] text-slate-600">
+              New here?{' '}
+              <a
+                href="/signup"
+                className="text-blue-600 font-medium hover:text-blue-700 transition-colors"
+              >
+                Create an account
+              </a>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-[11px] text-slate-400 tracking-wide uppercase">
+            Independent Sales Platform
+          </p>
+        </div>
       </div>
     </div>
   );

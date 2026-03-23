@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryAll, queryOne, run } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+import { resolveUserFromRequest } from '@/lib/auth';
 import crypto from 'crypto';
 
 // POST — create a shareable demo link for a lead
 export async function POST(req: NextRequest) {
-  const user = verifyAuth(req);
+  const user = resolveUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { assignment_id } = await req.json();
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
 // GET — list all demo links for current user
 export async function GET(req: NextRequest) {
-  const user = verifyAuth(req);
+  const user = resolveUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const links = queryAll<Record<string, unknown>>(
