@@ -21,6 +21,7 @@ export default function CustomerDemoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 2000);
@@ -47,7 +48,7 @@ export default function CustomerDemoPage() {
       await fetch(`/api/demo-links/${code}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), notes: notes.trim() || undefined }),
       });
     } catch { /* */ }
     setSubmitting(false);
@@ -138,7 +139,7 @@ export default function CustomerDemoPage() {
           className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-neutral-900/95 backdrop-blur-sm text-white pl-4 pr-5 py-3 rounded-full text-[14px] font-medium tracking-[-0.01em] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_32px_rgba(0,0,0,0.18)] confirm-enter"
         >
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/90 text-[11px] shrink-0">✓</span>
-          <span>We&apos;ll be in touch{firstName ? `, ${firstName}` : ''}.</span>
+          <span>Order received{firstName ? `, ${firstName}` : ''}. We&apos;ll be in touch.</span>
         </div>
       )}
 
@@ -147,7 +148,7 @@ export default function CustomerDemoPage() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 backdrop-blur-[2px] bg-black/20 overlay-enter"
+            className="fixed inset-0 z-40 bg-black/10 overlay-enter"
             onClick={() => setPhase('viewing')}
           />
 
@@ -185,7 +186,7 @@ export default function CustomerDemoPage() {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
-                  <div className="space-y-2 mb-5">
+                  <div className="space-y-2 mb-3">
                     <input
                       type="text"
                       value={name}
@@ -203,6 +204,13 @@ export default function CustomerDemoPage() {
                       required
                       className="w-full bg-neutral-50 border border-neutral-200/80 rounded-[14px] py-3.5 px-4 text-[15px] text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-400 focus:bg-white transition-all"
                     />
+                    <textarea
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      placeholder="Any changes you'd like?"
+                      rows={2}
+                      className="w-full bg-neutral-50 border border-neutral-200/80 rounded-[14px] py-3.5 px-4 text-[15px] text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-400 focus:bg-white transition-all resize-none"
+                    />
                   </div>
 
                   <button
@@ -210,11 +218,11 @@ export default function CustomerDemoPage() {
                     disabled={submitting || !name.trim() || !phone.trim()}
                     className="w-full bg-neutral-900 text-white text-[15px] font-medium py-3.5 rounded-[14px] hover:bg-neutral-800 active:bg-neutral-700 disabled:opacity-25 transition-colors tracking-[-0.01em]"
                   >
-                    {submitting ? 'Sending\u2026' : 'Continue'}
+                    {submitting ? 'Processing\u2026' : 'Purchase'}
                   </button>
 
                   <p className="text-[12px] text-neutral-400 text-center mt-4 leading-relaxed">
-                    We&apos;ll call to confirm. No payment taken now.
+                    Secure checkout. Your site goes live within 48 hours.
                   </p>
                 </form>
               </div>
