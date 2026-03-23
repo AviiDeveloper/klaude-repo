@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import type { SalesUser, SalesStats } from '@/lib/types';
-import { BottomNav } from '@/components/BottomNav';
 import {
   LogOut, Loader2, Eye,
   MessageCircle, CheckCircle, XCircle, Clock,
@@ -53,7 +52,6 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center pb-16">
         <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
-        <BottomNav />
       </div>
     );
   }
@@ -63,8 +61,12 @@ export default function ProfilePage() {
     : '0';
 
   return (
-    <div className="min-h-screen pb-16">
-      <div className="max-w-lg mx-auto px-4 pt-5">
+    <>
+      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
+        <h1 className="text-[15px] font-semibold text-slate-900">Account</h1>
+        <p className="text-[11px] text-slate-400 mt-0.5">Your profile and performance</p>
+      </div>
+      <div className="px-6 md:px-8 py-5">
         {/* User header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -142,8 +144,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-      <BottomNav />
-    </div>
+    </>
   );
 }
 

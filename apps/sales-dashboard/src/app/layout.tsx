@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { ConditionalShell } from '@/components/ConditionalShell';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-white text-primary antialiased">
-        {children}
+        <ConditionalShell>{children}</ConditionalShell>
       </body>
     </html>
   );

@@ -3,16 +3,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
-import { Search, Loader2, TrendingUp, MapPin, Star, ChevronRight, MonitorSmartphone, Phone, Clock } from 'lucide-react';
+import {
+  Search, Loader2, TrendingUp, MapPin, Star, ChevronRight,
+  MonitorSmartphone, Phone, Briefcase, Eye, MessageCircle, CheckCircle2,
+} from 'lucide-react';
 
 const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
 
-const STATUS_DOT: Record<string, string> = {
-  new: 'bg-blue-500',
-  visited: 'bg-amber-500',
-  pitched: 'bg-violet-500',
-  sold: 'bg-emerald-500',
-  rejected: 'bg-slate-300',
+const STATUS_STYLES: Record<string, string> = {
+  new: 'text-blue-700 bg-blue-50',
+  visited: 'text-amber-700 bg-amber-50',
+  pitched: 'text-violet-700 bg-violet-50',
+  sold: 'text-emerald-700 bg-emerald-50',
+  rejected: 'text-slate-500 bg-slate-100',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -60,183 +63,214 @@ export default function DashboardPage() {
   const visitedCount = stats?.visited_count ?? 0;
   const pitchedCount = stats?.pitched_count ?? 0;
   const soldCount = stats?.sold_count ?? 0;
-
-  // Count leads per filter
-  const filterCounts: Record<string, number> = {
-    all: leads.length,
-    new: leads.filter(l => l.assignment_status === 'new').length,
-    visited: leads.filter(l => l.assignment_status === 'visited').length,
-    pitched: leads.filter(l => l.assignment_status === 'pitched').length,
-    sold: leads.filter(l => l.assignment_status === 'sold').length,
-  };
+  const totalAssigned = stats?.total_assigned ?? 0;
 
   return (
-    <div className="max-w-lg mx-auto">
-      {/* Header bar */}
-      <div className="px-4 pt-4 pb-3 flex items-start justify-between">
-        <div>
-          <h1 className="text-base font-semibold text-primary">Your Leads</h1>
-          <p className="text-[11px] text-muted mt-0.5">
-            {newCount} new · {visitedCount} visited · {pitchedCount} pitched · {soldCount} sold
-          </p>
+    <>
+      {/* Top bar */}
+      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-[15px] font-semibold text-slate-900">Leads</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">{totalAssigned} assigned to you</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {commission > 0 && (
+              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
+                <TrendingUp className="w-3 h-3 text-emerald-600" />
+                <span className="text-[12px] font-semibold text-emerald-700 tabular-nums">£{commission.toFixed(0)}</span>
+                <span className="text-[10px] text-emerald-500">earned</span>
+              </div>
+            )}
+          </div>
         </div>
-        {commission > 0 && (
-          <div className="flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full">
-            <TrendingUp className="w-3 h-3 text-emerald-600" />
-            <span className="text-[12px] font-semibold text-emerald-700">£{commission.toFixed(0)}</span>
+      </div>
+
+      <div className="px-6 md:px-8 py-5">
+        {/* Metric cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <MetricCard icon={Briefcase} label="Queue" value={newCount} sub="new leads" />
+          <MetricCard icon={Eye} label="Visited" value={visitedCount} sub="in progress" />
+          <MetricCard icon={MessageCircle} label="Pitched" value={pitchedCount} sub="awaiting decision" />
+          <MetricCard icon={CheckCircle2} label="Sold" value={soldCount} sub="closed deals" accent />
+        </div>
+
+        {/* Search + Filters */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
+            <input
+              type="text"
+              placeholder="Search businesses..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg py-2 pl-9 pr-3 text-[13px] text-slate-900 bg-slate-50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:bg-white border border-transparent focus:border-slate-200 transition-all"
+            />
+          </div>
+          <div className="flex gap-1 overflow-x-auto">
+            {FILTERS.map((f) => {
+              const active = filter === f;
+              const count = f === 'all' ? totalAssigned : f === 'new' ? newCount : f === 'visited' ? visitedCount : f === 'pitched' ? pitchedCount : soldCount;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
+                    active ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {f === 'all' ? 'All' : STATUS_LABEL[f]}
+                  <span className={`tabular-nums ${active ? 'text-slate-400' : 'text-slate-300'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Lead table */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+          </div>
+        ) : leads.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-[13px] text-slate-400">No leads found</p>
+            <p className="text-[11px] text-slate-300 mt-1">
+              {filter !== 'all' ? 'Try a different filter' : 'Leads appear when the pipeline assigns them'}
+            </p>
+          </div>
+        ) : (
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            {/* Desktop table header */}
+            <div className="hidden md:grid grid-cols-[1fr_100px_80px_100px_80px_100px_32px] gap-4 px-5 py-2.5 bg-slate-50 border-b border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Business</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Type</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Area</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Rating</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Demo</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Status</span>
+              <span></span>
+            </div>
+
+            {leads.map((lead, i) => (
+              <LeadRow key={lead.assignment_id} lead={lead} index={i} />
+            ))}
           </div>
         )}
       </div>
-
-      {/* Divider */}
-      <div className="h-px bg-slate-100" />
-
-      {/* Search + Filter row */}
-      <div className="px-4 py-3">
-        <div className="relative mb-2.5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
-          <input
-            type="text"
-            placeholder="Search businesses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg py-2 pl-9 pr-3 text-[13px] text-primary bg-slate-50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:bg-white border border-transparent focus:border-slate-200 transition-all"
-          />
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex gap-0.5 overflow-x-auto -mx-4 px-4">
-          {FILTERS.map((f) => {
-            const active = filter === f;
-            const count = filterCounts[f] ?? 0;
-            return (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
-                  active
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-50 text-muted hover:bg-slate-100'
-                }`}
-              >
-                {f === 'all' ? 'All' : STATUS_LABEL[f]}
-                <span className={`tabular-nums ${active ? 'text-slate-400' : 'text-slate-300'}`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-slate-100" />
-
-      {/* Lead list */}
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
-        </div>
-      ) : leads.length === 0 ? (
-        <div className="text-center py-16 px-4">
-          <p className="text-[13px] text-muted">No leads found</p>
-          <p className="text-[11px] text-slate-300 mt-1">
-            {filter !== 'all' ? 'Try a different filter' : 'Leads appear when the pipeline assigns them'}
-          </p>
-        </div>
-      ) : (
-        <div>
-          {leads.map((lead, i) => (
-            <EnhancedLeadCard key={lead.assignment_id} lead={lead} index={i} />
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
-function EnhancedLeadCard({ lead, index }: { lead: LeadCardType; index: number }) {
+function LeadRow({ lead, index }: { lead: LeadCardType; index: number }) {
   const hasDemo = !!lead.demo_site_domain;
-  const hasPhone = !!lead.phone;
 
   return (
     <Link
       href={`/lead/${lead.assignment_id}`}
-      className="block px-4 py-3.5 border-b border-slate-50 active:bg-slate-50 transition-colors animate-fade-in"
-      style={{ animationDelay: `${index * 20}ms` }}
+      className="block border-b border-slate-50 last:border-0 hover:bg-slate-50/50 active:bg-slate-50 transition-colors animate-fade-in"
+      style={{ animationDelay: `${index * 15}ms` }}
     >
-      <div className="flex items-start gap-3">
-        {/* Status dot */}
-        <div className="pt-1.5">
-          <div className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[lead.assignment_status] ?? 'bg-slate-300'}`} />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Row 1: Name + badges */}
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-[14px] font-semibold text-primary truncate">{lead.business_name}</h3>
-            {hasDemo && (
-              <span className="flex items-center gap-0.5 text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                <MonitorSmartphone className="w-2.5 h-2.5" />
-                Demo
-              </span>
-            )}
-          </div>
-
-          {/* Row 2: Type + location + rating */}
-          <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5">
-            {lead.business_type && <span className="capitalize">{lead.business_type}</span>}
-            {lead.postcode && (
-              <>
-                <span className="text-slate-200">·</span>
-                <span className="inline-flex items-center gap-0.5">
-                  <MapPin className="w-2.5 h-2.5" />
-                  {lead.postcode}
-                </span>
-              </>
-            )}
-            {lead.google_rating && (
-              <>
-                <span className="text-slate-200">·</span>
-                <span className="inline-flex items-center gap-0.5">
-                  <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                  {lead.google_rating}
-                  {lead.google_review_count && <span className="text-slate-300">({lead.google_review_count})</span>}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Row 3: Contextual info based on status */}
+      {/* Desktop row */}
+      <div className="hidden md:grid grid-cols-[1fr_100px_80px_100px_80px_100px_32px] gap-4 items-center px-5 py-3.5">
+        {/* Business */}
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {lead.assignment_status === 'new' && !lead.has_website && (
-              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">No website — perfect candidate</span>
-            )}
-            {lead.assignment_status === 'new' && lead.has_website && (lead.website_quality_score ?? 100) < 50 && (
-              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Poor website — upgrade opportunity</span>
-            )}
-            {hasPhone && (
-              <span className="text-[10px] text-slate-400 inline-flex items-center gap-0.5">
-                <Phone className="w-2.5 h-2.5" />
-                {lead.phone}
-              </span>
+            <h3 className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</h3>
+          </div>
+          {lead.phone && (
+            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+              <Phone className="w-2.5 h-2.5" />
+              {lead.phone}
+            </div>
+          )}
+        </div>
+
+        {/* Type */}
+        <span className="text-[12px] text-slate-500 capitalize">{lead.business_type ?? '—'}</span>
+
+        {/* Area */}
+        <span className="text-[12px] text-slate-500">{lead.postcode ?? '—'}</span>
+
+        {/* Rating */}
+        <div className="text-center">
+          {lead.google_rating ? (
+            <span className="text-[12px] text-slate-700 inline-flex items-center gap-0.5">
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              {lead.google_rating}
+              {lead.google_review_count && <span className="text-slate-300 text-[10px]">({lead.google_review_count})</span>}
+            </span>
+          ) : (
+            <span className="text-[11px] text-slate-300">—</span>
+          )}
+        </div>
+
+        {/* Demo */}
+        <div className="text-center">
+          {hasDemo ? (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+              <MonitorSmartphone className="w-2.5 h-2.5" />
+              Ready
+            </span>
+          ) : (
+            <span className="text-[10px] text-slate-300">—</span>
+          )}
+        </div>
+
+        {/* Status */}
+        <div className="text-center">
+          <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[lead.assignment_status] ?? 'text-slate-500 bg-slate-50'}`}>
+            {STATUS_LABEL[lead.assignment_status] ?? lead.assignment_status}
+          </span>
+        </div>
+
+        {/* Arrow */}
+        <ChevronRight className="w-4 h-4 text-slate-200" />
+      </div>
+
+      {/* Mobile row */}
+      <div className="md:hidden px-4 py-3.5 flex items-start gap-3">
+        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
+          lead.assignment_status === 'new' ? 'bg-blue-500' :
+          lead.assignment_status === 'visited' ? 'bg-amber-500' :
+          lead.assignment_status === 'pitched' ? 'bg-violet-500' :
+          lead.assignment_status === 'sold' ? 'bg-emerald-500' : 'bg-slate-300'
+        }`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <h3 className="text-[14px] font-semibold text-slate-900 truncate">{lead.business_name}</h3>
+            {hasDemo && <MonitorSmartphone className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            {lead.business_type && <span className="capitalize">{lead.business_type}</span>}
+            {lead.postcode && <><span className="text-slate-200">·</span><span>{lead.postcode}</span></>}
+            {lead.google_rating && (
+              <><span className="text-slate-200">·</span><span className="inline-flex items-center gap-0.5"><Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />{lead.google_rating}</span></>
             )}
           </div>
         </div>
-
-        {/* Right: status label + arrow */}
-        <div className="flex items-center gap-2 pt-1">
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-            lead.assignment_status === 'new' ? 'bg-blue-50 text-blue-600' :
-            lead.assignment_status === 'visited' ? 'bg-amber-50 text-amber-600' :
-            lead.assignment_status === 'pitched' ? 'bg-violet-50 text-violet-600' :
-            lead.assignment_status === 'sold' ? 'bg-emerald-50 text-emerald-600' :
-            'bg-slate-50 text-slate-500'
-          }`}>
-            {STATUS_LABEL[lead.assignment_status] ?? lead.assignment_status}
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[lead.assignment_status] ?? ''}`}>
+            {STATUS_LABEL[lead.assignment_status]}
           </span>
           <ChevronRight className="w-4 h-4 text-slate-200" />
         </div>
       </div>
     </Link>
+  );
+}
+
+function MetricCard({ icon: Icon, label, value, sub, accent }: {
+  icon: typeof Briefcase; label: string; value: number; sub: string; accent?: boolean;
+}) {
+  return (
+    <div className={`rounded-xl px-4 py-3.5 ${accent ? 'bg-slate-900' : 'bg-slate-50'}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-medium uppercase tracking-[0.06em]" style={{ color: accent ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}>{label}</span>
+        <Icon className="w-3.5 h-3.5" style={{ color: accent ? 'rgba(255,255,255,0.2)' : '#e2e8f0' }} />
+      </div>
+      <div className={`text-xl font-semibold tabular-nums ${accent ? 'text-white' : 'text-slate-900'}`}>{value}</div>
+      <div className="text-[10px] mt-0.5" style={{ color: accent ? 'rgba(255,255,255,0.35)' : '#94a3b8' }}>{sub}</div>
+    </div>
   );
 }
