@@ -93,6 +93,10 @@ export async function GET(
     visited_at: row.visited_at as string | null,
     pitched_at: row.pitched_at as string | null,
     sold_at: row.sold_at as string | null,
+    follow_up_at: row.follow_up_at as string | null,
+    follow_up_note: row.follow_up_note as string | null,
+    contact_name: row.contact_name as string | null,
+    contact_role: row.contact_role as string | null,
   };
 
   return NextResponse.json({ data: lead });

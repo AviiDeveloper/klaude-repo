@@ -10,6 +10,8 @@ import { GoogleRating } from '@/components/GoogleRating';
 import { LeadStatusBadge } from '@/components/LeadStatusBadge';
 import { DemoViewer, PriceBreakdown } from '@/components/PitchTools';
 import { ObjectionHandler } from '@/components/ObjectionHandler';
+import { FollowUp } from '@/components/FollowUp';
+import { ContactCapture } from '@/components/ContactCapture';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe, Clock,
   ExternalLink, Loader2, Star, ChevronRight, Monitor, MapPinned,
@@ -23,18 +25,18 @@ export default function LeadDetailPage() {
   const [talkingPoints, setTalkingPoints] = useState<TalkingPoint[]>([]);
   const [showDemo, setShowDemo] = useState(false);
 
-  useEffect(() => {
-    async function fetchLead() {
-      const res = await fetch(`/api/leads/${params.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        const ld = data.data as LeadDetail;
-        setLead(ld);
-        setTalkingPoints(generateTalkingPoints(ld));
-      }
-      setLoading(false);
+  async function reloadLead() {
+    const res = await fetch(`/api/leads/${params.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      const ld = data.data as LeadDetail;
+      setLead(ld);
+      setTalkingPoints(generateTalkingPoints(ld));
     }
-    fetchLead();
+  }
+
+  useEffect(() => {
+    reloadLead().finally(() => setLoading(false));
   }, [params.id]);
 
   function handleStatusChange(newStatus: AssignmentStatus) {
@@ -107,6 +109,24 @@ export default function LeadDetailPage() {
           </button>
         </>
       )}
+
+      {/* Follow-up & Contact */}
+      <div className="mb-5 space-y-3">
+        <FollowUp
+          assignmentId={lead.assignment_id}
+          followUpAt={lead.follow_up_at}
+          followUpNote={lead.follow_up_note}
+          onUpdate={reloadLead}
+        />
+        <ContactCapture
+          assignmentId={lead.assignment_id}
+          contactName={lead.contact_name}
+          contactRole={lead.contact_role}
+          onUpdate={reloadLead}
+        />
+      </div>
+
+      <div className="h-px bg-slate-100 mb-5" />
 
       {/* Talking Points */}
       <div className="mb-6 pb-6 border-b border-border-light">

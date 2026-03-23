@@ -29,6 +29,14 @@ export function getDb(): Database.Database {
     safeAlter("ALTER TABLE sales_users ADD COLUMN max_active_leads INTEGER DEFAULT 20");
     safeAlter("ALTER TABLE sales_users ADD COLUMN user_status TEXT DEFAULT 'available'");
 
+    // Follow-up reminders
+    safeAlter("ALTER TABLE lead_assignments ADD COLUMN follow_up_at TEXT");
+    safeAlter("ALTER TABLE lead_assignments ADD COLUMN follow_up_note TEXT");
+
+    // Contact person tracking
+    safeAlter("ALTER TABLE lead_assignments ADD COLUMN contact_name TEXT");
+    safeAlter("ALTER TABLE lead_assignments ADD COLUMN contact_role TEXT");
+
     // Unique index: one active assignment per lead (rejected leads can be reassigned)
     try {
       db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_unique_active ON lead_assignments(lead_id) WHERE status NOT IN ('rejected')");

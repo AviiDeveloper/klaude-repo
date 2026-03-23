@@ -99,6 +99,14 @@ export interface LeadDetail extends LeadCard {
   visited_at: string | null;
   pitched_at: string | null;
   sold_at: string | null;
+
+  // Follow-up
+  follow_up_at: string | null;
+  follow_up_note: string | null;
+
+  // Contact person
+  contact_name: string | null;
+  contact_role: string | null;
 }
 
 export interface ReviewItem {
