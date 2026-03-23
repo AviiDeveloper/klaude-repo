@@ -2,13 +2,16 @@
 
 import type { SalesStats } from '@/lib/types';
 
-const DAILY_VISIT_TARGET = 8;
 const REVENUE_PER_SALE = 350;
 const MONTHLY_RECURRING = 25;
 
+// Personal goal — not a mandatory target. Users set their own pace.
+const DEFAULT_PERSONAL_GOAL = 8;
+
 export function DailyTarget({ stats }: { stats: SalesStats | null }) {
   const visits = stats?.visits_today ?? 0;
-  const progress = Math.min(visits / DAILY_VISIT_TARGET, 1);
+  const goal = DEFAULT_PERSONAL_GOAL; // future: user-configurable
+  const progress = Math.min(visits / goal, 1);
   const circumference = 2 * Math.PI * 40;
   const strokeDashoffset = circumference * (1 - progress);
   const pitchesToday = stats?.pitches_today ?? 0;
@@ -38,26 +41,26 @@ export function DailyTarget({ stats }: { stats: SalesStats | null }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-primary leading-none">{visits}</span>
-          <span className="text-2xs text-muted">/ {DAILY_VISIT_TARGET}</span>
+          <span className="text-2xs text-muted">today</span>
         </div>
       </div>
 
       {/* Today's breakdown */}
       <div className="flex-1 space-y-1.5">
         <h3 className="text-sm font-semibold text-primary">
-          {progress >= 1 ? 'Target hit!' : `${DAILY_VISIT_TARGET - visits} visits to go`}
+          {progress >= 1 ? 'Great session!' : 'Your activity today'}
         </h3>
         <div className="space-y-0.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Visits today</span>
+            <span className="text-xs text-muted">Visits</span>
             <span className="text-xs font-medium text-primary">{visits}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Pitches today</span>
+            <span className="text-xs text-muted">Pitches</span>
             <span className="text-xs font-medium text-primary">{pitchesToday}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Sales today</span>
+            <span className="text-xs text-muted">Sales</span>
             <span className="text-xs font-medium text-status-sold">{salesToday}</span>
           </div>
         </div>

@@ -50,7 +50,7 @@ export default function DashboardPage() {
         <p className="text-xs text-muted mt-0.5">{leads.length} assigned to you</p>
       </div>
 
-      {/* Daily target + stats */}
+      {/* Activity tracker + stats */}
       <div className="mb-5 space-y-3">
         <DailyTarget stats={stats} />
         <StatsBar stats={stats} />
