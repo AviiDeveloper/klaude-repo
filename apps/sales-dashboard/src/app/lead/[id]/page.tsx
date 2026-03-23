@@ -11,6 +11,7 @@ import { DemoViewer, PriceBreakdown } from '@/components/PitchTools';
 import { ObjectionHandler } from '@/components/ObjectionHandler';
 import { FollowUp } from '@/components/FollowUp';
 import { ContactCapture } from '@/components/ContactCapture';
+import { BusinessIntel } from '@/components/BusinessIntel';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe,
   ExternalLink, Loader2, Star, ChevronRight, Monitor,
@@ -158,6 +159,18 @@ export default function LeadDetailPage() {
 
             {/* Talking Points */}
             <TalkingPoints points={talkingPoints} />
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Business Intelligence */}
+            <BusinessIntel
+              businessName={lead.business_name}
+              businessType={lead.business_type}
+              googleRating={lead.google_rating}
+              reviewCount={lead.google_review_count}
+              hasWebsite={lead.has_website}
+              services={lead.services}
+            />
 
             <div className="h-px bg-slate-100" />
 
