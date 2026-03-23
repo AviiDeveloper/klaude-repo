@@ -64,7 +64,6 @@ export default function LoginPage() {
               className="w-full bg-sd-bg-card border border-sd-border rounded-xl py-3.5 pl-12 pr-4 text-sd-text placeholder:text-sd-text-muted/50 focus:outline-none focus:border-sd-accent focus:ring-1 focus:ring-sd-accent transition-colors"
               autoComplete="username"
               autoCapitalize="words"
-              required
             />
           </div>
 
@@ -72,16 +71,14 @@ export default function LoginPage() {
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sd-text-muted" />
             <input
-              type="tel"
+              type="password"
               inputMode="numeric"
-              pattern="[0-9]*"
               maxLength={6}
               placeholder="PIN"
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setPin(e.target.value)}
               className="w-full bg-sd-bg-card border border-sd-border rounded-xl py-3.5 pl-12 pr-4 text-sd-text placeholder:text-sd-text-muted/50 focus:outline-none focus:border-sd-accent focus:ring-1 focus:ring-sd-accent transition-colors tracking-[0.3em] text-center text-lg"
-              autoComplete="one-time-code"
-              required
+              autoComplete="current-password"
             />
           </div>
 
@@ -95,7 +92,7 @@ export default function LoginPage() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading || !name || !pin}
+            disabled={loading || name.trim().length === 0 || pin.trim().length === 0}
             className="w-full bg-sd-accent hover:bg-sd-accent-light disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
             {loading ? (
