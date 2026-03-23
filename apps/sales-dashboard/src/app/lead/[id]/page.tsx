@@ -12,6 +12,7 @@ import { ObjectionHandler } from '@/components/ObjectionHandler';
 import { FollowUp } from '@/components/FollowUp';
 import { ContactCapture } from '@/components/ContactCapture';
 import { BusinessIntel } from '@/components/BusinessIntel';
+import { ShareDemo } from '@/components/ShareDemo';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe, ExternalLink, Loader2, Star,
   ChevronRight, Monitor, ClipboardList, Crosshair, Megaphone, CalendarCheck,
@@ -233,6 +234,16 @@ export default function LeadDetailPage() {
                 </button>
               </div>
             )}
+
+            {/* Share demo link */}
+            <div>
+              <h3 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.08em] mb-3">Share with Client</h3>
+              <ShareDemo
+                assignmentId={lead.assignment_id}
+                businessName={lead.business_name}
+                hasDemoSite={lead.has_demo_site}
+              />
+            </div>
 
             {/* Price breakdown */}
             <div>

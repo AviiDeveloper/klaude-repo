@@ -156,4 +156,28 @@ CREATE TABLE IF NOT EXISTS assignment_rules (
   enabled INTEGER DEFAULT 1,
   created_at TEXT
 );
+
+-- Shareable demo links (salesman → customer attribution)
+CREATE TABLE IF NOT EXISTS demo_links (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  assignment_id TEXT NOT NULL REFERENCES lead_assignments(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES sales_users(id) ON DELETE CASCADE,
+  lead_id TEXT NOT NULL,
+  business_name TEXT NOT NULL,
+  demo_domain TEXT,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'viewed', 'interested', 'converted', 'expired')),
+  views INTEGER DEFAULT 0,
+  last_viewed_at TEXT,
+  customer_name TEXT,
+  customer_phone TEXT,
+  customer_email TEXT,
+  customer_message TEXT,
+  interested_at TEXT,
+  converted_at TEXT,
+  expires_at TEXT,
+  created_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_demo_links_code ON demo_links(code);
+CREATE INDEX IF NOT EXISTS idx_demo_links_assignment ON demo_links(assignment_id);
 `;
