@@ -3,10 +3,11 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'SalesFlow',
-  description: 'Lead management for field sales teams.',
+  description: 'Walk in. Pitch. Sell.',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'SalesFlow',
   },
 };
