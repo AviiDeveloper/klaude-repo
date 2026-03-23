@@ -151,13 +151,10 @@ export default function CustomerDemoPage() {
             onClick={() => setPhase('viewing')}
           />
 
-          {/* Sheet */}
-          <div className="fixed bottom-0 inset-x-0 z-50 sheet-enter">
-            <div className="bg-white rounded-t-[24px] shadow-[0_-1px_0_rgba(0,0,0,0.04),0_-20px_60px_rgba(0,0,0,0.12)]">
-              <div className="mx-auto max-w-[400px] px-6 pt-3 pb-10">
-
-                {/* Drag handle */}
-                <div className="w-8 h-[4px] bg-neutral-200 rounded-full mx-auto mb-7" />
+          {/* Sheet — floating card, not edge-to-edge */}
+          <div className="fixed bottom-4 inset-x-4 md:bottom-6 md:left-auto md:right-6 md:max-w-[380px] z-50 sheet-enter">
+            <div className="bg-white rounded-[20px] shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_8px_40px_rgba(0,0,0,0.14)]">
+              <div className="px-6 pt-6 pb-7">
 
                 {/* Business name — subtle context */}
                 <p className="text-[11px] font-medium tracking-[0.08em] uppercase text-neutral-400 text-center mb-3">
