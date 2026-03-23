@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginUser, setSessionCookie } from '@/lib/auth';
+import { loginUser } from '@/lib/auth';
+
+const TOKEN_EXPIRY_DAYS = 30;
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,16 +23,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Set cookie for web clients
-    setSessionCookie(result.token);
-
-    // Return token for mobile clients
-    return NextResponse.json({
+    // Build response with token for mobile clients
+    const response = NextResponse.json({
       data: {
         user: result.user,
         token: result.token,
       },
     });
+
+    // Set cookie on the response for web clients
+    response.cookies.set('sd_session', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60,
+      path: '/',
+    });
+
+    return response;
   } catch (err) {
     console.error('[Auth] Login error:', err);
     return NextResponse.json(

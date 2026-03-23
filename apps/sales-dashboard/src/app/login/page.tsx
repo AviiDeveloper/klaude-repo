@@ -31,7 +31,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/dashboard');
+      // Full page redirect so the browser picks up the Set-Cookie header
+      window.location.href = '/dashboard';
     } catch {
       setError('Network error — check your connection');
       setLoading(false);
