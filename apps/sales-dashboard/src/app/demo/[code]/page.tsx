@@ -74,7 +74,10 @@ export default function CustomerDemoPage() {
 
   if (!demo) return null;
 
-  const demoSiteUrl = demo.demo_domain ? `/api/demo-site/${demo.demo_domain}` : null;
+  // Try public static file first, fall back to API route
+  const demoSiteUrl = demo.demo_domain
+    ? `/demo-sites/${demo.demo_domain}.html`
+    : null;
 
   return (
     <div className="min-h-screen bg-white relative">

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mannys Barbers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; color: #1a1a2e; background: #fff; }
+.hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white; padding: 80px 24px; text-align: center; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: -50%; right: -20%; width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(233,196,106,0.15) 0%, transparent 70%); border-radius: 50%;
+}
+.hero h1 { font-size: 3rem; font-weight: 900; margin-bottom: 16px; letter-spacing: -0.03em; }
+.hero p { font-size: 1.15rem; opacity: 0.8; max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+.hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 50px; font-size: 0.9rem; margin-bottom: 24px; }
+.hero-badge .stars { color: #e9c46a; }
+.cta-btn {
+  display: inline-block; background: #e9c46a; color: #1a1a2e; font-weight: 700; font-size: 1rem;
+  padding: 16px 40px; border-radius: 12px; text-decoration: none; transition: all 0.3s;
+}
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(233,196,106,0.4); }
+.section { padding: 80px 24px; max-width: 1000px; margin: 0 auto; }
+.section-title { font-size: 2rem; font-weight: 800; text-align: center; margin-bottom: 12px; letter-spacing: -0.02em; }
+.section-sub { text-align: center; color: #64748b; font-size: 1rem; margin-bottom: 48px; }
+.services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.service-card {
+  background: #f8fafc; border-radius: 16px; padding: 28px; text-align: center;
+  border: 1px solid #e2e8f0; transition: all 0.3s;
+}
+.service-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.08); border-color: #e9c46a; }
+.service-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+.service-card p { color: #64748b; font-size: 0.85rem; line-height: 1.5; }
+.service-icon { font-size: 2rem; margin-bottom: 12px; }
+.reviews { background: #f8fafc; }
+.review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.review-card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #e2e8f0; }
+.review-stars { color: #e9c46a; font-size: 0.9rem; margin-bottom: 12px; }
+.review-text { font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 12px; font-style: italic; }
+.review-author { font-weight: 700; font-size: 0.85rem; }
+.hours-section { text-align: center; }
+.hours-grid { max-width: 400px; margin: 0 auto; }
+.hours-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+.hours-day { font-weight: 600; }
+.hours-time { color: #64748b; }
+.contact-section { background: #1a1a2e; color: white; padding: 60px 24px; text-align: center; }
+.contact-section h2 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+.contact-section p { opacity: 0.7; margin-bottom: 24px; }
+.contact-info { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; font-size: 0.95rem; }
+.contact-item { display: flex; align-items: center; gap: 8px; }
+.footer { padding: 24px; text-align: center; font-size: 0.8rem; color: #94a3b8; }
+.trust-badges { display: flex; gap: 24px; justify-content: center; margin-top: 40px; flex-wrap: wrap; }
+.trust-badge { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<header style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 50; border-bottom: 1px solid #e2e8f0;">
+  <div style="font-size: 1.3rem; font-weight: 800; color: #1a1a2e;">Mannys Barbers</div>
+  <nav style="display: flex; gap: 24px; align-items: center; font-size: 0.9rem;">
+    <a href="#services" style="color: #64748b; text-decoration: none; font-weight: 500;">Services</a>
+    <a href="#reviews" style="color: #64748b; text-decoration: none; font-weight: 500;">Reviews</a>
+    <a href="#hours" style="color: #64748b; text-decoration: none; font-weight: 500;">Hours</a>
+    <a href="tel:01onal0000001" style="background: #1a1a2e; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Book Your Cut</a>
+  </nav>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge"><span class="stars">★★★★★</span> 4.7 from 89 reviews</div>
+  <h1>Fresh Cuts at Mannys</h1>
+  <p>Your local barber in M4 — walk-ins welcome, appointments available. Expert fades, classic cuts, and hot towel shaves.</p>
+  <a href="tel:01610000001" class="cta-btn">Book Your Cut</a>
+  <div class="trust-badges">
+    <span class="trust-badge">✓ Walk-Ins Welcome</span>
+    <span class="trust-badge">✓ Experienced Barbers</span>
+    <span class="trust-badge">✓ All Styles Catered For</span>
+  </div>
+</section>
+
+<!-- Services -->
+<section class="section" id="services">
+  <h2 class="section-title">Our Services</h2>
+  <p class="section-sub">Expert cuts and grooming for every style</p>
+  <div class="services-grid">
+    <div class="service-card"><div class="service-icon">✂️</div><h3>Skin Fade</h3><p>Precision skin fades from low to high — clean, sharp, and tailored to your style.</p></div>
+    <div class="service-card"><div class="service-icon">🧔</div><h3>Beard Trim & Shape</h3><p>Expert beard trimming, shaping, and hot towel finishes.</p></div>
+    <div class="service-card"><div class="service-icon">💈</div><h3>Scissor Cut</h3><p>Classic scissor cuts for a natural, textured look.</p></div>
+    <div class="service-card"><div class="service-icon">👦</div><h3>Kids Cuts</h3><p>Friendly, patient cuts for the little ones.</p></div>
+    <div class="service-card"><div class="service-icon">🪒</div><h3>Hot Towel Shave</h3><p>Traditional hot towel wet shave — the full barbershop experience.</p></div>
+    <div class="service-card"><div class="service-icon">✨</div><h3>Hair Design</h3><p>Custom hair designs and patterns for a unique look.</p></div>
+  </div>
+</section>
+
+<!-- Reviews -->
+<section class="section reviews" id="reviews">
+  <h2 class="section-title">What Customers Say</h2>
+  <p class="section-sub">Rated 4.7★ from 89 Google reviews</p>
+  <div class="review-grid">
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Absolutely brilliant service, will definitely be back! Best fade I've had in years."</p>
+      <div class="review-author">John D.</div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Always consistent, great atmosphere, and Manny really takes his time to get it right."</p>
+      <div class="review-author">Chris M.</div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★☆</div>
+      <p class="review-text">"Took my son for his first proper haircut. They were so patient with him. Will be regulars now."</p>
+      <div class="review-author">Sarah K.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Hours -->
+<section class="section hours-section" id="hours">
+  <h2 class="section-title">Opening Hours</h2>
+  <p class="section-sub">Drop in or book ahead</p>
+  <div class="hours-grid">
+    <div class="hours-row"><span class="hours-day">Monday</span><span class="hours-time">9:00 – 17:30</span></div>
+    <div class="hours-row"><span class="hours-day">Tuesday</span><span class="hours-time">9:00 – 17:30</span></div>
+    <div class="hours-row"><span class="hours-day">Wednesday</span><span class="hours-time">9:00 – 17:30</span></div>
+    <div class="hours-row"><span class="hours-day">Thursday</span><span class="hours-time">9:00 – 19:00</span></div>
+    <div class="hours-row"><span class="hours-day">Friday</span><span class="hours-time">9:00 – 17:30</span></div>
+    <div class="hours-row"><span class="hours-day">Saturday</span><span class="hours-time">9:00 – 16:00</span></div>
+    <div class="hours-row"><span class="hours-day">Sunday</span><span class="hours-time">Closed</span></div>
+  </div>
+</section>
+
+<!-- Contact -->
+<section class="contact-section">
+  <h2>Get In Touch</h2>
+  <p>Walk-ins welcome — or call ahead to book your slot</p>
+  <div class="contact-info">
+    <div class="contact-item">📞 0161 000 0001</div>
+    <div class="contact-item">📍 M4 1HN, Manchester</div>
+  </div>
+  <div style="margin-top: 24px;">
+    <a href="tel:01610000001" class="cta-btn">Call Now</a>
+  </div>
+</section>
+
+<footer class="footer">
+  © 2026 Mannys Barbers. All rights reserved.
+</footer>
+
+</body>
+</html>
