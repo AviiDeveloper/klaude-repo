@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
     });
 
     // Set cookie on the response for web clients
+    // secure: false because we serve over HTTP via Tailscale (not HTTPS)
     response.cookies.set('sd_session', result.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60,
       path: '/',
