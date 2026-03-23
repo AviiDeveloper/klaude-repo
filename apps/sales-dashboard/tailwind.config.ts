@@ -5,28 +5,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        sd: {
-          bg: '#0a0a0f',
-          'bg-card': '#141420',
-          'bg-elevated': '#1e1e2e',
-          border: '#2a2a3d',
-          text: '#e4e4ef',
-          'text-muted': '#8888a0',
-          accent: '#6366f1',
-          'accent-light': '#818cf8',
-          green: '#22c55e',
-          amber: '#f59e0b',
-          blue: '#3b82f6',
-          red: '#ef4444',
-          gold: '#fbbf24',
+        // Editorial palette — neutral, professional, restrained
+        primary: '#111111',
+        secondary: '#555555',
+        muted: '#888888',
+        faint: '#aaaaaa',
+        border: '#e5e5e5',
+        'border-light': '#f0f0f0',
+        surface: '#fafafa',
+        card: '#ffffff',
+        accent: '#1a1a1a',
+
+        // Functional — used sparingly, only for status
+        status: {
+          new: '#2563eb',
+          visited: '#d97706',
+          pitched: '#7c3aed',
+          sold: '#16a34a',
+          rejected: '#dc2626',
         },
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
-      borderRadius: {
-        xl: '16px',
-        '2xl': '20px',
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
       },
       spacing: {
         'safe-bottom': 'env(safe-area-inset-bottom)',

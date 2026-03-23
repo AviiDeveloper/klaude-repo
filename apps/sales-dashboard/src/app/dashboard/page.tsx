@@ -1,19 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import type { LeadCard as LeadCardType, SalesStats, AssignmentStatus } from '@/lib/types';
+import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
 import { LeadCard } from '@/components/LeadCard';
 import { StatsBar, CommissionBanner } from '@/components/StatsBar';
-import { Search, Filter, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
-const STATUS_FILTERS: Array<{ value: string; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'new', label: 'New' },
-  { value: 'visited', label: 'Visited' },
-  { value: 'pitched', label: 'Pitched' },
-  { value: 'sold', label: 'Sold' },
-];
+const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<LeadCardType[]>([]);
@@ -22,106 +16,88 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchLeads = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     const params = new URLSearchParams();
     if (filter !== 'all') params.set('status', filter);
     if (search) params.set('search', search);
 
-    const res = await fetch(`/api/leads?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setLeads(data.data ?? []);
+    const [leadsRes, statsRes] = await Promise.all([
+      fetch(`/api/leads?${params}`),
+      fetch('/api/stats'),
+    ]);
+
+    if (leadsRes.ok) {
+      const d = await leadsRes.json();
+      setLeads(d.data ?? []);
+    }
+    if (statsRes.ok) {
+      const d = await statsRes.json();
+      setStats(d.data ?? null);
     }
   }, [filter, search]);
 
-  const fetchStats = useCallback(async () => {
-    const res = await fetch('/api/stats');
-    if (res.ok) {
-      const data = await res.json();
-      setStats(data.data ?? null);
-    }
-  }, []);
-
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchLeads(), fetchStats()]).finally(() => setLoading(false));
-  }, [fetchLeads, fetchStats]);
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
 
   return (
-    <div className="max-w-lg mx-auto px-4 pt-6 space-y-4">
+    <div className="max-w-lg mx-auto px-4 pt-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-sd-text">Your Leads</h1>
-          <p className="text-sd-text-muted text-xs">
-            {leads.length} assigned {filter !== 'all' ? `(${filter})` : ''}
-          </p>
-        </div>
-        <button
-          onClick={() => { fetchLeads(); fetchStats(); }}
-          className="p-2 rounded-lg bg-sd-bg-card border border-sd-border text-sd-text-muted hover:text-sd-accent transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-primary tracking-tight">Leads</h1>
+        <p className="text-xs text-muted mt-0.5">{leads.length} assigned to you</p>
       </div>
 
       {/* Stats */}
-      <StatsBar stats={stats} />
-      <CommissionBanner stats={stats} />
-
-      {/* Search + Filter */}
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sd-text-muted" />
-          <input
-            type="text"
-            placeholder="Search businesses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-sd-bg-card border border-sd-border rounded-lg py-2.5 pl-9 pr-3 text-sm text-sd-text placeholder:text-sd-text-muted/40 focus:outline-none focus:border-sd-accent/50"
-          />
-        </div>
-
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-          {STATUS_FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-                filter === value
-                  ? 'bg-sd-accent text-white'
-                  : 'bg-sd-bg-card border border-sd-border text-sd-text-muted hover:text-sd-text',
-              )}
-            >
-              {label}
-              {value !== 'all' && stats && (
-                <span className="ml-1 opacity-60">
-                  {(stats as unknown as Record<string, number>)[`${value}_count`] ?? 0}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+      <div className="mb-5 space-y-2">
+        <StatsBar stats={stats} />
+        <CommissionBanner stats={stats} />
       </div>
 
-      {/* Lead Cards */}
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-faint" />
+        <input
+          type="text"
+          placeholder="Search..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full border border-border rounded-lg py-2 pl-8 pr-3 text-sm text-primary bg-white placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary/20"
+        />
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-1 mb-4">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={clsx(
+              'px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-colors',
+              filter === f
+                ? 'bg-primary text-white'
+                : 'text-muted hover:text-secondary',
+            )}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 text-sd-accent animate-spin" />
+        <div className="flex justify-center py-16">
+          <Loader2 className="w-5 h-5 text-muted animate-spin" />
         </div>
       ) : leads.length === 0 ? (
         <div className="text-center py-16">
-          <Filter className="w-8 h-8 text-sd-text-muted/30 mx-auto mb-3" />
-          <p className="text-sd-text-muted text-sm">No leads found</p>
-          <p className="text-sd-text-muted/50 text-xs mt-1">
-            {filter !== 'all' ? 'Try a different filter' : 'Leads will appear once assigned to you'}
-          </p>
+          <p className="text-sm text-muted">No leads found</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div>
           {leads.map((lead, i) => (
-            <div key={lead.assignment_id} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+            <div key={lead.assignment_id} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
               <LeadCard lead={lead} />
             </div>
           ))}

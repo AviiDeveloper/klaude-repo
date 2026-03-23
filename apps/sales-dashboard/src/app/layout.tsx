@@ -2,12 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SalesFlow — Your Leads, Your Commission',
-  description: 'Walk in. Pitch. Sell. Track your commission.',
-  manifest: '/manifest.json',
+  title: 'SalesFlow',
+  description: 'Lead management for field sales teams.',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'SalesFlow',
   },
 };
@@ -18,7 +17,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#0a0a0f',
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({
@@ -27,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-sd-bg text-sd-text antialiased">
+    <html lang="en">
+      <body className="min-h-screen bg-white text-primary antialiased">
         {children}
       </body>
     </html>

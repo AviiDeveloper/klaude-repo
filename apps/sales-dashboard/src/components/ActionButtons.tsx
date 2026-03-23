@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { AssignmentStatus } from '@/lib/types';
-import { Footprints, MessageCircle, BadgePoundSterling, XCircle, Loader2 } from 'lucide-react';
+import { Check, Loader2, X } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ActionButtonsProps {
@@ -11,41 +11,17 @@ interface ActionButtonsProps {
   onStatusChange: (newStatus: AssignmentStatus) => void;
 }
 
-const NEXT_ACTIONS: Record<AssignmentStatus, Array<{
-  status: AssignmentStatus;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  bg: string;
-}>> = {
-  new: [
-    { status: 'visited', label: 'Mark Visited', icon: Footprints, color: 'text-white', bg: 'bg-sd-amber' },
-  ],
-  visited: [
-    { status: 'pitched', label: 'Mark Pitched', icon: MessageCircle, color: 'text-white', bg: 'bg-purple-500' },
-  ],
-  pitched: [
-    { status: 'sold', label: 'Mark Sold!', icon: BadgePoundSterling, color: 'text-white', bg: 'bg-sd-green' },
-    { status: 'visited', label: 'Revisit', icon: Footprints, color: 'text-sd-amber', bg: 'bg-sd-amber/10 border border-sd-amber/30' },
-  ],
-  sold: [],
-  rejected: [
-    { status: 'new', label: 'Reopen', icon: Footprints, color: 'text-sd-blue', bg: 'bg-sd-blue/10 border border-sd-blue/30' },
-  ],
+const NEXT_ACTION: Record<AssignmentStatus, { status: AssignmentStatus; label: string } | null> = {
+  new: { status: 'visited', label: 'Mark as visited' },
+  visited: { status: 'pitched', label: 'Mark as pitched' },
+  pitched: { status: 'sold', label: 'Mark as sold' },
+  sold: null,
+  rejected: { status: 'new', label: 'Reopen lead' },
 };
 
 export function ActionButtons({ assignmentId, currentStatus, onStatusChange }: ActionButtonsProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const actions = NEXT_ACTIONS[currentStatus] ?? [];
-
-  if (actions.length === 0 && currentStatus === 'sold') {
-    return (
-      <div className="bg-sd-green/10 border border-sd-green/20 rounded-xl px-4 py-3 text-center">
-        <BadgePoundSterling className="w-6 h-6 text-sd-green mx-auto mb-1" />
-        <span className="text-sd-green font-semibold text-sm">Sale Complete</span>
-      </div>
-    );
-  }
+  const action = NEXT_ACTION[currentStatus];
 
   async function handleAction(status: AssignmentStatus) {
     setLoading(status);
@@ -55,54 +31,50 @@ export function ActionButtons({ assignmentId, currentStatus, onStatusChange }: A
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-
-      if (res.ok) {
-        onStatusChange(status);
-      }
+      if (res.ok) onStatusChange(status);
     } catch (err) {
-      console.error('Failed to update status:', err);
+      console.error('Status update failed:', err);
     } finally {
       setLoading(null);
     }
   }
 
+  if (currentStatus === 'sold') {
+    return (
+      <div className="flex items-center gap-2 py-2.5 px-3 bg-status-sold/5 rounded-lg">
+        <Check className="w-4 h-4 text-status-sold" />
+        <span className="text-sm font-medium text-status-sold">Sale complete</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-2">
-      {actions.map(({ status, label, icon: Icon, color, bg }) => (
+      {action && (
         <button
-          key={status}
-          onClick={() => handleAction(status)}
+          onClick={() => handleAction(action.status)}
           disabled={!!loading}
-          className={clsx(
-            'flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97]',
-            bg,
-            color,
-            loading === status && 'opacity-70',
-          )}
+          className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition-opacity"
         >
-          {loading === status ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+          {loading === action.status ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <>
-              <Icon className="w-5 h-5" />
-              {label}
-            </>
+            action.label
           )}
         </button>
-      ))}
+      )}
 
-      {/* Reject button (always available unless sold) */}
-      {currentStatus !== 'sold' && currentStatus !== 'rejected' && (
+      {currentStatus !== 'rejected' && (
         <button
           onClick={() => handleAction('rejected')}
           disabled={!!loading}
-          className="p-3.5 rounded-xl bg-sd-red/10 border border-sd-red/20 text-sd-red transition-all active:scale-[0.97]"
-          title="Reject lead"
+          className="py-2.5 px-3 border border-border rounded-lg text-muted hover:text-status-rejected hover:border-status-rejected/30 transition-colors"
+          title="Reject"
         >
           {loading === 'rejected' ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <XCircle className="w-5 h-5" />
+            <X className="w-4 h-4" />
           )}
         </button>
       )}

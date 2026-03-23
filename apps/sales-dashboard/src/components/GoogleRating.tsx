@@ -11,29 +11,11 @@ export function GoogleRating({
 }) {
   if (!rating) return null;
 
-  const fullStars = Math.floor(rating);
-  const hasHalf = rating - fullStars >= 0.3;
-
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-0.5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            className={`w-3.5 h-3.5 ${
-              i < fullStars
-                ? 'fill-sd-gold text-sd-gold'
-                : i === fullStars && hasHalf
-                ? 'fill-sd-gold/50 text-sd-gold'
-                : 'text-sd-border'
-            }`}
-          />
-        ))}
-      </div>
-      <span className="text-sd-text-muted text-xs">
-        {rating.toFixed(1)}
-        {!compact && reviewCount ? ` (${reviewCount})` : ''}
-      </span>
-    </div>
+    <span className="inline-flex items-center gap-1 text-xs text-secondary">
+      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+      <span className="font-medium">{rating.toFixed(1)}</span>
+      {!compact && reviewCount ? <span className="text-muted">({reviewCount})</span> : null}
+    </span>
   );
 }
