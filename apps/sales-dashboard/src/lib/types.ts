@@ -60,6 +60,12 @@ export interface LeadCard {
   // Site
   has_demo_site: boolean;
   demo_site_domain: string | null;
+
+  // Follow-up & contact (from lead_assignments columns)
+  follow_up_at: string | null;
+  follow_up_note: string | null;
+  contact_name: string | null;
+  contact_role: string | null;
 }
 
 // ---------------------------------------------------------------------------

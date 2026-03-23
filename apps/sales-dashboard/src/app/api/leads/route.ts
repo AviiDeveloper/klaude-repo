@@ -33,7 +33,11 @@ export async function GET(req: NextRequest) {
       json_extract(la.notes, '$.google_review_count') as google_review_count,
       json_extract(la.notes, '$.has_website') as has_website,
       json_extract(la.notes, '$.website_quality_score') as website_quality_score,
-      json_extract(la.notes, '$.demo_site_domain') as demo_site_domain
+      json_extract(la.notes, '$.demo_site_domain') as demo_site_domain,
+      la.follow_up_at,
+      la.follow_up_note,
+      la.contact_name,
+      la.contact_role
     FROM lead_assignments la
     WHERE la.user_id = ?
   `;
@@ -79,6 +83,10 @@ export async function GET(req: NextRequest) {
     website_quality_score: r.website_quality_score as number | null,
     has_demo_site: !!(r.demo_site_domain),
     demo_site_domain: r.demo_site_domain as string | null,
+    follow_up_at: r.follow_up_at as string | null,
+    follow_up_note: r.follow_up_note as string | null,
+    contact_name: r.contact_name as string | null,
+    contact_role: r.contact_role as string | null,
   }));
 
   return NextResponse.json({ data: leads });

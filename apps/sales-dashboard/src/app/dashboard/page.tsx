@@ -6,6 +6,7 @@ import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
 import {
   Search, Loader2, TrendingUp, MapPin, Star, ChevronRight,
   MonitorSmartphone, Phone, Briefcase, Eye, MessageCircle, CheckCircle2,
+  CalendarDays, UserCircle, AlertTriangle,
 } from 'lucide-react';
 
 const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
@@ -94,6 +95,9 @@ export default function DashboardPage() {
           <MetricCard icon={MessageCircle} label="Pitched" value={pitchedCount} sub="awaiting decision" />
           <MetricCard icon={CheckCircle2} label="Sold" value={soldCount} sub="closed deals" accent />
         </div>
+
+        {/* Follow-up reminders */}
+        <FollowUpSection leads={leads} />
 
         {/* Search + Filters */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5">
@@ -257,6 +261,88 @@ function LeadRow({ lead, index }: { lead: LeadCardType; index: number }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function FollowUpSection({ leads }: { leads: LeadCardType[] }) {
+  const now = new Date();
+  const followUps = leads
+    .filter((l) => l.follow_up_at)
+    .map((l) => ({
+      ...l,
+      followUpDate: new Date(l.follow_up_at!),
+      isOverdue: new Date(l.follow_up_at!) < now,
+      isToday: new Date(l.follow_up_at!).toDateString() === now.toDateString(),
+    }))
+    .sort((a, b) => a.followUpDate.getTime() - b.followUpDate.getTime());
+
+  if (followUps.length === 0) return null;
+
+  const overdue = followUps.filter((f) => f.isOverdue);
+  const upcoming = followUps.filter((f) => !f.isOverdue);
+
+  function formatFollowUpDate(d: Date, isOverdue: boolean, isToday: boolean): string {
+    if (isToday) return 'Today';
+    if (isOverdue) {
+      const days = Math.ceil((now.getTime() - d.getTime()) / 86400000);
+      return days === 1 ? '1 day overdue' : `${days} days overdue`;
+    }
+    const days = Math.ceil((d.getTime() - now.getTime()) / 86400000);
+    if (days === 1) return 'Tomorrow';
+    if (days < 7) return d.toLocaleDateString('en-GB', { weekday: 'long' });
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em]">Follow-ups</h2>
+        <span className="text-[10px] text-slate-300 tabular-nums">{followUps.length}</span>
+      </div>
+
+      <div className="border border-slate-100 rounded-xl overflow-hidden">
+        {followUps.map((lead, i) => (
+          <Link
+            key={lead.assignment_id}
+            href={`/lead/${lead.assignment_id}`}
+            className={`flex items-center gap-4 px-4 py-3 hover:bg-slate-50/50 transition-colors ${i > 0 ? 'border-t border-slate-50' : ''}`}
+          >
+            {/* Urgency indicator */}
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              lead.isOverdue ? 'bg-red-500' : lead.isToday ? 'bg-amber-500' : 'bg-blue-400'
+            }`} />
+
+            {/* Business info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</span>
+                {lead.contact_name && (
+                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                    <UserCircle className="w-2.5 h-2.5" />
+                    {lead.contact_name}
+                  </span>
+                )}
+              </div>
+              {lead.follow_up_note && (
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">{lead.follow_up_note}</p>
+              )}
+            </div>
+
+            {/* Date */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`text-[11px] font-medium ${
+                lead.isOverdue ? 'text-red-600' : lead.isToday ? 'text-amber-600' : 'text-slate-500'
+              }`}>
+                {formatFollowUpDate(lead.followUpDate, lead.isOverdue, lead.isToday)}
+              </span>
+              {lead.isOverdue && <AlertTriangle className="w-3 h-3 text-red-400" />}
+              <ChevronRight className="w-3.5 h-3.5 text-slate-200" />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 
