@@ -91,7 +91,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-faint text-xs mt-8 text-center">
-          Contact your manager for access
+          New here? <a href="/signup" className="text-primary font-medium hover:underline">Create an account</a>
         </p>
       </div>
     </div>
