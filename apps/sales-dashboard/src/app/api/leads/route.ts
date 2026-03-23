@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
       la.follow_up_at,
       la.follow_up_note,
       la.contact_name,
-      la.contact_role
+      la.contact_role,
+      la.visited_at,
+      la.pitched_at
     FROM lead_assignments la
     WHERE la.user_id = ?
   `;
@@ -87,6 +89,8 @@ export async function GET(req: NextRequest) {
     follow_up_note: r.follow_up_note as string | null,
     contact_name: r.contact_name as string | null,
     contact_role: r.contact_role as string | null,
+    visited_at: r.visited_at as string | null,
+    pitched_at: r.pitched_at as string | null,
   }));
 
   return NextResponse.json({ data: leads });

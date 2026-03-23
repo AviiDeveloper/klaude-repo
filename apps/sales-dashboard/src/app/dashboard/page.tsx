@@ -6,7 +6,7 @@ import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
 import {
   Search, Loader2, TrendingUp, MapPin, Star, ChevronRight,
   MonitorSmartphone, Phone, Briefcase, Eye, MessageCircle, CheckCircle2,
-  CalendarDays, UserCircle, AlertTriangle,
+  CalendarDays, UserCircle, AlertTriangle, RotateCcw,
 } from 'lucide-react';
 
 const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
@@ -98,6 +98,7 @@ export default function DashboardPage() {
 
         {/* Follow-up reminders */}
         <FollowUpSection leads={leads} />
+        <ReEngagementSection leads={leads} />
 
         {/* Search + Filters */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5">
@@ -261,6 +262,59 @@ function LeadRow({ lead, index }: { lead: LeadCardType; index: number }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function ReEngagementSection({ leads }: { leads: LeadCardType[] }) {
+  const STALE_DAYS = 7;
+  const now = new Date();
+  const staleLeads = leads.filter((l) => {
+    if (l.assignment_status !== 'pitched' || !l.pitched_at) return false;
+    const pitchedDate = new Date(l.pitched_at);
+    const daysSince = Math.floor((now.getTime() - pitchedDate.getTime()) / 86400000);
+    return daysSince >= STALE_DAYS;
+  }).map((l) => ({
+    ...l,
+    daysSincePitch: Math.floor((now.getTime() - new Date(l.pitched_at!).getTime()) / 86400000),
+  })).sort((a, b) => b.daysSincePitch - a.daysSincePitch);
+
+  if (staleLeads.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <RotateCcw className="w-3.5 h-3.5 text-violet-400" />
+        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em]">Needs Follow-up</h2>
+        <span className="text-[10px] text-slate-300 tabular-nums">{staleLeads.length}</span>
+      </div>
+
+      <div className="border border-violet-100 bg-violet-50/30 rounded-xl overflow-hidden">
+        {staleLeads.map((lead, i) => (
+          <Link
+            key={lead.assignment_id}
+            href={`/lead/${lead.assignment_id}`}
+            className={`flex items-center gap-4 px-4 py-3 hover:bg-violet-50/50 transition-colors ${i > 0 ? 'border-t border-violet-100/50' : ''}`}
+          >
+            <div className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-medium text-slate-900 truncate">{lead.business_name}</span>
+                {lead.contact_name && (
+                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                    <UserCircle className="w-2.5 h-2.5" />
+                    {lead.contact_name}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Pitched {lead.daysSincePitch} days ago — chase for decision
+              </p>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-200 flex-shrink-0" />
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 

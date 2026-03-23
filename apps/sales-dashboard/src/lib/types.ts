@@ -66,6 +66,10 @@ export interface LeadCard {
   follow_up_note: string | null;
   contact_name: string | null;
   contact_role: string | null;
+
+  // Timestamps
+  visited_at: string | null;
+  pitched_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
