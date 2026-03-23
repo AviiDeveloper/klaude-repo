@@ -1,11 +1,27 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
-import { LeadCard } from '@/components/LeadCard';
-import { Search, Loader2, TrendingUp } from 'lucide-react';
+import { Search, Loader2, TrendingUp, MapPin, Star, ChevronRight, MonitorSmartphone, Phone, Clock } from 'lucide-react';
 
 const FILTERS = ['all', 'new', 'visited', 'pitched', 'sold'] as const;
+
+const STATUS_DOT: Record<string, string> = {
+  new: 'bg-blue-500',
+  visited: 'bg-amber-500',
+  pitched: 'bg-violet-500',
+  sold: 'bg-emerald-500',
+  rejected: 'bg-slate-300',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  new: 'New',
+  visited: 'Visited',
+  pitched: 'Pitched',
+  sold: 'Sold',
+  rejected: 'Rejected',
+};
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<LeadCardType[]>([]);
@@ -39,73 +55,80 @@ export default function DashboardPage() {
     fetchData().finally(() => setLoading(false));
   }, [fetchData]);
 
-  const totalAssigned = stats?.total_assigned ?? 0;
-  const newCount = stats?.new_count ?? 0;
-  const soldCount = stats?.sold_count ?? 0;
   const commission = stats?.total_commission ?? 0;
-  const visitsToday = stats?.visits_today ?? 0;
+  const newCount = stats?.new_count ?? 0;
+  const visitedCount = stats?.visited_count ?? 0;
+  const pitchedCount = stats?.pitched_count ?? 0;
+  const soldCount = stats?.sold_count ?? 0;
+
+  // Count leads per filter
+  const filterCounts: Record<string, number> = {
+    all: leads.length,
+    new: leads.filter(l => l.assignment_status === 'new').length,
+    visited: leads.filter(l => l.assignment_status === 'visited').length,
+    pitched: leads.filter(l => l.assignment_status === 'pitched').length,
+    sold: leads.filter(l => l.assignment_status === 'sold').length,
+  };
 
   return (
-    <div className="max-w-lg mx-auto px-4 pt-5 pb-4">
-      {/* Header — greeting + earnings */}
-      <div className="flex items-start justify-between mb-5">
+    <div className="max-w-lg mx-auto">
+      {/* Header bar */}
+      <div className="px-4 pt-4 pb-3 flex items-start justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-primary tracking-tight">Your Leads</h1>
-          <p className="text-xs text-muted mt-0.5">
-            {newCount > 0 ? `${newCount} new` : 'No new leads'}
-            {visitsToday > 0 ? ` · ${visitsToday} visited today` : ''}
+          <h1 className="text-base font-semibold text-primary">Your Leads</h1>
+          <p className="text-[11px] text-muted mt-0.5">
+            {newCount} new · {visitedCount} visited · {pitchedCount} pitched · {soldCount} sold
           </p>
         </div>
         {commission > 0 && (
-          <div className="text-right">
-            <div className="text-lg font-semibold text-primary tabular-nums">£{commission.toFixed(0)}</div>
-            <div className="text-[10px] text-muted flex items-center justify-end gap-1">
-              <TrendingUp className="w-2.5 h-2.5 text-emerald-500" />
-              earned
-            </div>
+          <div className="flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full">
+            <TrendingUp className="w-3 h-3 text-emerald-600" />
+            <span className="text-[12px] font-semibold text-emerald-700">£{commission.toFixed(0)}</span>
           </div>
         )}
       </div>
 
-      {/* Pipeline summary — compact horizontal strip */}
-      <div className="grid grid-cols-4 gap-px bg-slate-100 rounded-xl overflow-hidden mb-5">
-        <PipelineStat label="Queue" value={totalAssigned} />
-        <PipelineStat label="Visited" value={stats?.visited_count ?? 0} />
-        <PipelineStat label="Pitched" value={stats?.pitched_count ?? 0} />
-        <PipelineStat label="Sold" value={soldCount} highlight />
+      {/* Divider */}
+      <div className="h-px bg-slate-100" />
+
+      {/* Search + Filter row */}
+      <div className="px-4 py-3">
+        <div className="relative mb-2.5">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
+          <input
+            type="text"
+            placeholder="Search businesses..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg py-2 pl-9 pr-3 text-[13px] text-primary bg-slate-50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:bg-white border border-transparent focus:border-slate-200 transition-all"
+          />
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-0.5 overflow-x-auto -mx-4 px-4">
+          {FILTERS.map((f) => {
+            const active = filter === f;
+            const count = filterCounts[f] ?? 0;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-50 text-muted hover:bg-slate-100'
+                }`}
+              >
+                {f === 'all' ? 'All' : STATUS_LABEL[f]}
+                <span className={`tabular-nums ${active ? 'text-slate-400' : 'text-slate-300'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
-        <input
-          type="text"
-          placeholder="Search businesses..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg py-2.5 pl-9 pr-3 text-sm text-primary bg-slate-50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:bg-white border border-transparent focus:border-slate-200 transition-all"
-        />
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-0.5 mb-4 border-b border-slate-100 -mx-4 px-4">
-        {FILTERS.map((f) => {
-          const active = filter === f;
-          return (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-2 text-xs font-medium capitalize border-b-2 transition-colors -mb-px ${
-                active
-                  ? 'border-slate-900 text-primary'
-                  : 'border-transparent text-muted hover:text-secondary'
-              }`}
-            >
-              {f}
-            </button>
-          );
-        })}
-      </div>
+      {/* Divider */}
+      <div className="h-px bg-slate-100" />
 
       {/* Lead list */}
       {loading ? (
@@ -113,18 +136,16 @@ export default function DashboardPage() {
           <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
         </div>
       ) : leads.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-muted">No leads found</p>
-          <p className="text-xs text-slate-300 mt-1">
-            {filter !== 'all' ? 'Try a different filter' : 'Leads will appear when the pipeline assigns them'}
+        <div className="text-center py-16 px-4">
+          <p className="text-[13px] text-muted">No leads found</p>
+          <p className="text-[11px] text-slate-300 mt-1">
+            {filter !== 'all' ? 'Try a different filter' : 'Leads appear when the pipeline assigns them'}
           </p>
         </div>
       ) : (
-        <div className="space-y-0">
+        <div>
           {leads.map((lead, i) => (
-            <div key={lead.assignment_id} className="animate-fade-in" style={{ animationDelay: `${i * 25}ms` }}>
-              <LeadCard lead={lead} />
-            </div>
+            <EnhancedLeadCard key={lead.assignment_id} lead={lead} index={i} />
           ))}
         </div>
       )}
@@ -132,13 +153,90 @@ export default function DashboardPage() {
   );
 }
 
-function PipelineStat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function EnhancedLeadCard({ lead, index }: { lead: LeadCardType; index: number }) {
+  const hasDemo = !!lead.demo_site_domain;
+  const hasPhone = !!lead.phone;
+
   return (
-    <div className="bg-white py-3 text-center">
-      <div className={`text-base font-semibold tabular-nums ${highlight ? 'text-emerald-600' : 'text-primary'}`}>
-        {value}
+    <Link
+      href={`/lead/${lead.assignment_id}`}
+      className="block px-4 py-3.5 border-b border-slate-50 active:bg-slate-50 transition-colors animate-fade-in"
+      style={{ animationDelay: `${index * 20}ms` }}
+    >
+      <div className="flex items-start gap-3">
+        {/* Status dot */}
+        <div className="pt-1.5">
+          <div className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[lead.assignment_status] ?? 'bg-slate-300'}`} />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Row 1: Name + badges */}
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-[14px] font-semibold text-primary truncate">{lead.business_name}</h3>
+            {hasDemo && (
+              <span className="flex items-center gap-0.5 text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                <MonitorSmartphone className="w-2.5 h-2.5" />
+                Demo
+              </span>
+            )}
+          </div>
+
+          {/* Row 2: Type + location + rating */}
+          <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5">
+            {lead.business_type && <span className="capitalize">{lead.business_type}</span>}
+            {lead.postcode && (
+              <>
+                <span className="text-slate-200">·</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <MapPin className="w-2.5 h-2.5" />
+                  {lead.postcode}
+                </span>
+              </>
+            )}
+            {lead.google_rating && (
+              <>
+                <span className="text-slate-200">·</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                  {lead.google_rating}
+                  {lead.google_review_count && <span className="text-slate-300">({lead.google_review_count})</span>}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Row 3: Contextual info based on status */}
+          <div className="flex items-center gap-2">
+            {lead.assignment_status === 'new' && !lead.has_website && (
+              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">No website — perfect candidate</span>
+            )}
+            {lead.assignment_status === 'new' && lead.has_website && (lead.website_quality_score ?? 100) < 50 && (
+              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Poor website — upgrade opportunity</span>
+            )}
+            {hasPhone && (
+              <span className="text-[10px] text-slate-400 inline-flex items-center gap-0.5">
+                <Phone className="w-2.5 h-2.5" />
+                {lead.phone}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right: status label + arrow */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+            lead.assignment_status === 'new' ? 'bg-blue-50 text-blue-600' :
+            lead.assignment_status === 'visited' ? 'bg-amber-50 text-amber-600' :
+            lead.assignment_status === 'pitched' ? 'bg-violet-50 text-violet-600' :
+            lead.assignment_status === 'sold' ? 'bg-emerald-50 text-emerald-600' :
+            'bg-slate-50 text-slate-500'
+          }`}>
+            {STATUS_LABEL[lead.assignment_status] ?? lead.assignment_status}
+          </span>
+          <ChevronRight className="w-4 h-4 text-slate-200" />
+        </div>
       </div>
-      <div className="text-[10px] text-muted uppercase tracking-wider">{label}</div>
-    </div>
+    </Link>
   );
 }
