@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { X, Check, Loader2, Globe } from 'lucide-react';
+import { X, Check, Loader2, Globe, ArrowRight, Sparkles, Shield, Phone } from 'lucide-react';
 
 interface DemoData {
   business_name: string;
@@ -19,9 +19,17 @@ export default function CustomerDemoPage() {
   const [showBuy, setShowBuy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [btnHovered, setBtnHovered] = useState(false);
+  const [btnVisible, setBtnVisible] = useState(false);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+
+  // Delay button entrance for polish
+  useEffect(() => {
+    const t = setTimeout(() => setBtnVisible(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/demo-links/${code}`)
@@ -50,23 +58,33 @@ export default function CustomerDemoPage() {
     setSubmitting(false);
   }
 
+  // --- Loading ---
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-amber-300" />
+            </div>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-slate-900 to-slate-700 animate-ping opacity-20" />
+          </div>
+          <p className="text-xs text-slate-400 font-medium">Loading your preview</p>
+        </div>
       </div>
     );
   }
 
+  // --- Error ---
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center px-6">
-          <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <X className="w-6 h-6 text-slate-400" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center px-6 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center mx-auto mb-5">
+            <X className="w-7 h-7 text-slate-300" />
           </div>
-          <h1 className="text-base font-semibold text-slate-900 mb-1">{error}</h1>
-          <p className="text-sm text-slate-400">Contact the person who showed you this.</p>
+          <h1 className="text-lg font-semibold text-slate-900 mb-2">{error}</h1>
+          <p className="text-sm text-slate-400 leading-relaxed">The person who shared this with you can send a new link.</p>
         </div>
       </div>
     );
@@ -74,14 +92,15 @@ export default function CustomerDemoPage() {
 
   if (!demo) return null;
 
-  // Try public static file first, fall back to API route
   const demoSiteUrl = demo.demo_domain
     ? `/demo-sites/${demo.demo_domain}.html`
     : null;
 
+  const firstName = name.split(' ')[0];
+
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* ═══ FULL SCREEN DEMO — the site IS the pitch ═══ */}
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* ═══ FULL SCREEN DEMO ═══ */}
       {demoSiteUrl ? (
         <iframe
           src={demoSiteUrl}
@@ -90,103 +109,179 @@ export default function CustomerDemoPage() {
           title={`${demo.business_name} website`}
         />
       ) : (
-        <div className="flex items-center justify-center" style={{ height: '100vh' }}>
+        <div className="flex items-center justify-center bg-gradient-to-b from-slate-50 to-white" style={{ height: '100vh' }}>
           <div className="text-center px-6">
-            <Globe className="w-10 h-10 text-slate-200 mx-auto mb-4" />
-            <h2 className="text-base font-semibold text-slate-900 mb-1">Your website is being built</h2>
-            <p className="text-sm text-slate-400">Check back soon.</p>
+            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-5">
+              <Globe className="w-8 h-8 text-slate-300" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Your website is being crafted</h2>
+            <p className="text-sm text-slate-400 max-w-xs mx-auto">We&apos;re designing something special for {demo.business_name}. Check back soon.</p>
           </div>
         </div>
       )}
 
-      {/* ═══ FLOATING BUY BUTTON — always visible ═══ */}
+      {/* ═══ FLOATING CTA — the premium buy button ═══ */}
       {!showBuy && !submitted && (
-        <button
-          onClick={() => setShowBuy(true)}
-          className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-sm font-semibold pl-5 pr-4 py-3 rounded-full shadow-2xl hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-2"
+        <div
+          className={`fixed bottom-6 right-6 z-50 transition-all duration-700 ${
+            btnVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}
         >
-          Get This Website
-          <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">{'\u00A3'}350</span>
-        </button>
-      )}
+          <button
+            onClick={() => setShowBuy(true)}
+            onMouseEnter={() => setBtnHovered(true)}
+            onMouseLeave={() => setBtnHovered(false)}
+            className="group relative"
+          >
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400/40 via-orange-400/40 to-rose-400/40 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      {/* ═══ SUCCESS PILL — replaces buy button after submit ═══ */}
-      {submitted && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white text-sm font-medium px-5 py-3 rounded-full shadow-2xl flex items-center gap-2">
-          <Check className="w-4 h-4" />
-          We&apos;ll be in touch, {name.split(' ')[0]}
+            {/* Button body */}
+            <div className="relative flex items-center gap-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_50px_rgba(0,0,0,0.4)] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
+
+              {/* Left: icon + text */}
+              <div className="flex items-center gap-2.5 pl-5 pr-2 py-3.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[13px] font-semibold leading-none">Make it yours</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">This could be your website</div>
+                </div>
+              </div>
+
+              {/* Right: price badge */}
+              <div className="flex items-center gap-1.5 bg-white/[0.08] border-l border-white/[0.06] pl-3.5 pr-4 py-3.5 rounded-r-2xl">
+                <span className="text-[18px] font-bold tracking-tight">{'\u00A3'}350</span>
+                <ArrowRight className={`w-4 h-4 transition-transform duration-300 ${btnHovered ? 'translate-x-0.5' : ''}`} />
+              </div>
+            </div>
+          </button>
         </div>
       )}
 
-      {/* ═══ BUY PANEL — slides up over the demo, minimal ═══ */}
+      {/* ═══ SUCCESS STATE ═══ */}
+      {submitted && (
+        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-500 opacity-100 translate-y-0`}>
+          <div className="flex items-center gap-3 bg-emerald-600 text-white rounded-2xl shadow-[0_8px_40px_rgba(16,185,129,0.35)] px-5 py-3.5">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Check className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[13px] font-semibold leading-none">Thank you{firstName ? `, ${firstName}` : ''}!</div>
+              <div className="text-[10px] text-emerald-200 mt-0.5">We&apos;ll call you shortly</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ BUY PANEL — glass bottom sheet ═══ */}
       {showBuy && !submitted && (
         <>
-          {/* Dim overlay — clicking it closes */}
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/30"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] animate-fade-in"
             onClick={() => setShowBuy(false)}
           />
 
-          {/* Bottom sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up">
-            <div className="max-w-md mx-auto px-6 pt-5 pb-8">
-              {/* Handle */}
-              <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5" />
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
+            <div className="bg-white rounded-t-3xl shadow-[0_-8px_60px_rgba(0,0,0,0.15)]">
+              <div className="max-w-md mx-auto px-6 pt-4 pb-8">
+                {/* Handle bar */}
+                <div className="w-8 h-1 bg-slate-200 rounded-full mx-auto mb-6" />
 
-              {/* One-liner */}
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">Get this website</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">{'\u00A3'}350 one-time · {'\u00A3'}25/mo hosting</p>
+                {/* Header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-slate-900">Get this website</h2>
+                      <p className="text-[12px] text-slate-400 mt-0.5">
+                        {'\u00A3'}350 setup · {'\u00A3'}25/mo · ready in 48hrs
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowBuy(false)}
+                    className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
-                <button onClick={() => setShowBuy(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
-                  <X className="w-4 h-4 text-slate-400" />
-                </button>
-              </div>
 
-              {/* Form — just name and phone */}
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Your name"
-                  required
-                  autoFocus
-                  className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Phone number"
-                  required
-                  className="w-full border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                />
-                <button
-                  type="submit"
-                  disabled={submitting || !name.trim() || !phone.trim()}
-                  className="w-full bg-slate-900 text-white text-sm font-semibold py-3.5 rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-40"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Yes, I want this'}
-                </button>
-                <p className="text-[10px] text-slate-300 text-center">
-                  We&apos;ll call to confirm before taking payment
-                </p>
-              </form>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="Your name"
+                      required
+                      autoFocus
+                      className="w-full bg-slate-50 border-0 rounded-xl py-3.5 px-4 text-[14px] text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white transition-colors"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="Phone number"
+                      required
+                      className="w-full bg-slate-50 border-0 rounded-xl py-3.5 px-4 text-[14px] text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white transition-colors"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !name.trim() || !phone.trim()}
+                    className="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white text-[14px] font-semibold py-4 rounded-xl hover:from-slate-800 hover:to-slate-800 transition-all disabled:opacity-30 disabled:hover:from-slate-900 shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        Yes, I want this
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Trust signals */}
+                  <div className="flex items-center justify-center gap-5 pt-2">
+                    <span className="flex items-center gap-1.5 text-[10px] text-slate-300 font-medium">
+                      <Phone className="w-3 h-3" /> We call first
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-slate-300 font-medium">
+                      <Shield className="w-3 h-3" /> No obligation
+                    </span>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </>
       )}
 
-      {/* Slide-up animation */}
+      {/* Animations */}
       <style jsx>{`
         @keyframes slideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         .animate-slide-up {
-          animation: slideUp 0.3s ease-out;
+          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out;
         }
       `}</style>
     </div>
