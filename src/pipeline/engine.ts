@@ -94,6 +94,11 @@ export class PipelineEngine {
           agent_id: "lead-qualifier-agent",
           depends_on: ["brand-analyse"],
         },
+        {
+          id: "assign",
+          agent_id: "lead-assigner-agent",
+          depends_on: ["qualify"],
+        },
       ],
       config: {},
     });

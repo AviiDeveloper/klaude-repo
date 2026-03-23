@@ -6,6 +6,7 @@ import { leadQualifierAgent } from "./leadQualifierAgent.js";
 import { briefGeneratorAgent } from "./briefGenerator.js";
 import { siteComposerAgent } from "./siteComposerAgent.js";
 import { siteQaAgent } from "./siteQaAgent.js";
+import { leadAssignerAgent } from "./leadAssignerAgent.js";
 
 /**
  * Register all outreach pipeline agents with the runtime.
@@ -17,6 +18,8 @@ export function registerOutreachAgents(runtime: MultiAgentRuntime): void {
   runtime.register("lead-profiler-agent", leadProfilerAgent);
   runtime.register("brand-analyser-agent", brandAnalyserAgent);
   runtime.register("lead-qualifier-agent", leadQualifierAgent);
+  // Phase 1.5: Auto-assignment (runs after qualify, parallel to site gen)
+  runtime.register("lead-assigner-agent", leadAssignerAgent);
   // Phase 2: Site generation (brief → compose → qa)
   runtime.register("brief-generator-agent", briefGeneratorAgent);
   runtime.register("site-composer-agent", siteComposerAgent);
@@ -30,3 +33,4 @@ export { leadQualifierAgent } from "./leadQualifierAgent.js";
 export { briefGeneratorAgent } from "./briefGenerator.js";
 export { siteComposerAgent } from "./siteComposerAgent.js";
 export { siteQaAgent } from "./siteQaAgent.js";
+export { leadAssignerAgent } from "./leadAssignerAgent.js";

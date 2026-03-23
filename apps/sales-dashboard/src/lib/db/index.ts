@@ -22,6 +22,17 @@ export function getDb(): Database.Database {
 
     // Ensure sales-specific tables exist (safe to run multiple times)
     db.exec(SALES_SCHEMA);
+
+    // Safe migrations — ALTER TABLE ADD COLUMN is idempotent if we catch errors
+    const safeAlter = (sql: string) => { try { db!.exec(sql); } catch { /* column already exists */ } };
+    safeAlter("ALTER TABLE sales_users ADD COLUMN area_postcodes_json TEXT");
+    safeAlter("ALTER TABLE sales_users ADD COLUMN max_active_leads INTEGER DEFAULT 20");
+    safeAlter("ALTER TABLE sales_users ADD COLUMN user_status TEXT DEFAULT 'available'");
+
+    // Unique index: one active assignment per lead (rejected leads can be reassigned)
+    try {
+      db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_unique_active ON lead_assignments(lead_id) WHERE status NOT IN ('rejected')");
+    } catch { /* index already exists or partial index not supported — use trigger fallback */ }
   }
   return db;
 }
@@ -114,4 +125,27 @@ CREATE INDEX IF NOT EXISTS idx_lead_assignments_user_status ON lead_assignments(
 CREATE INDEX IF NOT EXISTS idx_lead_assignments_lead ON lead_assignments(lead_id);
 CREATE INDEX IF NOT EXISTS idx_sales_activity_user ON sales_activity_log(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sales_activity_lead ON sales_activity_log(lead_id, created_at DESC);
+
+-- Admin accounts (separate from salespeople)
+CREATE TABLE IF NOT EXISTS admin_users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  email TEXT UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT DEFAULT 'manager' CHECK (role IN ('owner', 'manager', 'viewer')),
+  active INTEGER DEFAULT 1,
+  last_login_at TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+
+-- Assignment rules (configurable via admin panel)
+CREATE TABLE IF NOT EXISTS assignment_rules (
+  id TEXT PRIMARY KEY,
+  rule_type TEXT NOT NULL CHECK (rule_type IN ('area_match', 'capacity_cap', 'vertical_preference', 'round_robin')),
+  config_json TEXT NOT NULL DEFAULT '{}',
+  priority INTEGER DEFAULT 0,
+  enabled INTEGER DEFAULT 1,
+  created_at TEXT
+);
 `;
