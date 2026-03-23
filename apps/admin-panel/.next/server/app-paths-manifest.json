@@ -7,12 +7,12 @@
   "/api/leads/[id]/assign/route": "app/api/leads/[id]/assign/route.js",
   "/api/leads/unassigned/route": "app/api/leads/unassigned/route.js",
   "/api/team/[id]/route": "app/api/team/[id]/route.js",
-  "/api/stats/route": "app/api/stats/route.js",
   "/api/team/route": "app/api/team/route.js",
+  "/api/stats/route": "app/api/stats/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/leads/page": "app/leads/page.js",
-  "/page": "app/page.js",
-  "/settings/page": "app/settings/page.js",
   "/login/page": "app/login/page.js",
-  "/team/page": "app/team/page.js"
+  "/page": "app/page.js",
+  "/pipeline/page": "app/pipeline/page.js",
+  "/salesforce/page": "app/salesforce/page.js"
 }
