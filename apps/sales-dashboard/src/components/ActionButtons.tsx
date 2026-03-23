@@ -26,10 +26,25 @@ export function ActionButtons({ assignmentId, currentStatus, onStatusChange }: A
   async function handleAction(status: AssignmentStatus) {
     setLoading(status);
     try {
+      // Capture GPS for visit verification
+      let location_lat: number | undefined;
+      let location_lng: number | undefined;
+      if (status === 'visited' && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+          );
+          location_lat = pos.coords.latitude;
+          location_lng = pos.coords.longitude;
+        } catch {
+          // GPS unavailable — still allow marking visited
+        }
+      }
+
       const res = await fetch(`/api/leads/${assignmentId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, location_lat, location_lng }),
       });
       if (res.ok) onStatusChange(status);
     } catch (err) {

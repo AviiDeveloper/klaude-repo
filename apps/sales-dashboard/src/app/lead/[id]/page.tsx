@@ -8,9 +8,11 @@ import { TalkingPoints } from '@/components/TalkingPoints';
 import { ActionButtons } from '@/components/ActionButtons';
 import { GoogleRating } from '@/components/GoogleRating';
 import { LeadStatusBadge } from '@/components/LeadStatusBadge';
+import { DemoViewer, PriceBreakdown } from '@/components/PitchTools';
+import { ObjectionHandler } from '@/components/ObjectionHandler';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe, Clock,
-  ExternalLink, Loader2, Star, ChevronRight,
+  ExternalLink, Loader2, Star, ChevronRight, Monitor, MapPinned,
 } from 'lucide-react';
 
 export default function LeadDetailPage() {
@@ -19,6 +21,7 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [talkingPoints, setTalkingPoints] = useState<TalkingPoint[]>([]);
+  const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
     async function fetchLead() {
@@ -82,22 +85,38 @@ export default function LeadDetailPage() {
         />
       </div>
 
-      {/* Demo Site */}
+      {/* Demo Site — full-screen viewer */}
       {lead.has_demo_site && lead.demo_site_domain && (
-        <a
-          href={`/api/files?lead=${lead.lead_id}&file=site.html`}
-          target="_blank"
-          rel="noopener"
-          className="flex items-center justify-between py-2.5 px-3 mb-5 border border-border rounded-lg text-sm font-medium text-primary hover:bg-surface transition-colors"
-        >
-          <span>View demo site</span>
-          <ExternalLink className="w-3.5 h-3.5 text-muted" />
-        </a>
+        <>
+          {showDemo && (
+            <DemoViewer
+              domain={lead.demo_site_domain}
+              businessName={lead.business_name}
+              onClose={() => setShowDemo(false)}
+            />
+          )}
+          <button
+            onClick={() => setShowDemo(true)}
+            className="w-full flex items-center justify-between py-2.5 px-3 mb-5 border border-border rounded-lg text-sm font-medium text-primary hover:bg-surface transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-muted" />
+              <span>Show demo to client</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-muted" />
+          </button>
+        </>
       )}
 
       {/* Talking Points */}
       <div className="mb-6 pb-6 border-b border-border-light">
         <TalkingPoints points={talkingPoints} />
+      </div>
+
+      {/* Pitch Tools */}
+      <div className="mb-6 pb-6 border-b border-border-light space-y-3">
+        <PriceBreakdown />
+        <ObjectionHandler />
       </div>
 
       {/* Business Info */}

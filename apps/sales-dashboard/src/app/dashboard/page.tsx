@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { LeadCard as LeadCardType, SalesStats } from '@/lib/types';
 import { LeadCard } from '@/components/LeadCard';
 import { StatsBar, CommissionBanner } from '@/components/StatsBar';
+import { DailyTarget, CommissionProjection } from '@/components/DailyTarget';
 import { Search, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -49,10 +50,11 @@ export default function DashboardPage() {
         <p className="text-xs text-muted mt-0.5">{leads.length} assigned to you</p>
       </div>
 
-      {/* Stats */}
-      <div className="mb-5 space-y-2">
+      {/* Daily target + stats */}
+      <div className="mb-5 space-y-3">
+        <DailyTarget stats={stats} />
         <StatsBar stats={stats} />
-        <CommissionBanner stats={stats} />
+        <CommissionProjection stats={stats} />
       </div>
 
       {/* Search */}
