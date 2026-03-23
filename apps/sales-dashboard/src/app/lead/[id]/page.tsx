@@ -163,14 +163,7 @@ export default function LeadDetailPage() {
             <div className="h-px bg-slate-100" />
 
             {/* Business Intelligence */}
-            <BusinessIntel
-              businessName={lead.business_name}
-              businessType={lead.business_type}
-              googleRating={lead.google_rating}
-              reviewCount={lead.google_review_count}
-              hasWebsite={lead.has_website}
-              services={lead.services}
-            />
+            <BusinessIntel lead={lead} />
 
             <div className="h-px bg-slate-100" />
 
