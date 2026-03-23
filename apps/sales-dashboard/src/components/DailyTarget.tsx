@@ -2,8 +2,7 @@
 
 import type { SalesStats } from '@/lib/types';
 
-const REVENUE_PER_SALE = 350;
-const MONTHLY_RECURRING = 25;
+const COMMISSION_PER_SALE = 50;
 
 // Personal goal — not a mandatory target. Users set their own pace.
 const DEFAULT_PERSONAL_GOAL = 8;
@@ -72,12 +71,6 @@ export function DailyTarget({ stats }: { stats: SalesStats | null }) {
 export function CommissionProjection({ stats }: { stats: SalesStats | null }) {
   const totalSold = stats?.sold_count ?? 0;
   const commission = stats?.total_commission ?? 0;
-  const commissionRate = 0.10; // from user profile ideally
-
-  // Projections
-  const upfrontPerSale = REVENUE_PER_SALE * commissionRate;
-  const recurringPerSale = MONTHLY_RECURRING * commissionRate;
-  const monthlyRecurring = totalSold * recurringPerSale;
 
   if (totalSold === 0 && commission === 0) return null;
 
@@ -86,18 +79,14 @@ export function CommissionProjection({ stats }: { stats: SalesStats | null }) {
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-2xs font-semibold text-muted uppercase tracking-widest">Earnings</span>
       </div>
-      <div className="grid grid-cols-3 gap-3 text-center">
+      <div className="grid grid-cols-2 gap-3 text-center">
         <div>
           <div className="text-lg font-bold text-primary">&pound;{commission.toFixed(0)}</div>
           <div className="text-2xs text-muted">Total earned</div>
         </div>
         <div>
-          <div className="text-lg font-bold text-primary">&pound;{upfrontPerSale.toFixed(0)}</div>
+          <div className="text-lg font-bold text-primary">&pound;{COMMISSION_PER_SALE}</div>
           <div className="text-2xs text-muted">Per sale</div>
-        </div>
-        <div>
-          <div className="text-lg font-bold text-status-sold">&pound;{monthlyRecurring.toFixed(0)}</div>
-          <div className="text-2xs text-muted">Monthly recurring</div>
         </div>
       </div>
     </div>

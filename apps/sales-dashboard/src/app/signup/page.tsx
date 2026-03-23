@@ -36,9 +36,9 @@ export default function SignupPage() {
   const [closeRate, setCloseRate] = useState(20);
 
   const weeklySales = Math.round(visitsPerDay * daysPerWeek * (closeRate / 100));
-  const weeklyEarnings = weeklySales * 35;
+  const weeklyEarnings = weeklySales * 50;
   const monthlyEarnings = weeklyEarnings * 4;
-  const monthlyRecurring = weeklySales * 4 * 2.5; // grows each month
+  // Commission is flat £50 per sale
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 150);
@@ -133,7 +133,7 @@ export default function SignupPage() {
                 <ValueProp icon={MapPin} title="Leads delivered to you" desc="Businesses in your area that don't have websites — with ratings, reviews, and contact info." />
                 <ValueProp icon={Monitor} title="Demo sites already built" desc="Show them a real website on your phone. Built with their branding, services, and reviews." />
                 <ValueProp icon={Briefcase} title="Everything you need to pitch" desc="Talking points, objection scripts, pricing breakdowns. Just walk in and talk." />
-                <ValueProp icon={TrendingUp} title="Commission that grows" desc="£35 per sale upfront + £2.50/month recurring per client. Your income builds over time." />
+                <ValueProp icon={TrendingUp} title="Commission that grows" desc="£50 per sale. Simple, flat rate. Your income grows with every deal you close." />
               </div>
 
               <CtaButton onClick={next} label="See how much you could earn" />
@@ -162,17 +162,16 @@ export default function SignupPage() {
                     <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">Sales / week</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-emerald-400 tabular-nums">£{monthlyEarnings}</div>
-                    <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">Monthly upfront</div>
+                    <div className="text-2xl font-bold text-emerald-400 tabular-nums">£{weeklySales * 50}</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">Weekly earnings</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-amber-400 tabular-nums">+£{Math.round(monthlyRecurring)}</div>
-                    <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">Recurring / mo</div>
+                    <div className="text-2xl font-bold text-amber-400 tabular-nums">£{monthlyEarnings}</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">Monthly earnings</div>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 text-center">
-                  <div className="text-[11px] text-slate-500">After 6 months with consistent sales</div>
-                  <div className="text-xl font-bold text-white mt-1 tabular-nums">£{monthlyEarnings + Math.round(monthlyRecurring * 6)}<span className="text-[13px] text-slate-400 font-normal">/month</span></div>
+                  <div className="text-[11px] text-slate-500">£50 flat commission per sale</div>
                 </div>
               </div>
 
@@ -194,7 +193,7 @@ export default function SignupPage() {
                 <TimelineItem time="9:20am" icon={MessageCircle} title="Talk to the owner" desc="Use the talking points we give you. Mention their reviews, services." />
                 <TimelineItem time="9:25am" icon={Monitor} title="Show the demo" desc="Pull up the website we built using their real business data. Full screen on your phone." />
                 <TimelineItem time="9:30am" icon={Shield} title="Handle objections" desc={'"Too expensive?" \u2014 the app has scripted responses for every common objection.'} />
-                <TimelineItem time="9:35am" icon={Check} title="Close the deal" desc={"Mark as sold in the app. \u00A335 commission deposited. Move to the next lead."} last />
+                <TimelineItem time="9:35am" icon={Check} title="Close the deal" desc={"Mark as sold in the app. \u00A350 commission earned. Move to the next lead."} last />
               </div>
 
               <div className="mt-8">
@@ -328,9 +327,7 @@ export default function SignupPage() {
                 <div className="bg-slate-50 rounded-2xl px-6 py-5 mb-8 text-left space-y-3">
                   <SummaryRow label="Name" value={name} />
                   <SummaryRow label="Area" value={postcode} />
-                  <SummaryRow label="Commission rate" value="10%" />
-                  <SummaryRow label="Per sale" value="£35 upfront" />
-                  <SummaryRow label="Recurring" value="£2.50/client/month" />
+                  <SummaryRow label="Commission" value="£50 per sale" />
                 </div>
 
                 <button
