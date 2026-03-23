@@ -2,11 +2,26 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutList, Map, User, Zap, LogOut } from 'lucide-react';
+import { LayoutList, Map, User, Zap, LogOut, Wallet, Users, Settings, HelpCircle } from 'lucide-react';
 
-const NAV_ITEMS = [
+const NAV_MAIN = [
   { href: '/dashboard', label: 'Leads', icon: LayoutList },
   { href: '/map', label: 'Map', icon: Map },
+  { href: '/payouts', label: 'Payouts', icon: Wallet },
+  { href: '/referrals', label: 'Referrals', icon: Users },
+];
+
+const NAV_BOTTOM = [
+  { href: '/help', label: 'Help', icon: HelpCircle },
+  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/profile', label: 'Account', icon: User },
+];
+
+// Mobile bottom nav only shows core pages
+const NAV_MOBILE = [
+  { href: '/dashboard', label: 'Leads', icon: LayoutList },
+  { href: '/map', label: 'Map', icon: Map },
+  { href: '/payouts', label: 'Payouts', icon: Wallet },
   { href: '/profile', label: 'Account', icon: User },
 ];
 
@@ -34,18 +49,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-2">
           <div className="text-[9px] font-semibold text-slate-600 uppercase tracking-[0.1em] px-2 mb-2">Navigate</div>
           <div className="space-y-0.5">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            {NAV_MAIN.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href);
               return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all ${
-                    active
-                      ? 'bg-white/10 text-white'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                  }`}
-                >
+                <Link key={href} href={href} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all ${active ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
                   <Icon className={`w-3.5 h-3.5 ${active ? 'text-amber-400' : ''}`} />
                   {label}
                 </Link>
@@ -54,15 +61,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </nav>
 
-        {/* Logout */}
-        <div className="px-3 py-4 border-t border-white/5">
-          <Link
-            href="/profile"
-            className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-all w-full"
-          >
-            <User className="w-3.5 h-3.5" />
-            Account
-          </Link>
+        {/* Bottom nav */}
+        <div className="px-3 py-3 border-t border-white/5 space-y-0.5">
+          {NAV_BOTTOM.map(({ href, label, icon: Icon }) => {
+            const active = pathname.startsWith(href);
+            return (
+              <Link key={href} href={href} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all ${active ? 'bg-white/10 text-white' : 'text-slate-600 hover:text-slate-300 hover:bg-white/5'}`}>
+                <Icon className={`w-3.5 h-3.5 ${active ? 'text-amber-400' : ''}`} />
+                {label}
+              </Link>
+            );
+          })}
         </div>
       </aside>
 
@@ -74,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom nav — only shows on small screens */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-slate-200 md:hidden pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around h-12">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {NAV_MOBILE.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
