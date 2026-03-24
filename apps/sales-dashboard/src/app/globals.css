@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap');
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -12,20 +14,20 @@ html {
 }
 
 body {
-  background: #f5f5f7;
-  color: #1d1d1f;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  background: #000;
+  color: #ededed;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: contain;
-  font-size: 17px;
-  line-height: 1.47059;
-  letter-spacing: -0.022em;
-  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.04em;
+::selection {
+  background: #333;
+  color: #fff;
 }
 
 @media (display-mode: standalone) {
@@ -34,12 +36,3 @@ h1, h2, h3, h4, h5, h6 {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
-
-/* Hide scrollbars but keep scroll functionality */
-::-webkit-scrollbar { width: 0; height: 0; }
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in { animation: fadeInUp 0.25s ease-out forwards; }
