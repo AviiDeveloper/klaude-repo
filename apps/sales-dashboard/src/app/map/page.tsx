@@ -31,9 +31,21 @@ export default function MapPage() {
 
   const fetchAreas = async () => {
     try {
-      const res = await fetch('/api/leads/by-area');
-      const data = await res.json();
-      setAreas(data);
+      const res = await fetch('/api/leads');
+      const json = await res.json();
+      const leads = json.data ?? json ?? [];
+
+      // Group leads by postcode area
+      const grouped: Record<string, AreaGroup> = {};
+      for (const lead of leads) {
+        const prefix = (lead.postcode ?? 'Unknown').split(' ')[0];
+        if (!grouped[prefix]) {
+          grouped[prefix] = { postcode_prefix: prefix, leads: [], count: 0 };
+        }
+        grouped[prefix].leads.push(lead);
+        grouped[prefix].count++;
+      }
+      setAreas(Object.values(grouped));
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch areas', err);

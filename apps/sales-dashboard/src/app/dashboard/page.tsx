@@ -50,8 +50,8 @@ export default function DashboardPage() {
       const statsData = await statsRes.json();
       const leadsData = await leadsRes.json();
 
-      setStats(statsData);
-      setLeads(leadsData);
+      setStats(statsData.data ?? statsData);
+      setLeads(leadsData.data ?? leadsData ?? []);
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch data', err);
