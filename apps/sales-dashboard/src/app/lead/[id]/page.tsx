@@ -525,58 +525,53 @@ export default function LeadDetailPage() {
 
         {/* Follow Up Tab */}
         {activeTab === 'follow-up' && (
-          <div className="max-w-2xl divide-y divide-[#222]">
-            <div className="py-5 flex items-baseline gap-6">
-              <span className="text-[13px] text-[#666] w-20 shrink-0">Remind me</span>
-              <div className="flex items-baseline gap-3">
-                <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="bg-transparent text-[13px] text-white focus:outline-none"
-                />
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Reminder tile */}
+            <div className="rounded-lg border border-[#1a1a1a] p-4 hover:border-[#333] transition-colors">
+              <div className="flex items-baseline justify-between mb-3">
+                <span className="text-[11px] text-[#666]">Remind me</span>
                 {followUpDate && (
-                  <span className="text-[12px] text-[#666]">
+                  <span className="text-[11px] text-[#666]">
                     {new Date(followUpDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </span>
                 )}
               </div>
+              <input
+                type="date"
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+                className="bg-transparent text-[14px] text-white focus:outline-none w-full"
+              />
             </div>
 
-            <div className="py-5 flex gap-6">
-              <span className="text-[13px] text-[#666] w-20 shrink-0 pt-0.5">Notes</span>
-              <div className="flex-1">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="What happened? What to say next time..."
-                  rows={2}
-                  className="w-full bg-transparent text-[13px] text-white placeholder:text-[#333] focus:outline-none resize-none"
-                />
+            {/* Contact tile */}
+            <div className="rounded-lg border border-[#1a1a1a] p-4 hover:border-[#333] transition-colors">
+              <span className="text-[11px] text-[#666] block mb-3">Contact</span>
+              <a href={`tel:${lead.phone}`} className="text-[14px] text-blue-400 hover:text-blue-300 transition-colors block mb-1">{lead.phone}</a>
+              <p className="text-[13px] text-[#999]">{lead.address || lead.postcode}</p>
+              {lead.contact_name && (
+                <p className="text-[12px] text-[#666] mt-1">{lead.contact_name}{lead.contact_role ? ` · ${lead.contact_role}` : ''}</p>
+              )}
+            </div>
+
+            {/* Notes tile — spans full width */}
+            <div className="md:col-span-2 rounded-lg border border-[#1a1a1a] p-4 hover:border-[#333] transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] text-[#666]">Notes</span>
                 {notes.trim() && (
-                  <button onClick={saveFollowUp} className="text-[12px] text-blue-400 hover:text-blue-300 transition-colors mt-1">
+                  <button onClick={saveFollowUp} className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
                     Save
                   </button>
                 )}
               </div>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="What happened? What to say next time..."
+                rows={3}
+                className="w-full bg-transparent text-[13px] text-white placeholder:text-[#333] focus:outline-none resize-none"
+              />
             </div>
-
-            <div className="py-5 flex gap-6">
-              <span className="text-[13px] text-[#666] w-20 shrink-0">Phone</span>
-              <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors">{lead.phone}</a>
-            </div>
-
-            <div className="py-5 flex gap-6">
-              <span className="text-[13px] text-[#666] w-20 shrink-0">Address</span>
-              <span className="text-[13px] text-[#ededed]">{lead.address || lead.postcode}</span>
-            </div>
-
-            {lead.contact_name && (
-              <div className="py-5 flex gap-6">
-                <span className="text-[13px] text-[#666] w-20 shrink-0">Contact</span>
-                <span className="text-[13px] text-[#ededed]">{lead.contact_name}{lead.contact_role ? ` · ${lead.contact_role}` : ''}</span>
-              </div>
-            )}
           </div>
         )}
       </div>
