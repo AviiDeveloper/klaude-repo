@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#ffffff',
+  themeColor: '#f5f5f7',
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-white text-primary antialiased">
+      <body className="min-h-screen antialiased">
         <ConditionalShell>{children}</ConditionalShell>
       </body>
     </html>
