@@ -525,10 +525,10 @@ export default function LeadDetailPage() {
 
         {/* Follow Up Tab */}
         {activeTab === 'follow-up' && (
-          <div className="max-w-2xl">
+          <div className="max-w-2xl divide-y divide-[#222]">
             {/* Reminder */}
-            <div className="pb-6">
-              <p className="text-[11px] text-[#666] mb-3">Reminder</p>
+            <div className="py-5">
+              <p className="text-[11px] text-[#666] mb-2">Reminder</p>
               <div className="flex items-center gap-3">
                 <input
                   type="date"
@@ -544,11 +544,9 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            <div className="border-t border-[#222]" />
-
             {/* Notes */}
-            <div className="py-6">
-              <p className="text-[11px] text-[#666] mb-3">Notes</p>
+            <div className="py-5">
+              <p className="text-[11px] text-[#666] mb-2">Notes</p>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -556,23 +554,20 @@ export default function LeadDetailPage() {
                 rows={3}
                 className="w-full bg-transparent border-b border-[#333] py-2 text-[13px] text-white placeholder:text-[#444] focus:outline-none focus:border-white transition-colors resize-none"
               />
+              <button
+                onClick={saveFollowUp}
+                className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors mt-3"
+              >
+                Save
+              </button>
             </div>
 
-            <button
-              onClick={saveFollowUp}
-              className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              Save
-            </button>
-
-            <div className="border-t border-[#222] mt-6" />
-
             {/* Contact */}
-            <div className="py-6">
-              <p className="text-[11px] text-[#666] mb-3">Contact</p>
-              <div className="space-y-2">
+            <div className="py-5">
+              <p className="text-[11px] text-[#666] mb-2">Contact</p>
+              <div className="space-y-1.5">
                 {lead.phone && (
-                  <a href={`tel:${lead.phone}`} className="flex items-center gap-2 text-[13px] text-blue-400 hover:text-blue-300 transition-colors">
+                  <a href={`tel:${lead.phone}`} className="block text-[13px] text-blue-400 hover:text-blue-300 transition-colors">
                     {lead.phone}
                   </a>
                 )}
