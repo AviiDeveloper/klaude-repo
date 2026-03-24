@@ -525,53 +525,61 @@ export default function LeadDetailPage() {
 
         {/* Follow Up Tab */}
         {activeTab === 'follow-up' && (
-          <div className="max-w-3xl space-y-6">
-            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Set Reminder</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[13px] font-medium text-[#999] mb-2">Follow-up Date</label>
-                  <input
-                    type="date"
-                    value={followUpDate}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#111] border border-[#333] rounded-lg text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-medium text-[#999] mb-2">Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Add notes about the conversation..."
-                    rows={4}
-                    className="w-full px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-[13px] text-white placeholder:text-[#666] focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent resize-none"
-                  />
-                </div>
-
-                <button
-                  onClick={saveFollowUp}
-                  className="px-6 py-2.5 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
-                >
-                  Save Follow-Up
-                </button>
+          <div className="max-w-2xl">
+            {/* Reminder */}
+            <div className="pb-6">
+              <p className="text-[11px] text-[#666] mb-3">Reminder</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="bg-transparent border-b border-[#333] py-2 text-[14px] text-white focus:outline-none focus:border-white transition-colors"
+                />
+                {followUpDate && (
+                  <span className="text-[12px] text-[#666]">
+                    {new Date(followUpDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Contact Details</h2>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-[#666]" />
-                  <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-400 hover:text-blue-300">
+            <div className="border-t border-[#222]" />
+
+            {/* Notes */}
+            <div className="py-6">
+              <p className="text-[11px] text-[#666] mb-3">Notes</p>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="What happened? What to say next time..."
+                rows={3}
+                className="w-full bg-transparent border-b border-[#333] py-2 text-[13px] text-white placeholder:text-[#444] focus:outline-none focus:border-white transition-colors resize-none"
+              />
+            </div>
+
+            <button
+              onClick={saveFollowUp}
+              className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Save
+            </button>
+
+            <div className="border-t border-[#222] mt-6" />
+
+            {/* Contact */}
+            <div className="py-6">
+              <p className="text-[11px] text-[#666] mb-3">Contact</p>
+              <div className="space-y-2">
+                {lead.phone && (
+                  <a href={`tel:${lead.phone}`} className="flex items-center gap-2 text-[13px] text-blue-400 hover:text-blue-300 transition-colors">
                     {lead.phone}
                   </a>
-                </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-[#666]" />
-                  <span className="text-[13px] text-[#999]">{lead.postcode}</span>
-                </div>
+                )}
+                <p className="text-[13px] text-[#ededed]">{lead.address || lead.postcode}</p>
+                {lead.contact_name && (
+                  <p className="text-[13px] text-[#999]">{lead.contact_name}{lead.contact_role ? ` · ${lead.contact_role}` : ''}</p>
+                )}
               </div>
             </div>
           </div>
