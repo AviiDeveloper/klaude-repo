@@ -39,24 +39,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 page-enter">
       <div className="w-full max-w-md">
         {/* Logo + Brand */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-slate-900 mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white mb-6">
             <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
-          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">SalesFlow</h1>
-          <p className="text-[15px] text-slate-500">Walk in. Pitch. Sell.</p>
+          <h1 className="text-3xl font-semibold text-white tracking-tight mb-2">SalesFlow</h1>
+          <p className="text-[15px] text-[#666]">Walk in. Pitch. Sell.</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+        <div className="bg-[#0a0a0a] rounded-2xl border border-[#333] p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-[13px] font-medium text-slate-900 mb-2">
+              <label htmlFor="username" className="block text-[13px] font-medium text-white mb-2">
                 Username
               </label>
               <input
@@ -66,12 +66,12 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 required
-                className="w-full px-4 py-3 text-[15px] bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 text-[15px] bg-[#111] border border-[#333] rounded-lg text-white placeholder:text-[#666] focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all"
               />
             </div>
 
             <div>
-              <label htmlFor="pin" className="block text-[13px] font-medium text-slate-900 mb-2">
+              <label htmlFor="pin" className="block text-[13px] font-medium text-white mb-2">
                 PIN
               </label>
               <input
@@ -81,12 +81,12 @@ export default function LoginPage() {
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="Enter your PIN"
                 required
-                className="w-full px-4 py-3 text-[15px] bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 text-[15px] bg-[#111] border border-[#333] rounded-lg text-white placeholder:text-[#666] focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-[13px] text-red-700">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-[13px] text-red-400">
                 {error}
               </div>
             )}
@@ -94,7 +94,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 text-white py-3 px-4 rounded-lg text-[15px] font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group"
+              className="w-full bg-white text-black py-3 px-4 rounded-lg text-[15px] font-medium hover:bg-[#ededed] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group"
             >
               {loading ? (
                 <>
@@ -111,12 +111,12 @@ export default function LoginPage() {
           </form>
 
           {/* Signup Link */}
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p className="text-[13px] text-slate-600">
+          <div className="mt-8 pt-6 border-t border-[#222] text-center">
+            <p className="text-[13px] text-[#999]">
               New here?{' '}
               <a
                 href="/signup"
-                className="text-blue-600 font-medium hover:text-blue-700 transition-colors"
+                className="text-blue-400 font-medium hover:text-blue-300 transition-colors"
               >
                 Create an account
               </a>
@@ -126,7 +126,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-[11px] text-slate-400 tracking-wide uppercase">
+          <p className="text-[11px] text-[#666] tracking-wide uppercase">
             Independent Sales Platform
           </p>
         </div>

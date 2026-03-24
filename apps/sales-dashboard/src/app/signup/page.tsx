@@ -98,11 +98,11 @@ export default function SignupPage() {
   const Icon = step.icon;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen flex flex-col page-enter">
       {/* Progress Bar */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-slate-200 z-50">
+      <div className="fixed top-0 left-0 right-0 h-1 bg-[#222] z-50">
         <div
-          className="h-full bg-slate-900 transition-all duration-500 ease-out"
+          className="h-full bg-white transition-all duration-500 ease-out"
           style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
         />
       </div>
@@ -111,7 +111,7 @@ export default function SignupPage() {
       {currentStep > 0 && currentStep < steps.length - 1 && (
         <button
           onClick={handleBack}
-          className="fixed top-6 left-6 p-2 text-slate-400 hover:text-slate-900 transition-colors z-40"
+          className="fixed top-6 left-6 p-2 text-[#666] hover:text-white transition-colors z-40"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -123,19 +123,19 @@ export default function SignupPage() {
           {/* Icon */}
           {Icon && (
             <div className="flex justify-center mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white">
                 <Icon className="w-8 h-8 text-amber-400" />
               </div>
             </div>
           )}
 
           {/* Title */}
-          <h1 className="text-4xl md:text-5xl font-semibold text-slate-900 text-center mb-4 tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-500 delay-75">
+          <h1 className="text-4xl md:text-5xl font-semibold text-white text-center mb-4 tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-500 delay-75">
             {step.title}
           </h1>
 
           {/* Subtitle */}
-          <p className="text-[17px] text-slate-500 text-center mb-12 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
+          <p className="text-[17px] text-[#666] text-center mb-12 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
             {step.subtitle}
           </p>
 
@@ -144,38 +144,38 @@ export default function SignupPage() {
             {/* Welcome */}
             {step.type === 'welcome' && (
               <div className="space-y-6 max-w-md mx-auto">
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
                       <span className="text-2xl">💼</span>
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-medium text-slate-900 mb-1">Be your own boss</h3>
-                      <p className="text-[13px] text-slate-500">Work when you want, where you want</p>
+                      <h3 className="text-[15px] font-medium text-white mb-1">Be your own boss</h3>
+                      <p className="text-[13px] text-[#666]">Work when you want, where you want</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                       <span className="text-2xl">🎯</span>
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-medium text-slate-900 mb-1">Instant earnings</h3>
-                      <p className="text-[13px] text-slate-500">£50 commission per sale, paid weekly</p>
+                      <h3 className="text-[15px] font-medium text-white mb-1">Instant earnings</h3>
+                      <p className="text-[13px] text-[#666]">£50 commission per sale, paid weekly</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
                       <span className="text-2xl">🚀</span>
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-medium text-slate-900 mb-1">No experience needed</h3>
-                      <p className="text-[13px] text-slate-500">We give you scripts, demos, and support</p>
+                      <h3 className="text-[15px] font-medium text-white mb-1">No experience needed</h3>
+                      <p className="text-[13px] text-[#666]">We give you scripts, demos, and support</p>
                     </div>
                   </div>
                 </div>
@@ -185,26 +185,26 @@ export default function SignupPage() {
             {/* Earnings Simulator */}
             {step.type === 'earnings' && (
               <div className="max-w-md mx-auto">
-                <div className="bg-white rounded-xl border border-slate-200 p-8">
-                  <label className="block text-[13px] text-slate-600 mb-4">Visits per week</label>
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-8">
+                  <label className="block text-[13px] text-[#999] mb-4">Visits per week</label>
                   <input
                     type="range"
                     min="5"
                     max="30"
                     value={formData.visitsPerWeek}
                     onChange={(e) => setFormData({ ...formData, visitsPerWeek: parseInt(e.target.value) })}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                    className="w-full h-2 bg-[#333] rounded-lg appearance-none cursor-pointer accent-white"
                   />
-                  <div className="flex justify-between mt-2 text-[11px] text-slate-400">
+                  <div className="flex justify-between mt-2 text-[11px] text-[#666]">
                     <span>5</span>
                     <span>30</span>
                   </div>
 
-                  <div className="mt-8 pt-8 border-t border-slate-100">
+                  <div className="mt-8 pt-8 border-t border-[#222]">
                     <div className="text-center">
-                      <p className="text-[13px] text-slate-600 mb-2">Projected monthly earnings</p>
-                      <p className="text-5xl font-semibold text-slate-900">£{projectedEarnings.toLocaleString()}</p>
-                      <p className="text-[13px] text-slate-500 mt-2">
+                      <p className="text-[13px] text-[#999] mb-2">Projected monthly earnings</p>
+                      <p className="text-5xl font-semibold text-white font-mono">£{projectedEarnings.toLocaleString()}</p>
+                      <p className="text-[13px] text-[#666] mt-2">
                         {formData.visitsPerWeek} visits/week × £50 × 4 weeks
                       </p>
                     </div>
@@ -222,13 +222,13 @@ export default function SignupPage() {
                   { num: '3', title: 'Handle objections', desc: 'Use our proven scripts and talking points' },
                   { num: '4', title: 'Close & earn', desc: '£50 in your account, they get their site' },
                 ].map((item) => (
-                  <div key={item.num} className="bg-white rounded-xl border border-slate-200 p-6 flex items-start gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center text-[13px] font-semibold">
+                  <div key={item.num} className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6 flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center text-[13px] font-semibold">
                       {item.num}
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-medium text-slate-900 mb-1">{item.title}</h3>
-                      <p className="text-[13px] text-slate-500">{item.desc}</p>
+                      <h3 className="text-[15px] font-medium text-white mb-1">{item.title}</h3>
+                      <p className="text-[13px] text-[#666]">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -244,11 +244,11 @@ export default function SignupPage() {
                   { icon: '📍', title: 'Local lead pipeline', desc: 'Curated list of businesses in your area' },
                   { icon: '📊', title: 'Real-time dashboard', desc: 'Track visits, pitches, and earnings' },
                 ].map((item) => (
-                  <div key={item.title} className="bg-white rounded-xl border border-slate-200 p-6 flex items-start gap-4">
+                  <div key={item.title} className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6 flex items-start gap-4">
                     <span className="text-3xl">{item.icon}</span>
                     <div>
-                      <h3 className="text-[15px] font-medium text-slate-900 mb-1">{item.title}</h3>
-                      <p className="text-[13px] text-slate-500">{item.desc}</p>
+                      <h3 className="text-[15px] font-medium text-white mb-1">{item.title}</h3>
+                      <p className="text-[13px] text-[#666]">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -265,7 +265,7 @@ export default function SignupPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Your name"
                     autoFocus
-                    className="w-full text-center text-3xl font-light text-slate-900 placeholder:text-slate-300 bg-transparent border-b-2 border-slate-200 focus:border-slate-900 outline-none pb-4 transition-colors"
+                    className="w-full text-center text-3xl font-light text-white placeholder:text-[#333] bg-transparent border-b-2 border-[#333] focus:border-white outline-none pb-4 transition-colors"
                   />
                 )}
 
@@ -278,20 +278,20 @@ export default function SignupPage() {
                     onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
                     placeholder="••••"
                     autoFocus
-                    className="w-full text-center text-3xl font-light text-slate-900 placeholder:text-slate-300 bg-transparent border-b-2 border-slate-200 focus:border-slate-900 outline-none pb-4 transition-colors tracking-widest"
+                    className="w-full text-center text-3xl font-light text-white placeholder:text-[#333] bg-transparent border-b-2 border-[#333] focus:border-white outline-none pb-4 transition-colors tracking-widest"
                   />
                 )}
 
                 {step.field === 'area' && (
                   <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#666]" />
                     <input
                       type="text"
                       value={formData.area}
                       onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                       placeholder="e.g. Manchester City Centre"
                       autoFocus
-                      className="w-full text-center text-2xl font-light text-slate-900 placeholder:text-slate-300 bg-white border-2 border-slate-200 focus:border-slate-900 outline-none py-4 px-12 rounded-xl transition-colors"
+                      className="w-full text-center text-2xl font-light text-white placeholder:text-[#333] bg-[#0a0a0a] border-2 border-[#333] focus:border-white outline-none py-4 px-12 rounded-xl transition-colors"
                     />
                   </div>
                 )}
@@ -301,12 +301,12 @@ export default function SignupPage() {
             {/* Done */}
             {step.type === 'done' && (
               <div className="max-w-md mx-auto text-center">
-                <div className="bg-white rounded-xl border border-slate-200 p-8">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
-                    <Check className="w-8 h-8 text-emerald-600" />
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-8">
+                  <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+                    <Check className="w-8 h-8 text-green-400" />
                   </div>
-                  <p className="text-[15px] text-slate-600 mb-4">Welcome to SalesFlow, {formData.name}!</p>
-                  <p className="text-[13px] text-slate-500">
+                  <p className="text-[15px] text-[#999] mb-4">Welcome to SalesFlow, {formData.name}!</p>
+                  <p className="text-[13px] text-[#666]">
                     Your dashboard is ready with fresh leads in {formData.area}
                   </p>
                 </div>
@@ -323,7 +323,7 @@ export default function SignupPage() {
                 (step.field === 'pin' && formData.pin.length !== 4) ||
                 (step.field === 'area' && !formData.area)
               }
-              className="bg-slate-900 text-white px-8 py-4 rounded-lg text-[15px] font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center group"
+              className="bg-white text-black px-8 py-4 rounded-lg text-[15px] font-medium hover:bg-[#ededed] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center group"
             >
               {currentStep === steps.length - 1 ? 'Go to Dashboard' : 'Continue'}
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
@@ -333,7 +333,7 @@ export default function SignupPage() {
           {/* Skip to Login */}
           {currentStep === 0 && (
             <div className="mt-8 text-center">
-              <a href="/login" className="text-[13px] text-slate-500 hover:text-slate-900 transition-colors">
+              <a href="/login" className="text-[13px] text-[#666] hover:text-white transition-colors">
                 Already have an account? Sign in
               </a>
             </div>
@@ -347,7 +347,7 @@ export default function SignupPage() {
           <div
             key={index}
             className={`h-1.5 rounded-full transition-all duration-300 ${
-              index === currentStep ? 'w-8 bg-slate-900' : 'w-1.5 bg-slate-300'
+              index === currentStep ? 'w-8 bg-white' : 'w-1.5 bg-[#333]'
             }`}
           />
         ))}

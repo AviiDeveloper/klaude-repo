@@ -55,11 +55,11 @@ export default function MapPage() {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      new: 'bg-blue-500',
-      visited: 'bg-amber-500',
-      pitched: 'bg-purple-500',
-      sold: 'bg-emerald-500',
-      rejected: 'bg-slate-400',
+      new: 'bg-blue-400',
+      visited: 'bg-yellow-500',
+      pitched: 'bg-purple-400',
+      sold: 'bg-green-400',
+      rejected: 'bg-[#666]',
     };
     return colors[status as keyof typeof colors] || colors.new;
   };
@@ -80,132 +80,128 @@ export default function MapPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-slate-400">Loading map...</div>
-      </div>
+      <div className="pt-20 text-center text-[13px] text-[#666]">Loading map...</div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-[28px] font-semibold text-slate-900 tracking-tight mb-1">Territory Map</h1>
-          <p className="text-[15px] text-slate-500">
-            Leads organized by postcode area
-          </p>
-        </div>
+    <div className="py-8 page-enter">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-[24px] font-semibold text-white tracking-[-0.03em] mb-1">Territory Map</h1>
+        <p className="text-[13px] text-[#666]">
+          Leads organized by postcode area
+        </p>
+      </div>
 
-        {/* Area Grid */}
-        <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {areas.map((area) => {
-            const newCount = area.leads.filter(l => l.status === 'new').length;
-            const visitedCount = area.leads.filter(l => l.status === 'visited').length;
-            const soldCount = area.leads.filter(l => l.status === 'sold').length;
+      {/* Area Grid */}
+      <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {areas.map((area) => {
+          const newCount = area.leads.filter(l => l.status === 'new').length;
+          const visitedCount = area.leads.filter(l => l.status === 'visited').length;
+          const soldCount = area.leads.filter(l => l.status === 'sold').length;
 
-            return (
-              <div key={area.postcode_prefix} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                {/* Area Header */}
-                <div className="bg-slate-900 text-white p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5 text-amber-400" />
-                      <h2 className="text-[20px] font-semibold tracking-tight">{area.postcode_prefix}</h2>
-                    </div>
-                    <span className="px-2.5 py-1 bg-white/10 rounded-lg text-[13px] font-medium">
-                      {area.count} leads
-                    </span>
+          return (
+            <div key={area.postcode_prefix} className="bg-[#0a0a0a] rounded-xl border border-[#333] overflow-hidden glow-border">
+              {/* Area Header */}
+              <div className="bg-[#111] p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-amber-400" />
+                    <h2 className="text-[20px] font-semibold tracking-tight text-white">{area.postcode_prefix}</h2>
                   </div>
-
-                  {/* Stats Row */}
-                  <div className="flex items-center gap-4 text-[11px]">
-                    {newCount > 0 && (
-                      <span className="flex items-center gap-1.5 text-white/80">
-                        <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                        {newCount} new
-                      </span>
-                    )}
-                    {visitedCount > 0 && (
-                      <span className="flex items-center gap-1.5 text-white/80">
-                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        {visitedCount} visited
-                      </span>
-                    )}
-                    {soldCount > 0 && (
-                      <span className="flex items-center gap-1.5 text-white/80">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        {soldCount} sold
-                      </span>
-                    )}
-                  </div>
+                  <span className="px-2.5 py-1 bg-white/10 rounded-lg text-[13px] font-medium text-white">
+                    {area.count} leads
+                  </span>
                 </div>
 
-                {/* Leads List */}
-                <div className="divide-y divide-slate-100">
-                  {area.leads.slice(0, 5).map((lead) => (
-                    <div
-                      key={lead.id}
-                      onClick={() => router.push(`/lead/${lead.id}`)}
-                      className="p-4 hover:bg-slate-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl">{getBusinessEmoji(lead.business_type)}</span>
-                          <div>
-                            <p className="text-[13px] font-medium text-slate-900">{lead.business_name}</p>
-                            <p className="text-[11px] text-slate-500 capitalize">{lead.business_type}</p>
-                          </div>
-                        </div>
-                        <span className={`w-2 h-2 rounded-full ${getStatusColor(lead.status)} flex-shrink-0 mt-1.5`}></span>
-                      </div>
-
-                      <div className="flex items-center gap-3 ml-8">
-                        <a
-                          href={`tel:${lead.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[11px] text-slate-500 hover:text-slate-900 transition-colors"
-                        >
-                          <Phone className="w-3.5 h-3.5 inline mr-1" />
-                          Call
-                        </a>
-                        {lead.has_demo_site && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`/demo/${lead.id}`, '_blank');
-                            }}
-                            className="text-[11px] text-slate-500 hover:text-slate-900 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 inline mr-1" />
-                            Demo
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {area.leads.length > 5 && (
-                    <div className="p-4 text-center">
-                      <button className="text-[12px] text-slate-500 hover:text-slate-900 transition-colors">
-                        +{area.leads.length - 5} more
-                      </button>
-                    </div>
+                {/* Stats Row */}
+                <div className="flex items-center gap-4 text-[11px]">
+                  {newCount > 0 && (
+                    <span className="flex items-center gap-1.5 text-[#999]">
+                      <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                      {newCount} new
+                    </span>
+                  )}
+                  {visitedCount > 0 && (
+                    <span className="flex items-center gap-1.5 text-[#999]">
+                      <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                      {visitedCount} visited
+                    </span>
+                  )}
+                  {soldCount > 0 && (
+                    <span className="flex items-center gap-1.5 text-[#999]">
+                      <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                      {soldCount} sold
+                    </span>
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Empty State */}
-        {areas.length === 0 && (
-          <div className="text-center py-16">
-            <Navigation className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-[15px] text-slate-500">No leads assigned to your territory yet</p>
-          </div>
-        )}
+              {/* Leads List */}
+              <div className="divide-y divide-[#222]">
+                {area.leads.slice(0, 5).map((lead) => (
+                  <div
+                    key={lead.id}
+                    onClick={() => router.push(`/lead/${lead.id}`)}
+                    className="p-4 hover:bg-[#111] cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{getBusinessEmoji(lead.business_type)}</span>
+                        <div>
+                          <p className="text-[13px] font-medium text-white">{lead.business_name}</p>
+                          <p className="text-[11px] text-[#666] capitalize">{lead.business_type}</p>
+                        </div>
+                      </div>
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor(lead.status)} flex-shrink-0 mt-1.5`}></span>
+                    </div>
+
+                    <div className="flex items-center gap-3 ml-8">
+                      <a
+                        href={`tel:${lead.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[11px] text-[#666] hover:text-white transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5 inline mr-1" />
+                        Call
+                      </a>
+                      {lead.has_demo_site && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`/demo/${lead.id}`, '_blank');
+                          }}
+                          className="text-[11px] text-[#666] hover:text-white transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 inline mr-1" />
+                          Demo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {area.leads.length > 5 && (
+                  <div className="p-4 text-center">
+                    <button className="text-[12px] text-[#666] hover:text-white transition-colors">
+                      +{area.leads.length - 5} more
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Empty State */}
+      {areas.length === 0 && (
+        <div className="text-center py-16">
+          <Navigation className="w-12 h-12 text-[#333] mx-auto mb-4" />
+          <p className="text-[15px] text-[#999]">No leads assigned to your territory yet</p>
+        </div>
+      )}
     </div>
   );
 }

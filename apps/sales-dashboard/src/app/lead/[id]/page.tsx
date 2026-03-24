@@ -91,11 +91,11 @@ export default function LeadDetailPage() {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      new: 'bg-blue-50 text-blue-700 border-blue-200',
-      visited: 'bg-amber-50 text-amber-700 border-amber-200',
-      pitched: 'bg-purple-50 text-purple-700 border-purple-200',
-      sold: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      rejected: 'bg-slate-50 text-slate-600 border-slate-200',
+      new: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      visited: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+      pitched: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      sold: 'bg-green-500/10 text-green-400 border-green-500/20',
+      rejected: 'bg-[#222] text-[#666] border-[#333]',
     };
     return colors[status as keyof typeof colors] || colors.new;
   };
@@ -116,9 +116,7 @@ export default function LeadDetailPage() {
 
   if (loading || !lead) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-slate-400">Loading...</div>
-      </div>
+      <div className="pt-20 text-center text-[13px] text-[#666]">Loading...</div>
     );
   }
 
@@ -130,13 +128,13 @@ export default function LeadDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="page-enter">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="border-b border-[#333]">
+        <div className="py-6">
           <button
             onClick={() => router.push('/dashboard')}
-            className="inline-flex items-center gap-2 text-[13px] text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-[13px] text-[#666] hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to leads
@@ -146,10 +144,10 @@ export default function LeadDetailPage() {
             <div className="flex items-start gap-4">
               <span className="text-5xl">{getBusinessEmoji(lead.business_type)}</span>
               <div>
-                <h1 className="text-[28px] font-semibold text-slate-900 tracking-tight mb-2">
+                <h1 className="text-[24px] font-semibold text-white tracking-[-0.03em] mb-2">
                   {lead.business_name}
                 </h1>
-                <div className="flex items-center gap-4 text-[13px] text-slate-600">
+                <div className="flex items-center gap-4 text-[13px] text-[#999]">
                   <span className="capitalize">{lead.business_type}</span>
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-4 h-4" />
@@ -171,7 +169,7 @@ export default function LeadDetailPage() {
               </span>
               <a
                 href={`tel:${lead.phone}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-[13px] font-medium hover:bg-slate-800 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
               >
                 <Phone className="w-4 h-4" />
                 Call
@@ -180,7 +178,7 @@ export default function LeadDetailPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-8 border-b border-slate-200 -mb-px">
+          <div className="flex gap-1 mt-8 border-b border-[#333] -mb-px">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -189,8 +187,8 @@ export default function LeadDetailPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 py-3 text-[13px] font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'border-slate-900 text-slate-900'
-                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                      ? 'border-white text-white'
+                      : 'border-transparent text-[#666] hover:text-white'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -203,54 +201,54 @@ export default function LeadDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="py-8">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Actions */}
             <div className="space-y-4">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Quick Actions</h2>
+              <h2 className="text-[15px] font-semibold text-white mb-4">Quick Actions</h2>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-3">
+              <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6 space-y-3">
                 <button
                   onClick={() => updateStatus('visited')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg text-[13px] font-medium text-slate-900 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-white transition-colors"
                 >
-                  <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                  <CheckCircle2 className="w-5 h-5 text-blue-400" />
                   Mark as Visited
                 </button>
 
                 <button
                   onClick={() => updateStatus('pitched')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg text-[13px] font-medium text-slate-900 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-white transition-colors"
                 >
-                  <MessageSquare className="w-5 h-5 text-purple-600" />
+                  <MessageSquare className="w-5 h-5 text-purple-400" />
                   Mark as Pitched
                 </button>
 
                 <button
                   onClick={() => updateStatus('sold')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-[13px] font-medium text-emerald-900 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-green-500/10 hover:bg-green-500/20 rounded-lg text-[13px] font-medium text-green-400 transition-colors"
                 >
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
                   Mark as Sold 🎉
                 </button>
 
                 <button
                   onClick={() => updateStatus('rejected')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg text-[13px] font-medium text-slate-600 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-[#999] transition-colors"
                 >
-                  <XCircle className="w-5 h-5 text-slate-400" />
+                  <XCircle className="w-5 h-5 text-[#666]" />
                   Mark as Rejected
                 </button>
               </div>
 
               {lead.has_demo_site && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h3 className="text-[13px] font-semibold text-slate-900 mb-3">Demo Website</h3>
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+                  <h3 className="text-[13px] font-semibold text-white mb-3">Demo Website</h3>
                   <button
                     onClick={() => window.open(`/demo/${lead.id}`, '_blank')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-lg text-[13px] font-medium hover:bg-slate-800 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View Demo Site
@@ -261,33 +259,33 @@ export default function LeadDetailPage() {
 
             {/* Business Intel */}
             <div className="space-y-4">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Business Info</h2>
+              <h2 className="text-[15px] font-semibold text-white mb-4">Business Info</h2>
 
               {lead.contact_name && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h3 className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Contact Person</h3>
-                  <p className="text-[15px] font-medium text-slate-900">{lead.contact_name}</p>
-                  {lead.contact_role && <p className="text-[13px] text-slate-600">{lead.contact_role}</p>}
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+                  <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-2">Contact Person</h3>
+                  <p className="text-[15px] font-medium text-white">{lead.contact_name}</p>
+                  {lead.contact_role && <p className="text-[13px] text-[#999]">{lead.contact_role}</p>}
                 </div>
               )}
 
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <h3 className="text-[11px] uppercase tracking-wide text-slate-500 mb-3">Opening Hours</h3>
+              <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+                <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Opening Hours</h3>
                 <div className="space-y-2">
                   {lead.opening_hours.map((hours, idx) => (
-                    <p key={idx} className="text-[13px] text-slate-900">{hours}</p>
+                    <p key={idx} className="text-[13px] text-[#ededed]">{hours}</p>
                   ))}
                 </div>
               </div>
 
               {lead.services.length > 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h3 className="text-[11px] uppercase tracking-wide text-slate-500 mb-3">Services</h3>
+                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+                  <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Services</h3>
                   <div className="flex flex-wrap gap-2">
                     {lead.services.map((service, idx) => (
                       <span
                         key={idx}
-                        className="px-3 py-1.5 bg-slate-50 text-slate-700 rounded-md text-[12px]"
+                        className="px-3 py-1.5 bg-[#111] text-[#999] rounded-md text-[12px]"
                       >
                         {service}
                       </span>
@@ -302,48 +300,48 @@ export default function LeadDetailPage() {
         {/* Prepare Tab */}
         {activeTab === 'prepare' && (
           <div className="max-w-3xl space-y-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-4 flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-amber-500" />
                 Talking Points
               </h2>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-slate-700">Great {lead.google_rating} star rating - people trust you</p>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
+                  <p className="text-[13px] text-[#999]">Great {lead.google_rating} star rating - people trust you</p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-slate-700">Your business deserves a professional online presence</p>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
+                  <p className="text-[13px] text-[#999]">Your business deserves a professional online presence</p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-slate-700">We've already built a demo site with your actual info</p>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
+                  <p className="text-[13px] text-[#999]">We've already built a demo site with your actual info</p>
                 </li>
               </ul>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-              <h2 className="text-[15px] font-semibold text-amber-900 mb-4 flex items-center gap-2">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
+              <h2 className="text-[15px] font-semibold text-yellow-500 mb-4 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
                 Don't Mention
               </h2>
-              <ul className="space-y-2 text-[13px] text-amber-800">
+              <ul className="space-y-2 text-[13px] text-yellow-500/80">
                 <li>• Don't promise SEO results or #1 Google rankings</li>
                 <li>• Don't criticize their current setup</li>
                 <li>• Don't rush them - be consultative</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-slate-500" />
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-3 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-[#666]" />
                 Best Time to Visit
               </h2>
-              <p className="text-[13px] text-slate-700 mb-2">Based on opening hours:</p>
+              <p className="text-[13px] text-[#999] mb-2">Based on opening hours:</p>
               <div className="space-y-2">
                 {lead.opening_hours.map((hours, idx) => (
-                  <p key={idx} className="text-[13px] text-slate-600 bg-slate-50 px-3 py-2 rounded">{hours}</p>
+                  <p key={idx} className="text-[13px] text-[#999] bg-[#111] px-3 py-2 rounded">{hours}</p>
                 ))}
               </div>
             </div>
@@ -353,8 +351,8 @@ export default function LeadDetailPage() {
         {/* Pitch Tab */}
         {activeTab === 'pitch' && (
           <div className="max-w-3xl space-y-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Objection Handlers</h2>
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-4">Objection Handlers</h2>
               <div className="space-y-4">
                 {[
                   {
@@ -374,28 +372,28 @@ export default function LeadDetailPage() {
                     response: "That's exactly why we do everything for you. We handle design, setup, and hosting. You just approve the content.",
                   },
                 ].map((item, idx) => (
-                  <div key={idx} className="border-l-4 border-slate-900 pl-4 py-2">
-                    <p className="text-[13px] font-medium text-slate-900 mb-2">"{item.objection}"</p>
-                    <p className="text-[13px] text-slate-600 italic">{item.response}</p>
+                  <div key={idx} className="border-l-4 border-white pl-4 py-2">
+                    <p className="text-[13px] font-medium text-white mb-2">"{item.objection}"</p>
+                    <p className="text-[13px] text-[#999] italic">{item.response}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Price Breakdown</h2>
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-4">Price Breakdown</h2>
               <div className="space-y-3">
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-[13px] text-slate-600">Custom website design</span>
-                  <span className="text-[13px] font-medium text-slate-900">£350</span>
+                <div className="flex justify-between items-center py-2 border-b border-[#222]">
+                  <span className="text-[13px] text-[#999]">Custom website design</span>
+                  <span className="text-[13px] font-medium text-white">£350</span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-[13px] text-slate-600">Or monthly payment</span>
-                  <span className="text-[13px] font-medium text-slate-900">£25/mo</span>
+                <div className="flex justify-between items-center py-2 border-b border-[#222]">
+                  <span className="text-[13px] text-[#999]">Or monthly payment</span>
+                  <span className="text-[13px] font-medium text-white">£25/mo</span>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 mt-4">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Includes:</p>
-                  <ul className="space-y-1 text-[13px] text-slate-700">
+                <div className="bg-[#111] rounded-lg p-4 mt-4">
+                  <p className="text-[11px] uppercase tracking-wide text-[#666] mb-2">Includes:</p>
+                  <ul className="space-y-1 text-[13px] text-[#999]">
                     <li>✓ Mobile-optimized design</li>
                     <li>✓ Contact form & phone links</li>
                     <li>✓ Free hosting for 1 year</li>
@@ -410,51 +408,51 @@ export default function LeadDetailPage() {
         {/* Follow Up Tab */}
         {activeTab === 'follow-up' && (
           <div className="max-w-3xl space-y-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Set Reminder</h2>
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-4">Set Reminder</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-slate-700 mb-2">Follow-up Date</label>
+                  <label className="block text-[13px] font-medium text-[#999] mb-2">Follow-up Date</label>
                   <input
                     type="date"
                     value={followUpDate}
                     onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-[#111] border border-[#333] rounded-lg text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-slate-700 mb-2">Notes</label>
+                  <label className="block text-[13px] font-medium text-[#999] mb-2">Notes</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add notes about the conversation..."
                     rows={4}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-[13px] text-white placeholder:text-[#666] focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent resize-none"
                   />
                 </div>
 
                 <button
                   onClick={saveFollowUp}
-                  className="px-6 py-2.5 bg-slate-900 text-white rounded-lg text-[13px] font-medium hover:bg-slate-800 transition-colors"
+                  className="px-6 py-2.5 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
                 >
                   Save Follow-Up
                 </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-[15px] font-semibold text-slate-900 mb-4">Contact Details</h2>
+            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
+              <h2 className="text-[15px] font-semibold text-white mb-4">Contact Details</h2>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-slate-400" />
-                  <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-600 hover:text-blue-700">
+                  <Phone className="w-5 h-5 text-[#666]" />
+                  <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-400 hover:text-blue-300">
                     {lead.phone}
                   </a>
                 </div>
                 <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-slate-400" />
-                  <span className="text-[13px] text-slate-700">{lead.postcode}</span>
+                  <MapPin className="w-5 h-5 text-[#666]" />
+                  <span className="text-[13px] text-[#999]">{lead.postcode}</span>
                 </div>
               </div>
             </div>

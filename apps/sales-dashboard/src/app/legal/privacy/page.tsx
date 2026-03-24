@@ -3,13 +3,13 @@ import Link from 'next/link';
 
 export default function PrivacyPage() {
   return (
-    <>
-      <div className="px-6 md:px-8 py-5 border-b border-slate-100">
-        <Link href="/settings" className="flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-600 mb-3">
+    <div className="page-enter">
+      <div className="px-6 md:px-8 py-5 border-b border-[#222]">
+        <Link href="/settings" className="flex items-center gap-1.5 text-[12px] text-[#666] hover:text-white mb-3">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Settings
         </Link>
-        <h1 className="text-[15px] font-semibold text-slate-900">Privacy Policy</h1>
-        <p className="text-[11px] text-slate-400 mt-0.5">Last updated: March 2026</p>
+        <h1 className="text-[15px] font-semibold text-white">Privacy Policy</h1>
+        <p className="text-[11px] text-[#666] mt-0.5">Last updated: March 2026</p>
       </div>
       <div className="px-6 md:px-8 py-6 max-w-2xl">
         <div className="space-y-6">
@@ -45,15 +45,15 @@ export default function PrivacyPage() {
           </LegalSection>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="text-[13px] font-semibold text-slate-900 mb-2">{title}</h2>
-      <p className="text-[12px] text-slate-500 leading-relaxed">{children}</p>
+      <h2 className="text-[13px] font-semibold text-white mb-2">{title}</h2>
+      <p className="text-[12px] text-[#666] leading-relaxed">{children}</p>
     </div>
   );
 }
