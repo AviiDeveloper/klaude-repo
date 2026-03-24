@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "SalesFlow",
+    "slug": "salesflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "salesflow",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.salesflow.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos of businesses you visit",
+        "NSPhotoLibraryUsageDescription": "Upload business photos from your gallery",
+        "NSLocationWhenInUseUsageDescription": "Track your location when visiting businesses",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Track visit duration in the background"
+      },
+      "associatedDomains": ["applinks:app.salesflow.co.uk"]
+    },
+    "android": {
+      "package": "com.salesflow.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "app.salesflow.co.uk" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      ["expo-router", { "origin": "https://app.salesflow.co.uk" }],
+      ["expo-camera", { "cameraPermission": "Take photos of businesses you visit" }],
+      ["expo-location", {
+        "locationAlwaysAndWhenInUsePermission": "Track visit duration in the background",
+        "isAndroidBackgroundLocationEnabled": true
+      }],
+      ["expo-notifications", { "icon": "./assets/notification-icon.png", "color": "#000000" }],
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": { "projectId": "salesflow-mobile" }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/salesflow-mobile"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

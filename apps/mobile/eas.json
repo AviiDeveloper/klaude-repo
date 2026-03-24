@@ -1,0 +1,41 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "API_URL": "http://localhost:4350"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "API_URL": "https://api.salesflow.co.uk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "API_URL": "https://api.salesflow.co.uk"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@email.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-team-id"
+      }
+    }
+  }
+}
