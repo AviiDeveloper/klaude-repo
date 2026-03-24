@@ -112,6 +112,75 @@ export default function LeadDetailPage() {
     }
   };
 
+  // Check if business is open right now based on opening_hours
+  const getOpenStatus = (): { isOpen: boolean; label: string } | null => {
+    const hours = lead?.opening_hours;
+    if (!hours || !Array.isArray(hours) || hours.length === 0) return null;
+
+    const now = new Date();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayAliases: Record<string, number> = {
+      'sun': 0, 'sunday': 0, 'mon': 1, 'monday': 1, 'tue': 2, 'tuesday': 2,
+      'wed': 3, 'wednesday': 3, 'thu': 4, 'thursday': 4, 'fri': 5, 'friday': 5,
+      'sat': 6, 'saturday': 6,
+    };
+    const currentDay = now.getDay();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (const entry of hours) {
+      const str = entry.toLowerCase().trim();
+
+      // Match "Mon-Fri: 9:00-17:30" or "Saturday: 9:00-16:00" or "Sun: Closed"
+      const match = str.match(/^([a-z\-]+)\s*[:]\s*(.+)$/i);
+      if (!match) continue;
+
+      const dayPart = match[1].trim().toLowerCase();
+      const timePart = match[2].trim().toLowerCase();
+
+      // Check if current day falls in this range
+      let dayMatches = false;
+      if (dayPart.includes('-')) {
+        const [startDay, endDay] = dayPart.split('-').map(d => dayAliases[d.trim()]);
+        if (startDay !== undefined && endDay !== undefined) {
+          if (startDay <= endDay) {
+            dayMatches = currentDay >= startDay && currentDay <= endDay;
+          } else {
+            dayMatches = currentDay >= startDay || currentDay <= endDay;
+          }
+        }
+      } else {
+        dayMatches = dayAliases[dayPart] === currentDay;
+      }
+
+      if (!dayMatches) continue;
+
+      if (timePart === 'closed') return { isOpen: false, label: 'Closed today' };
+
+      const timeMatch = timePart.match(/(\d{1,2}):?(\d{2})?\s*[-–]\s*(\d{1,2}):?(\d{2})?/);
+      if (!timeMatch) continue;
+
+      const openMin = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2] || '0');
+      const closeMin = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4] || '0');
+
+      if (currentMinutes >= openMin && currentMinutes < closeMin) {
+        const minsLeft = closeMin - currentMinutes;
+        if (minsLeft <= 60) return { isOpen: true, label: `Closes in ${minsLeft}m` };
+        const closeH = Math.floor(closeMin / 60);
+        const closeM = closeMin % 60;
+        return { isOpen: true, label: `Open until ${closeH}:${closeM.toString().padStart(2, '0')}` };
+      } else if (currentMinutes < openMin) {
+        const openH = Math.floor(openMin / 60);
+        const openM = openMin % 60;
+        return { isOpen: false, label: `Opens at ${openH}:${openM.toString().padStart(2, '0')}` };
+      } else {
+        return { isOpen: false, label: 'Closed' };
+      }
+    }
+    return null;
+  };
+
+  const openStatus = lead ? getOpenStatus() : null;
+
   const getStatusColor = (status: string) => {
     const colors = {
       new: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -180,6 +249,12 @@ export default function LeadDetailPage() {
                     <span className="flex items-center gap-1.5">
                       <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                       {lead.google_rating} ({lead.google_review_count})
+                    </span>
+                  )}
+                  {openStatus && (
+                    <span className={`flex items-center gap-1.5 ${openStatus.isOpen ? 'text-green-400' : 'text-[#666]'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${openStatus.isOpen ? 'bg-green-400 pulse-dot' : 'bg-[#666]'}`} />
+                      {openStatus.label}
                     </span>
                   )}
                 </div>
