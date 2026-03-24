@@ -55,6 +55,8 @@ export default function LeadDetailPage() {
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'prepare' | 'pitch' | 'follow-up'>('overview');
+  const [briefing, setBriefing] = useState(false);
+  const [briefingStep, setBriefingStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
@@ -290,6 +292,12 @@ export default function LeadDetailPage() {
                   lead.status === 'sold' ? 'text-green-400' : 'text-[#666]'
                 }`}>{lead.status}</span>
               </span>
+              <button
+                onClick={() => { setBriefing(true); setBriefingStep(0); }}
+                className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg text-[13px] font-medium hover:bg-[#333] transition-colors border border-[#333]"
+              >
+                Quick brief
+              </button>
               <a
                 href={`tel:${lead.phone}`}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
@@ -657,6 +665,160 @@ export default function LeadDetailPage() {
           </div>
         )}
       </div>
+
+      {/* ═══ QUICK BRIEF — full-screen step-by-step walkthrough ═══ */}
+      {briefing && lead && (() => {
+        const services = lead.services ?? [];
+        const hours = lead.opening_hours ?? [];
+        const reviews = lead.best_reviews ?? [];
+        const avoidTopics = lead.avoid_topics ?? [];
+        const hasDemoSite = lead.has_demo_site;
+
+        const steps = [
+          // Step 0: The business
+          {
+            title: lead.business_name,
+            content: (
+              <div className="space-y-3">
+                <p className="text-[15px] text-[#ededed]">{lead.business_type} in {lead.postcode}</p>
+                {lead.google_rating > 0 && (
+                  <p className="text-[14px] text-[#999]">★ {lead.google_rating} from {lead.google_review_count} reviews</p>
+                )}
+                {openStatus && (
+                  <p className={`text-[14px] ${openStatus.isOpen ? 'text-green-400' : 'text-[#666]'}`}>
+                    {openStatus.label}
+                  </p>
+                )}
+              </div>
+            ),
+          },
+          // Step 1: What they do
+          {
+            title: 'What they do',
+            content: services.length > 0 ? (
+              <p className="text-[14px] text-[#ededed] leading-relaxed">{services.join(' · ')}</p>
+            ) : (
+              <p className="text-[14px] text-[#666]">No services data — ask them what they offer</p>
+            ),
+          },
+          // Step 2: Why they need a website
+          {
+            title: 'Why they need you',
+            content: (
+              <ul className="space-y-2">
+                <li className="text-[14px] text-[#ededed]">· No website — invisible to anyone searching online</li>
+                {lead.google_rating >= 4 && (
+                  <li className="text-[14px] text-[#ededed]">· {lead.google_rating}★ rating — great reputation that should be front and centre</li>
+                )}
+                {lead.google_review_count > 20 && (
+                  <li className="text-[14px] text-[#ededed]">· {lead.google_review_count} reviews — social proof that belongs on a homepage</li>
+                )}
+                {hasDemoSite && (
+                  <li className="text-[14px] text-green-400">· Demo site ready — show them what it looks like</li>
+                )}
+              </ul>
+            ),
+          },
+          // Step 3: What to say
+          {
+            title: 'What to say',
+            content: (
+              <div className="space-y-3">
+                <p className="text-[14px] text-[#ededed] leading-relaxed">
+                  &ldquo;Hi, I help local businesses get found online. I actually built a demo website for {lead.business_name} — can I show you? Takes 30 seconds.&rdquo;
+                </p>
+                {lead.phone && (
+                  <p className="text-[13px] text-[#666]">Ask for the owner if they&apos;re not at the counter</p>
+                )}
+              </div>
+            ),
+          },
+          // Step 4: Don't mention
+          {
+            title: 'Don\u2019t mention',
+            content: (
+              <ul className="space-y-2">
+                {(avoidTopics.length > 0 ? avoidTopics : ['SEO guarantees or #1 rankings', 'Criticism of their current setup', 'Pressure — let them decide']).map((t: string, i: number) => (
+                  <li key={i} className="text-[14px] text-yellow-500/80">· {t}</li>
+                ))}
+              </ul>
+            ),
+          },
+          // Step 5: Pricing
+          {
+            title: 'The offer',
+            content: (
+              <div className="space-y-2">
+                <p className="text-[20px] font-semibold text-white">{'\u00A3'}350 <span className="text-[14px] text-[#666] font-normal">one-time</span></p>
+                <p className="text-[14px] text-[#999]">{'\u00A3'}25/mo hosting &amp; support</p>
+                <p className="text-[13px] text-[#666] mt-3">Live in 48 hours. They can see changes before paying.</p>
+              </div>
+            ),
+          },
+          // Step 6: Go
+          {
+            title: 'You\u2019re ready',
+            content: (
+              <div className="space-y-3">
+                <p className="text-[14px] text-[#ededed]">Walk in, ask for the owner, show the demo on your phone.</p>
+                {hasDemoSite && (
+                  <button
+                    onClick={() => { setBriefing(false); window.open(`/demo/${lead.id}`, '_blank'); }}
+                    className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Open demo site ↗
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ];
+
+        const step = steps[briefingStep];
+        const isLast = briefingStep === steps.length - 1;
+
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setBriefing(false)} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+              <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md overflow-hidden">
+                {/* Progress */}
+                <div className="flex gap-1 px-5 pt-4">
+                  {steps.map((_, i) => (
+                    <div key={i} className={`h-[2px] flex-1 rounded-full transition-colors ${i <= briefingStep ? 'bg-white' : 'bg-[#333]'}`} />
+                  ))}
+                </div>
+
+                {/* Content */}
+                <div className="px-5 pt-5 pb-4" key={briefingStep}>
+                  <p className="text-[11px] text-[#666] mb-1">{briefingStep + 1} of {steps.length}</p>
+                  <h2 className="text-[20px] font-semibold text-white tracking-[-0.02em] mb-4">{step.title}</h2>
+                  {step.content}
+                </div>
+
+                {/* Nav */}
+                <div className="flex items-center justify-between px-5 py-4 border-t border-[#222]">
+                  {briefingStep > 0 ? (
+                    <button onClick={() => setBriefingStep(briefingStep - 1)} className="text-[13px] text-[#666] hover:text-white transition-colors">
+                      Back
+                    </button>
+                  ) : (
+                    <button onClick={() => setBriefing(false)} className="text-[13px] text-[#666] hover:text-white transition-colors">
+                      Close
+                    </button>
+                  )}
+                  <button
+                    onClick={() => isLast ? setBriefing(false) : setBriefingStep(briefingStep + 1)}
+                    className="text-[13px] text-white font-medium hover:text-blue-400 transition-colors"
+                  >
+                    {isLast ? 'Done' : 'Next'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
