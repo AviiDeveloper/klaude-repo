@@ -22,6 +22,7 @@ import {
   MessageSquare,
   TrendingUp,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 interface Lead {
@@ -51,6 +52,7 @@ export default function LeadDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     fetchLead();
@@ -223,43 +225,39 @@ export default function LeadDetailPage() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Actions */}
-            <div className="space-y-4">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Quick Actions</h2>
+            {/* Actions — collapsible */}
+            <div>
+              <button
+                onClick={() => setActionsOpen(!actionsOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 border border-[#333] rounded-lg hover:bg-[#111] transition-colors"
+              >
+                <span className="text-[13px] font-medium text-white">Update Status</span>
+                <ChevronDown className={`w-4 h-4 text-[#666] transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6 space-y-3">
-                <button
-                  onClick={() => updateStatus('visited')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-white transition-colors"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                  Mark as Visited
-                </button>
-
-                <button
-                  onClick={() => updateStatus('pitched')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-white transition-colors"
-                >
-                  <MessageSquare className="w-5 h-5 text-purple-400" />
-                  Mark as Pitched
-                </button>
-
-                <button
-                  onClick={() => updateStatus('sold')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-green-500/10 hover:bg-green-500/20 rounded-lg text-[13px] font-medium text-green-400 transition-colors"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  Mark as Sold 🎉
-                </button>
-
-                <button
-                  onClick={() => updateStatus('rejected')}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#111] hover:bg-[#1a1a1a] rounded-lg text-[13px] font-medium text-[#999] transition-colors"
-                >
-                  <XCircle className="w-5 h-5 text-[#666]" />
-                  Mark as Rejected
-                </button>
-              </div>
+              {actionsOpen && (
+                <div className="mt-1 border border-[#333] rounded-lg overflow-hidden">
+                  {[
+                    { status: 'visited', label: 'Visited', color: 'text-blue-400' },
+                    { status: 'pitched', label: 'Pitched', color: 'text-purple-400' },
+                    { status: 'sold', label: 'Sold', color: 'text-green-400' },
+                    { status: 'rejected', label: 'Rejected', color: 'text-[#666]' },
+                  ].map(({ status, label, color }, i) => (
+                    <button
+                      key={status}
+                      onClick={() => { updateStatus(status); setActionsOpen(false); }}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 text-[13px] hover:bg-[#111] transition-colors ${i > 0 ? 'border-t border-[#222]' : ''}`}
+                    >
+                      <span className={`font-medium ${color}`}>{label}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        status === 'visited' ? 'bg-blue-400' :
+                        status === 'pitched' ? 'bg-purple-400' :
+                        status === 'sold' ? 'bg-green-400' : 'bg-[#666]'
+                      }`} />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {lead.has_demo_site && (
                 <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
