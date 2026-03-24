@@ -83,14 +83,17 @@ export default function LeadDetailPage() {
     }
   };
 
-  const updateStatus = async (status: string) => {
+  const updateStatus = async (newStatus: string) => {
     try {
-      await fetch(`/api/leads/${id}`, {
+      const res = await fetch(`/api/leads/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: newStatus }),
       });
-      fetchLead();
+      if (res.ok) {
+        // Update locally immediately for instant feedback
+        setLead(prev => prev ? { ...prev, status: newStatus } : prev);
+      }
     } catch (err) {
       console.error('Failed to update status', err);
     }
