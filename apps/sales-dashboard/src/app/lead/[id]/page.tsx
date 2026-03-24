@@ -184,8 +184,19 @@ export default function LeadDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <span className={`px-3 py-1.5 rounded-lg text-[11px] font-medium uppercase tracking-wide border ${getStatusColor(lead.status)}`}>
-                {lead.status}
+              <span className="flex items-center gap-2 text-[13px]">
+                <span className={`w-2 h-2 rounded-full ${
+                  lead.status === 'new' ? 'bg-blue-400 pulse-dot' :
+                  lead.status === 'visited' ? 'bg-yellow-500' :
+                  lead.status === 'pitched' ? 'bg-purple-400' :
+                  lead.status === 'sold' ? 'bg-green-400' : 'bg-[#666]'
+                }`} />
+                <span className={`font-medium capitalize ${
+                  lead.status === 'new' ? 'text-blue-400' :
+                  lead.status === 'visited' ? 'text-yellow-500' :
+                  lead.status === 'pitched' ? 'text-purple-400' :
+                  lead.status === 'sold' ? 'text-green-400' : 'text-[#666]'
+                }`}>{lead.status}</span>
               </span>
               <a
                 href={`tel:${lead.phone}`}
