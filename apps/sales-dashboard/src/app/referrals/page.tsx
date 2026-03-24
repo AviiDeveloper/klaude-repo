@@ -30,9 +30,16 @@ export default function ReferralsPage() {
 
   const fetchReferralData = async () => {
     try {
-      const res = await fetch('/api/referrals');
-      const referralData = await res.json();
-      setData(referralData);
+      // Referral API not built yet — use placeholder data
+      const code = 'SF-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+      setData({
+        referral_code: code,
+        referral_link: `https://app.salesflow.co.uk/signup?ref=${code}`,
+        total_referrals: 0,
+        active_referrals: 0,
+        total_earned: 0,
+        referrals: [],
+      });
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch referral data', err);

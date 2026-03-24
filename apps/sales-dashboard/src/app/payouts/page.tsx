@@ -41,9 +41,33 @@ export default function PayoutsPage() {
 
   const fetchPayoutData = async () => {
     try {
-      const res = await fetch('/api/payouts');
-      const payoutData = await res.json();
-      setData(payoutData);
+      const res = await fetch('/api/stats');
+      const json = await res.json();
+      const s = json.data ?? json;
+      // Map stats to payout data shape
+      const sold = s.sold ?? 0;
+      const visited = s.visited ?? 0;
+      const pitched = s.pitched ?? 0;
+      const queue = s.queue ?? 0;
+      const earned = sold * 50;
+      setData({
+        available_balance: earned,
+        projected_monthly: (s.sales_this_week ?? sold) * 50 * 4.33,
+        total_earned: earned,
+        close_rate: pitched > 0 ? Number(((sold / pitched) * 100).toFixed(0)) : 0,
+        visit_to_sale_rate: visited > 0 ? Number(((sold / visited) * 100).toFixed(0)) : 0,
+        funnel: { assigned: queue + visited + pitched + sold, visited, pitched, sold },
+        weekly_activity: [
+          { day: 'Mon', visits: 0, sales: 0 },
+          { day: 'Tue', visits: 0, sales: 0 },
+          { day: 'Wed', visits: 0, sales: 0 },
+          { day: 'Thu', visits: 0, sales: 0 },
+          { day: 'Fri', visits: 0, sales: 0 },
+          { day: 'Sat', visits: 0, sales: 0 },
+          { day: 'Sun', visits: 0, sales: 0 },
+        ],
+        payment_history: [],
+      } as any);
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch payout data', err);
