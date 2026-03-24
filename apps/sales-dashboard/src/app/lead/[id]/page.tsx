@@ -40,6 +40,12 @@ interface Lead {
   contact_role?: string;
   opening_hours: string[];
   services: string[];
+  address?: string;
+  avoid_topics?: string[];
+  best_reviews?: Array<{ author: string; rating: number; text: string }>;
+  trust_badges?: string[];
+  follow_up_at?: string;
+  [key: string]: unknown;
 }
 
 export default function LeadDetailPage() {
@@ -53,6 +59,14 @@ export default function LeadDetailPage() {
   const [notes, setNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [interestLevel, setInterestLevel] = useState<'hot' | 'warm' | 'cold' | ''>('');
+  const [objection, setObjection] = useState('');
+  const [bestTime, setBestTime] = useState('');
+  const [sentiment, setSentiment] = useState<'friendly' | 'neutral' | 'hostile' | ''>('');
+  const [competitor, setCompetitor] = useState('');
+  const [priceDiscussed, setPriceDiscussed] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [contactRole, setContactRole] = useState('');
 
   useEffect(() => {
     fetchLead();
@@ -92,7 +106,7 @@ export default function LeadDetailPage() {
       });
       if (res.ok) {
         // Update locally immediately for instant feedback
-        setLead(prev => prev ? { ...prev, status: newStatus } : prev);
+        setLead(prev => prev ? { ...prev, status: newStatus as Lead['status'] } : prev);
       }
     } catch (err) {
       console.error('Failed to update status', err);
@@ -525,47 +539,117 @@ export default function LeadDetailPage() {
 
         {/* Follow Up Tab */}
         {activeTab === 'follow-up' && (
-          <div className="max-w-2xl rounded-lg border border-[#1a1a1a] divide-y divide-[#1a1a1a] hover:border-[#333] transition-colors">
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="text-[12px] text-[#666]">Remind me</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="bg-transparent text-[13px] text-white focus:outline-none text-right"
-                />
+          <div className="grid md:grid-cols-2 gap-4 max-w-3xl">
+            {/* Left column — scheduling & contact */}
+            <div className="rounded-lg border border-[#1a1a1a] divide-y divide-[#1a1a1a] hover:border-[#333] transition-colors">
+              <Row label="Follow up" right={
+                <input type="date" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} className="bg-transparent text-[13px] text-white focus:outline-none text-right" />
+              } />
+              <Row label="Best time" right={
+                <select value={bestTime} onChange={e => setBestTime(e.target.value)} className="bg-transparent text-[13px] text-white focus:outline-none text-right appearance-none cursor-pointer">
+                  <option value="" className="bg-[#111]">—</option>
+                  <option value="morning" className="bg-[#111]">Morning</option>
+                  <option value="afternoon" className="bg-[#111]">Afternoon</option>
+                  <option value="evening" className="bg-[#111]">Evening</option>
+                </select>
+              } />
+              <Row label="Phone" right={
+                <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors">{lead.phone}</a>
+              } />
+              <Row label="Address" right={
+                <span className="text-[13px] text-[#ededed]">{lead.address || lead.postcode}</span>
+              } />
+              <div className="px-4 py-2.5">
+                <div className="flex gap-2">
+                  <input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Contact name" className="flex-1 bg-transparent text-[13px] text-white placeholder:text-[#333] focus:outline-none" />
+                  <input value={contactRole} onChange={e => setContactRole(e.target.value)} placeholder="Role" className="w-24 bg-transparent text-[13px] text-[#999] placeholder:text-[#333] focus:outline-none text-right" />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="text-[12px] text-[#666]">Phone</span>
-              <a href={`tel:${lead.phone}`} className="text-[13px] text-blue-400 hover:text-blue-300 transition-colors">{lead.phone}</a>
-            </div>
-
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="text-[12px] text-[#666]">Address</span>
-              <span className="text-[13px] text-[#ededed]">{lead.address || lead.postcode}</span>
-            </div>
-
-            {lead.contact_name && (
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-[12px] text-[#666]">Contact</span>
-                <span className="text-[13px] text-[#ededed]">{lead.contact_name}{lead.contact_role ? ` · ${lead.contact_role}` : ''}</span>
+            {/* Right column — intel capture */}
+            <div className="rounded-lg border border-[#1a1a1a] divide-y divide-[#1a1a1a] hover:border-[#333] transition-colors">
+              <div className="px-4 py-2.5">
+                <span className="text-[12px] text-[#666] block mb-2">Interest level</span>
+                <div className="flex gap-1">
+                  {(['hot', 'warm', 'cold'] as const).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setInterestLevel(interestLevel === level ? '' : level)}
+                      className={`px-3 py-1 rounded text-[12px] capitalize transition-colors ${
+                        interestLevel === level
+                          ? level === 'hot' ? 'bg-green-500/20 text-green-400'
+                            : level === 'warm' ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-blue-500/20 text-blue-400'
+                          : 'text-[#666] hover:text-[#999]'
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
 
-            <div className="px-4 py-3">
+              <div className="px-4 py-2.5">
+                <span className="text-[12px] text-[#666] block mb-2">Owner vibe</span>
+                <div className="flex gap-1">
+                  {(['friendly', 'neutral', 'hostile'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSentiment(sentiment === s ? '' : s)}
+                      className={`px-3 py-1 rounded text-[12px] capitalize transition-colors ${
+                        sentiment === s
+                          ? s === 'friendly' ? 'bg-green-500/20 text-green-400'
+                            : s === 'neutral' ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-red-500/20 text-red-400'
+                          : 'text-[#666] hover:text-[#999]'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Row label="Objection" right={
+                <select value={objection} onChange={e => setObjection(e.target.value)} className="bg-transparent text-[13px] text-white focus:outline-none text-right appearance-none cursor-pointer">
+                  <option value="" className="bg-[#111]">None</option>
+                  <option value="too-expensive" className="bg-[#111]">Too expensive</option>
+                  <option value="not-interested" className="bg-[#111]">Not interested</option>
+                  <option value="has-website" className="bg-[#111]">Already has one</option>
+                  <option value="need-to-think" className="bg-[#111]">Need to think</option>
+                  <option value="come-back-later" className="bg-[#111]">Come back later</option>
+                  <option value="wrong-person" className="bg-[#111]">Wrong person</option>
+                </select>
+              } />
+
+              <Row label="Competitor" right={
+                <input value={competitor} onChange={e => setCompetitor(e.target.value)} placeholder="e.g. Wix, Squarespace" className="bg-transparent text-[13px] text-white placeholder:text-[#333] focus:outline-none text-right w-full" />
+              } />
+
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-[12px] text-[#666]">Price discussed</span>
+                <button
+                  onClick={() => setPriceDiscussed(!priceDiscussed)}
+                  className={`w-8 h-[18px] rounded-full transition-colors ${priceDiscussed ? 'bg-blue-500' : 'bg-[#333]'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform mx-0.5 ${priceDiscussed ? 'translate-x-3.5' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Notes — full width */}
+            <div className="md:col-span-2 rounded-lg border border-[#1a1a1a] hover:border-[#333] transition-colors px-4 py-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[12px] text-[#666]">Notes</span>
                 {notes.trim() && (
-                  <button onClick={saveFollowUp} className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">Save</button>
+                  <button onClick={saveFollowUp} className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">Save all</button>
                 )}
               </div>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="What happened? What to say next time..."
+                placeholder="What happened? Key takeaways for next visit..."
                 rows={2}
                 className="w-full bg-transparent text-[13px] text-white placeholder:text-[#333] focus:outline-none resize-none"
               />
@@ -573,6 +657,15 @@ export default function LeadDetailPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Row({ label, right }: { label: string; right: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5">
+      <span className="text-[12px] text-[#666]">{label}</span>
+      {right}
     </div>
   );
 }
