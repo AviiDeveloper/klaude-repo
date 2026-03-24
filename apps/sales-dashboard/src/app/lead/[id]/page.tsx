@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+
+function tryParse<T>(val: unknown, fallback: T): T {
+  if (!val || typeof val !== 'string') return fallback;
+  try { return JSON.parse(val) as T; } catch { return fallback; }
+}
+
 import {
   ArrowLeft,
   Phone,
@@ -53,9 +59,21 @@ export default function LeadDetailPage() {
   const fetchLead = async () => {
     try {
       const res = await fetch(`/api/leads/${id}`);
-      const data = await res.json();
-      setLead(data);
-      setFollowUpDate(data.follow_up_date || '');
+      const json = await res.json();
+      const data = json.data ?? json;
+      // Parse JSON string fields if needed
+      const parsed = {
+        ...data,
+        id: data.id ?? data.assignment_id ?? data.lead_id,
+        status: data.status ?? data.assignment_status ?? 'new',
+        opening_hours: Array.isArray(data.opening_hours) ? data.opening_hours : tryParse(data.opening_hours, []),
+        services: Array.isArray(data.services) ? data.services : tryParse(data.services, []),
+        best_reviews: Array.isArray(data.best_reviews) ? data.best_reviews : tryParse(data.best_reviews, []),
+        trust_badges: Array.isArray(data.trust_badges) ? data.trust_badges : tryParse(data.trust_badges, []),
+        avoid_topics: Array.isArray(data.avoid_topics) ? data.avoid_topics : tryParse(data.avoid_topics, []),
+      };
+      setLead(parsed);
+      setFollowUpDate(parsed.follow_up_date || parsed.follow_up_at || '');
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch lead', err);
@@ -272,7 +290,7 @@ export default function LeadDetailPage() {
               <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
                 <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Opening Hours</h3>
                 <div className="space-y-2">
-                  {lead.opening_hours.map((hours, idx) => (
+                  {(lead.opening_hours ?? []).map((hours: string, idx: number) => (
                     <p key={idx} className="text-[13px] text-[#ededed]">{hours}</p>
                   ))}
                 </div>
@@ -282,7 +300,7 @@ export default function LeadDetailPage() {
                 <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
                   <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Services</h3>
                   <div className="flex flex-wrap gap-2">
-                    {lead.services.map((service, idx) => (
+                    {(lead.services ?? []).map((service: string, idx: number) => (
                       <span
                         key={idx}
                         className="px-3 py-1.5 bg-[#111] text-[#999] rounded-md text-[12px]"
@@ -340,7 +358,7 @@ export default function LeadDetailPage() {
               </h2>
               <p className="text-[13px] text-[#999] mb-2">Based on opening hours:</p>
               <div className="space-y-2">
-                {lead.opening_hours.map((hours, idx) => (
+                {(lead.opening_hours ?? []).map((hours: string, idx: number) => (
                   <p key={idx} className="text-[13px] text-[#999] bg-[#111] px-3 py-2 rounded">{hours}</p>
                 ))}
               </div>
