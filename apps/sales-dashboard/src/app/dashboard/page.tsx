@@ -60,7 +60,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 page-enter">
       {/* ── Header row ── */}
       <div className="flex items-baseline justify-between mb-6">
         <div>
@@ -75,7 +75,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-4 gap-px bg-[#333] rounded-lg overflow-hidden mb-8">
+      <div className="grid grid-cols-4 gap-px bg-[#333] rounded-lg overflow-hidden mb-8 noise glow-border">
         <StatCell label="Queue" value={stats?.queue ?? 0} />
         <StatCell label="Visited" value={stats?.visited ?? 0} />
         <StatCell label="Pitched" value={stats?.pitched ?? 0} />
@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
       {/* ── Table ── */}
       {filtered.length > 0 ? (
-        <div className="border border-[#333] rounded-lg overflow-hidden">
+        <div className="border border-[#333] rounded-lg overflow-hidden glow-border">
           {/* Header */}
           <div className="grid grid-cols-[1fr_100px_80px_80px_60px] gap-4 px-4 py-2.5 text-[12px] text-[#666] border-b border-[#333] bg-[#0a0a0a]">
             <span>Business</span>
@@ -116,11 +116,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Rows */}
-          {filtered.map(lead => (
+          {filtered.map((lead, i) => (
             <div
               key={lead.id}
               onClick={() => router.push(`/lead/${lead.id}`)}
               className="grid grid-cols-[1fr_100px_80px_80px_60px] gap-4 px-4 py-3 border-b border-[#222] last:border-0 hover:bg-[#111] cursor-pointer transition-colors group"
+              style={{ animation: `rowIn 0.3s ease-out ${i * 0.04}s both` }}
             >
               {/* Business */}
               <div className="min-w-0">
@@ -149,7 +150,7 @@ export default function DashboardPage() {
                   lead.status === 'sold' ? 'text-green-400' :
                   'text-[#666]'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
+                  <span className={`w-1.5 h-1.5 rounded-full ${lead.status === 'new' ? 'pulse-dot ' : ''}${
                     lead.status === 'new' ? 'bg-blue-400' :
                     lead.status === 'visited' ? 'bg-yellow-500' :
                     lead.status === 'pitched' ? 'bg-purple-400' :

@@ -18,7 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-[#333]">
+      <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-[#333] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-[#555] after:to-transparent after:opacity-40">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 text-white font-semibold text-[14px] tracking-[-0.02em]">
