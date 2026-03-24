@@ -238,141 +238,155 @@ export default function LeadDetailPage() {
       <div className="py-8">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Actions — inline row */}
-            <div className="relative">
-              <button
-                onClick={() => setActionsOpen(!actionsOpen)}
-                className="flex items-center gap-2 text-[13px] text-[#999] hover:text-white transition-colors"
-              >
-                Update status
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {actionsOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
-                  <div className="absolute top-8 left-0 z-20 bg-[#1a1a1a] border border-[#333] rounded-lg py-1 min-w-[140px] shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
-                    {[
-                      { status: 'visited', label: 'Visited', dot: 'bg-blue-400' },
-                      { status: 'pitched', label: 'Pitched', dot: 'bg-purple-400' },
-                      { status: 'sold', label: 'Sold', dot: 'bg-green-400' },
-                      { status: 'rejected', label: 'Rejected', dot: 'bg-[#666]' },
-                    ].map(({ status, label, dot }) => (
-                      <button
-                        key={status}
-                        onClick={() => { updateStatus(status); setActionsOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#ededed] hover:bg-[#333] transition-colors"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {lead.has_demo_site && (
-                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-                  <h3 className="text-[13px] font-semibold text-white mb-3">Demo Website</h3>
-                  <button
-                    onClick={() => window.open(`/demo/${lead.id}`, '_blank')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-black rounded-lg text-[13px] font-medium hover:bg-[#ededed] transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View Demo Site
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Business Intel */}
-            <div className="space-y-4">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Business Info</h2>
-
-              {lead.contact_name && (
-                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-                  <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-2">Contact Person</h3>
-                  <p className="text-[15px] font-medium text-white">{lead.contact_name}</p>
-                  {lead.contact_role && <p className="text-[13px] text-[#999]">{lead.contact_role}</p>}
-                </div>
-              )}
-
-              <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-                <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Opening Hours</h3>
-                <div className="space-y-2">
-                  {(lead.opening_hours ?? []).map((hours: string, idx: number) => (
-                    <p key={idx} className="text-[13px] text-[#ededed]">{hours}</p>
-                  ))}
-                </div>
+          <div className="max-w-2xl">
+            {/* Action row — compact, inline */}
+            <div className="flex items-center gap-4 pb-6">
+              <div className="relative">
+                <button
+                  onClick={() => setActionsOpen(!actionsOpen)}
+                  className="flex items-center gap-1.5 text-[13px] text-[#999] hover:text-white transition-colors"
+                >
+                  Update status
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {actionsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
+                    <div className="absolute top-8 left-0 z-20 bg-[#1a1a1a] border border-[#333] rounded-lg py-1 min-w-[140px] shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+                      {[
+                        { s: 'visited', l: 'Visited', d: 'bg-blue-400' },
+                        { s: 'pitched', l: 'Pitched', d: 'bg-purple-400' },
+                        { s: 'sold', l: 'Sold', d: 'bg-green-400' },
+                        { s: 'rejected', l: 'Rejected', d: 'bg-[#666]' },
+                      ].map(({ s, l, d }) => (
+                        <button key={s} onClick={() => { updateStatus(s); setActionsOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#ededed] hover:bg-[#333] transition-colors">
+                          <span className={`w-1.5 h-1.5 rounded-full ${d}`} />{l}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              {lead.services.length > 0 && (
-                <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-                  <h3 className="text-[11px] uppercase tracking-wide text-[#666] mb-3">Services</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {(lead.services ?? []).map((service: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1.5 bg-[#111] text-[#999] rounded-md text-[12px]"
-                      >
-                        {service}
-                      </span>
+              {lead.has_demo_site && (
+                <button
+                  onClick={() => window.open(`/demo/${lead.id}`, '_blank')}
+                  className="flex items-center gap-1.5 text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  View demo
+                </button>
+              )}
+
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lead.postcode || lead.address || '')}`}
+                target="_blank"
+                rel="noopener"
+                className="flex items-center gap-1.5 text-[13px] text-[#999] hover:text-white transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                Directions
+              </a>
+            </div>
+
+            <div className="border-t border-[#222]" />
+
+            {/* Contact */}
+            {lead.contact_name && (
+              <>
+                <div className="py-5">
+                  <p className="text-[11px] text-[#666] mb-1">Contact</p>
+                  <p className="text-[14px] text-white">{lead.contact_name}{lead.contact_role ? ` · ${lead.contact_role}` : ''}</p>
+                </div>
+                <div className="border-t border-[#222]" />
+              </>
+            )}
+
+            {/* Hours */}
+            {(lead.opening_hours ?? []).length > 0 && (
+              <>
+                <div className="py-5">
+                  <p className="text-[11px] text-[#666] mb-2">Hours</p>
+                  <div className="space-y-1">
+                    {(lead.opening_hours ?? []).map((h: string, i: number) => (
+                      <p key={i} className="text-[13px] text-[#ededed]">{h}</p>
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
+                <div className="border-t border-[#222]" />
+              </>
+            )}
+
+            {/* Services */}
+            {(lead.services ?? []).length > 0 && (
+              <>
+                <div className="py-5">
+                  <p className="text-[11px] text-[#666] mb-2">Services</p>
+                  <p className="text-[13px] text-[#ededed]">
+                    {(lead.services ?? []).join(' · ')}
+                  </p>
+                </div>
+                <div className="border-t border-[#222]" />
+              </>
+            )}
+
+            {/* Address + directions */}
+            {(lead.address || lead.postcode) && (
+              <>
+                <div className="py-5">
+                  <p className="text-[11px] text-[#666] mb-1">Address</p>
+                  <p className="text-[13px] text-[#ededed]">{lead.address || lead.postcode}</p>
+                </div>
+                <div className="border-t border-[#222]" />
+              </>
+            )}
+
+            {/* Rating detail */}
+            {lead.google_rating > 0 && (
+              <div className="py-5">
+                <p className="text-[11px] text-[#666] mb-1">Google Rating</p>
+                <p className="text-[14px] text-white">{lead.google_rating} <span className="text-[#666]">from {lead.google_review_count} reviews</span></p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Prepare Tab */}
         {activeTab === 'prepare' && (
-          <div className="max-w-3xl space-y-6">
-            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-              <h2 className="text-[15px] font-semibold text-white mb-4 flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-amber-500" />
-                Talking Points
-              </h2>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-[#999]">Great {lead.google_rating} star rating - people trust you</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-[#999]">Your business deserves a professional online presence</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-[11px] font-semibold">✓</span>
-                  <p className="text-[13px] text-[#999]">We've already built a demo site with your actual info</p>
-                </li>
-              </ul>
-            </div>
+          <div className="max-w-2xl">
+            <p className="text-[11px] text-[#666] mb-3">Talking points</p>
+            <ul className="space-y-2 pb-6">
+              {lead.google_rating > 0 && (
+                <li className="text-[13px] text-[#ededed]">· {lead.google_rating}★ from {lead.google_review_count} reviews — they care about reputation</li>
+              )}
+              <li className="text-[13px] text-[#ededed]">· No website — customers can&apos;t find them online</li>
+              {lead.has_demo_site && (
+                <li className="text-[13px] text-[#ededed]">· Demo site ready — show them on your phone</li>
+              )}
+              <li className="text-[13px] text-[#ededed]">· Built with their real info, reviews, and services</li>
+              {(lead.services ?? []).length > 0 && (
+                <li className="text-[13px] text-[#ededed]">· Services: {(lead.services ?? []).join(', ')}</li>
+              )}
+            </ul>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
-              <h2 className="text-[15px] font-semibold text-yellow-500 mb-4 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                Don't Mention
-              </h2>
-              <ul className="space-y-2 text-[13px] text-yellow-500/80">
-                <li>• Don't promise SEO results or #1 Google rankings</li>
-                <li>• Don't criticize their current setup</li>
-                <li>• Don't rush them - be consultative</li>
-              </ul>
-            </div>
+            <div className="border-t border-[#222]" />
 
-            <div className="bg-[#0a0a0a] rounded-xl border border-[#333] p-6">
-              <h2 className="text-[15px] font-semibold text-white mb-3 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-[#666]" />
-                Best Time to Visit
-              </h2>
-              <p className="text-[13px] text-[#999] mb-2">Based on opening hours:</p>
-              <div className="space-y-2">
-                {(lead.opening_hours ?? []).map((hours: string, idx: number) => (
-                  <p key={idx} className="text-[13px] text-[#999] bg-[#111] px-3 py-2 rounded">{hours}</p>
+            <div className="py-6">
+              <p className="text-[11px] text-yellow-500 mb-3">Don&apos;t mention</p>
+              <ul className="space-y-1.5">
+                {(lead.avoid_topics ?? ['SEO guarantees', 'criticising their current setup', 'rushing the decision']).map((t: string, i: number) => (
+                  <li key={i} className="text-[13px] text-[#999]">· {t}</li>
                 ))}
-              </div>
+              </ul>
+            </div>
+
+            <div className="border-t border-[#222]" />
+
+            <div className="py-6">
+              <p className="text-[11px] text-[#666] mb-3">Hours</p>
+              {(lead.opening_hours ?? []).map((h: string, i: number) => (
+                <p key={i} className="text-[13px] text-[#ededed]">{h}</p>
+              ))}
             </div>
           </div>
         )}
