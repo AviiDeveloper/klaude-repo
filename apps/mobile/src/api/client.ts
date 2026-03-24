@@ -1,5 +1,14 @@
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// SecureStore doesn't work on web — use AsyncStorage as fallback
+const SecureStore = Platform.OS === 'web'
+  ? {
+      getItemAsync: (key: string) => AsyncStorage.getItem(key),
+      setItemAsync: (key: string, value: string) => AsyncStorage.setItem(key, value),
+      deleteItemAsync: (key: string) => AsyncStorage.removeItem(key),
+    }
+  : require('expo-secure-store');
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4350';
 const TOKEN_KEY = 'sf_auth_token';

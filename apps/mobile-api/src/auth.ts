@@ -1,8 +1,8 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { queryOne, run } from './db.js';
 
-const SECRET = process.env.SD_SECRET ?? 'salesflow-mobile-api-secret-change-in-production';
+const SECRET = process.env.SD_SECRET ?? 'sales-dashboard-dev-secret-change-in-production';
 const TOKEN_EXPIRY_DAYS = 30;
 
 export interface AuthPayload {
@@ -12,7 +12,7 @@ export interface AuthPayload {
 }
 
 export function hashPin(pin: string): string {
-  return createHmac('sha256', SECRET).update(SECRET + ':' + pin).digest('hex');
+  return createHash('sha256').update(`${SECRET}:${pin}`).digest('hex');
 }
 
 export function createToken(payload: AuthPayload): string {

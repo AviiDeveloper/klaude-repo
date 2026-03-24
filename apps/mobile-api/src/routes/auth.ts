@@ -20,8 +20,9 @@ router.post('/login', (req, res) => {
   }
 
   // Update device type
-  const deviceType = req.headers['x-device-type'] ?? 'mobile';
-  run('UPDATE sales_users SET device_type = ? WHERE id = ?', deviceType, result.user.id);
+  const rawDevice = (req.headers['x-device-type'] as string) ?? 'ios';
+  const deviceType = ['web', 'ios', 'android'].includes(rawDevice) ? rawDevice : 'ios';
+  try { run('UPDATE sales_users SET device_type = ? WHERE id = ?', deviceType, result.user.id); } catch { /* constraint may not exist */ }
 
   const { id, name: userName, email, phone, area_postcode, commission_rate, created_at } = result.user;
   res.json({
@@ -51,7 +52,8 @@ router.post('/register', (req, res) => {
   const id = uuid();
   const now = new Date().toISOString();
   const pinHash = hashPin(pin);
-  const deviceType = req.headers['x-device-type'] ?? 'mobile';
+  const rawDevice = (req.headers['x-device-type'] as string) ?? 'ios';
+  const deviceType = ['web', 'ios', 'android'].includes(rawDevice) ? rawDevice : 'ios';
 
   run(
     'INSERT INTO sales_users (id, name, pin_hash, area_postcode, phone, device_type, commission_rate, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
