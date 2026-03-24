@@ -225,38 +225,37 @@ export default function LeadDetailPage() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Actions — collapsible */}
-            <div>
+            {/* Actions — inline row */}
+            <div className="relative">
               <button
                 onClick={() => setActionsOpen(!actionsOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 border border-[#333] rounded-lg hover:bg-[#111] transition-colors"
+                className="flex items-center gap-2 text-[13px] text-[#999] hover:text-white transition-colors"
               >
-                <span className="text-[13px] font-medium text-white">Update Status</span>
-                <ChevronDown className={`w-4 h-4 text-[#666] transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
+                Update status
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {actionsOpen && (
-                <div className="mt-1 border border-[#333] rounded-lg overflow-hidden">
-                  {[
-                    { status: 'visited', label: 'Visited', color: 'text-blue-400' },
-                    { status: 'pitched', label: 'Pitched', color: 'text-purple-400' },
-                    { status: 'sold', label: 'Sold', color: 'text-green-400' },
-                    { status: 'rejected', label: 'Rejected', color: 'text-[#666]' },
-                  ].map(({ status, label, color }, i) => (
-                    <button
-                      key={status}
-                      onClick={() => { updateStatus(status); setActionsOpen(false); }}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 text-[13px] hover:bg-[#111] transition-colors ${i > 0 ? 'border-t border-[#222]' : ''}`}
-                    >
-                      <span className={`font-medium ${color}`}>{label}</span>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        status === 'visited' ? 'bg-blue-400' :
-                        status === 'pitched' ? 'bg-purple-400' :
-                        status === 'sold' ? 'bg-green-400' : 'bg-[#666]'
-                      }`} />
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
+                  <div className="absolute top-8 left-0 z-20 bg-[#1a1a1a] border border-[#333] rounded-lg py-1 min-w-[140px] shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+                    {[
+                      { status: 'visited', label: 'Visited', dot: 'bg-blue-400' },
+                      { status: 'pitched', label: 'Pitched', dot: 'bg-purple-400' },
+                      { status: 'sold', label: 'Sold', dot: 'bg-green-400' },
+                      { status: 'rejected', label: 'Rejected', dot: 'bg-[#666]' },
+                    ].map(({ status, label, dot }) => (
+                      <button
+                        key={status}
+                        onClick={() => { updateStatus(status); setActionsOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#ededed] hover:bg-[#333] transition-colors"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
 
               {lead.has_demo_site && (
