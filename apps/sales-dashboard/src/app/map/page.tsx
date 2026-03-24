@@ -55,6 +55,8 @@ export default function MapPage() {
           const coords = POSTCODE_COORDS[prefix];
           return {
             ...l,
+            id: l.id ?? (l as any).assignment_id ?? (l as any).lead_id,
+            status: l.status ?? (l as any).assignment_status,
             lat: l.lat ?? (coords ? coords[0] + (Math.random() - 0.5) * 0.005 : undefined),
             lng: l.lng ?? (coords ? coords[1] + (Math.random() - 0.5) * 0.005 : undefined),
           };

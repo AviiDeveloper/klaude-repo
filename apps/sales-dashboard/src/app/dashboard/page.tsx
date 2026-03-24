@@ -42,7 +42,7 @@ export default function DashboardPage() {
       .then(([s, l, u]) => Promise.all([s.json(), l.json(), u.json()]))
       .then(([s, l, u]) => {
         setStats(s.data ?? s);
-        setLeads(l.data ?? l ?? []);
+        setLeads((l.data ?? l ?? []).map((x: any) => ({ ...x, id: x.id ?? x.assignment_id ?? x.lead_id, status: x.status ?? x.assignment_status })));
         setUserName(u.data?.name ?? '');
         setLoading(false);
       })
