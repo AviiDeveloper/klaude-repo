@@ -14,6 +14,7 @@ export default function SignupPage() {
     area: '',
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [signupError, setSignupError] = useState('');
 
   const steps = [
     { type: 'welcome' },
@@ -32,6 +33,7 @@ export default function SignupPage() {
     const step = steps[currentStep];
 
     if (step.type === 'agreement') {
+      setSignupError('');
       try {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
@@ -47,10 +49,10 @@ export default function SignupPage() {
           setCurrentStep(currentStep + 1);
         } else {
           const data = await res.json();
-          console.error('Signup failed:', data.error);
+          setSignupError(data.error || 'Something went wrong. Please try again.');
         }
       } catch (err) {
-        console.error('Signup failed', err);
+        setSignupError('Connection error. Please try again.');
       }
       return;
     }
@@ -293,6 +295,9 @@ export default function SignupPage() {
                     I understand this is commission-only work. There are no guaranteed earnings, no minimum hours, and no employment relationship with SalesFlow Ltd.
                   </span>
                 </label>
+                {signupError && (
+                  <p className="mt-4 text-[13px] text-red-500 text-center">{signupError}</p>
+                )}
               </div>
             </div>
           )}
@@ -327,7 +332,7 @@ export default function SignupPage() {
             <button
               onClick={handleNext}
               disabled={
-                (step.field === 'name' && !formData.name) ||
+                (step.field === 'name' && formData.name.length < 2) ||
                 (step.field === 'phone' && !formData.phone) ||
                 (step.field === 'pin' && formData.pin.length !== 4) ||
                 (step.field === 'area' && !formData.area) ||
