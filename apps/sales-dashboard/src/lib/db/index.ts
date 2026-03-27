@@ -72,6 +72,12 @@ export function transaction<T>(fn: () => T): T {
   return getDb().transaction(fn)();
 }
 
+// Supabase stub — not yet integrated; routes using this will need env vars configured
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabase(): any {
+  throw new Error('Supabase not configured');
+}
+
 // ---------------------------------------------------------------------------
 // Sales-specific schema (CREATE IF NOT EXISTS — safe to re-run)
 // ---------------------------------------------------------------------------
