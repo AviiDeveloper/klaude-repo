@@ -10,5 +10,13 @@ data/
 data-test/
 .claude/worktrees/
 .claude/plans/
-apps/sales-dashboard/.next/
-apps/sales-dashboard/node_modules/
+
+# App build artifacts and dependencies
+apps/*/.next/
+apps/*/node_modules/
+apps/*/dist/
+apps/mobile/.expo/
+packages/*/node_modules/
+
+# Binary files that shouldn't be in the repo
+*.dmg
