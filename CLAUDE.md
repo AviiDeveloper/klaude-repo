@@ -1,8 +1,14 @@
 # CLAUDE.md — Project Instructions for Claude Code
 
 ## Project Overview
-OpenClaw Local Agent — a single-node, voice-capable, multi-agent orchestration system.
-Deployed to a Raspberry Pi 400 via Tailscale. Accessed at the Pi's Tailscale IP.
+AI Salesperson Platform — a gig-economy system that recruits salespeople to sell
+AI-generated websites to local small businesses. Three architectures coexist:
+1. **Orchestration System** (`src/`) — OpenClaw multi-agent runtime (TypeScript)
+2. **Sales Dashboard** (`apps/sales-dashboard/`) — Next.js + Supabase + Stripe Connect
+3. **iOS App** (`apps/ios/salesflow/`) — Native SwiftUI salesperson app
+
+Also: Mission Control (`apps/mission-control/`), Admin Panel (`apps/admin-panel/`),
+Mobile App (`apps/mobile/`), Mobile API (`apps/mobile-api/`).
 
 ## Source of Truth (read in this order)
 1. `SPEC.md` — master specification
@@ -50,10 +56,15 @@ Every change MUST be deployed to the Pi and verified working via Tailscale befor
 
 If deployment fails, fix the issue before moving on. The user expects to open the Tailscale URL and see the change working.
 
-## Commit Discipline
+## Git Workflow — MUST FOLLOW
+- **Never work directly on main.** Main is the stable base.
+- **Create a feature branch** from main for every task: `feat/`, `fix/`, `chore/`
+- **Use worktrees** for parallel sessions — say "use a worktree" to get isolation
+- **Commit after each logical change** — do not batch commits at the end
 - Small, focused commits — one concern per commit
 - No mixed-scope commits
 - Run `npm run verify` before committing when source changes are involved
+- When done, the user will review and merge to main
 
 ## Key Commands
 ```bash
