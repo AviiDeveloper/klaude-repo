@@ -1,9 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push('better-sqlite3');
-    }
+  experimental: {
+    serverComponentsExternalPackages: [
+      'better-sqlite3',
+    ],
+  },
+  webpack: (config) => {
+    config.externals.push({
+      'better-sqlite3': 'commonjs better-sqlite3',
+    });
     return config;
   },
 };
