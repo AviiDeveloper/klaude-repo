@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Print Shop — E1 6PU</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #080a0c; --surface: #0e1217; --border: #1a2028; --text: #f0f4f8; --muted: #6a7888; --accent: #4a9eff; --mono: 'SF Mono', 'Courier New', monospace; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Helvetica Neue', sans-serif; }
+
+  .hero {
+    min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 48px 28px 56px;
+    background: linear-gradient(165deg, #080f1a 0%, #080a0c 65%);
+    border-bottom: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: 'PX'; position: absolute; top: 48px; right: 20px;
+    font-size: 140px; font-weight: 900; opacity: 0.03; pointer-events: none; letter-spacing: -8px;
+  }
+  .eyebrow { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+  .hero h1 { font-size: 46px; font-weight: 800; line-height: 1.0; margin-bottom: 14px; }
+  .hero p { font-size: 16px; color: var(--muted); line-height: 1.6; max-width: 280px; margin-bottom: 32px; }
+  .cta { display: inline-block; background: var(--accent); color: #fff; padding: 14px 28px; border-radius: 6px; font-size: 14px; font-weight: 700; text-decoration: none; }
+  .badges { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .badge { background: rgba(74,158,255,0.06); border: 1px solid rgba(74,158,255,0.15); border-radius: 4px; padding: 5px 10px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .section { padding: 52px 28px; border-bottom: 1px solid var(--border); }
+  .section-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 28px; }
+
+  .products { display: flex; flex-direction: column; gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; }
+  .product-row { background: var(--surface); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
+  .product-name { font-size: 14px; font-weight: 500; }
+  .product-detail { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .product-price { font-size: 13px; color: var(--accent); font-family: var(--mono); flex-shrink: 0; margin-left: 12px; }
+
+  .usp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .usp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 14px; }
+  .usp-icon { font-size: 20px; margin-bottom: 10px; }
+  .usp-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .usp-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+  .reviews { display: flex; flex-direction: column; gap: 12px; }
+  .review { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .stars { color: var(--accent); font-size: 11px; letter-spacing: 2px; margin-bottom: 8px; }
+  .review-text { font-size: 14px; line-height: 1.6; color: #ccc; font-style: italic; margin-bottom: 8px; }
+  .reviewer { font-size: 12px; color: var(--muted); }
+
+  footer { padding: 40px 28px; text-align: center; border-top: 1px solid var(--border); }
+  .address { font-size: 14px; color: #ccc; margin-bottom: 6px; }
+  footer p { font-size: 12px; color: var(--muted); line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">Brick Lane · E1</div>
+  <h1>Pixel<br>Print Shop</h1>
+  <p>Same-day digital printing, business stationery, and large-format signage. Trade welcome.</p>
+  <a href="#" class="cta">Get a Quote</a>
+  <div class="badges">
+    <span class="badge">SAME-DAY</span>
+    <span class="badge">ISO CERTIFIED</span>
+    <span class="badge">TRADE ACCOUNTS</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Products & pricing</div>
+  <div class="products">
+    <div class="product-row"><div><div class="product-name">Business Cards</div><div class="product-detail">500 · gloss/matte · 400gsm</div></div><div class="product-price">from £29</div></div>
+    <div class="product-row"><div><div class="product-name">A5 Flyers</div><div class="product-detail">250 · full colour · next day</div></div><div class="product-price">from £24</div></div>
+    <div class="product-row"><div><div class="product-name">A1 Banner</div><div class="product-detail">PVC · with eyelets</div></div><div class="product-price">from £45</div></div>
+    <div class="product-row"><div><div class="product-name">Roller Banner</div><div class="product-detail">850mm · full colour</div></div><div class="product-price">from £75</div></div>
+    <div class="product-row"><div><div class="product-name">Letterheads</div><div class="product-detail">500 · laser-safe · branded</div></div><div class="product-price">from £55</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Why choose us</div>
+  <div class="usp">
+    <div class="usp-card"><div class="usp-icon">⚡</div><div class="usp-title">Same-day</div><div class="usp-desc">Order by 12pm, collect same day</div></div>
+    <div class="usp-card"><div class="usp-icon">✦</div><div class="usp-title">Design help</div><div class="usp-desc">Free artwork check on every order</div></div>
+    <div class="usp-card"><div class="usp-icon">🏷</div><div class="usp-title">Trade pricing</div><div class="usp-desc">Accounts for agencies & resellers</div></div>
+    <div class="usp-card"><div class="usp-icon">✓</div><div class="usp-title">ISO certified</div><div class="usp-desc">Consistent colour-matched quality</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">What people say</div>
+  <div class="reviews">
+    <div class="review">
+      <div class="stars">★★★★★</div>
+      <div class="review-text">"Saved our product launch — same-day turnaround on 500 flyers. Absolutely brilliant."</div>
+      <div class="reviewer">— Clare M.</div>
+    </div>
+    <div class="review">
+      <div class="stars">★★★★</div>
+      <div class="review-text">"Good quality, competitive pricing, and Dev is genuinely very helpful."</div>
+      <div class="reviewer">— Raj P.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="address">33 Brick Lane, E1 6PU</div>
+  <p>020 7345 6789 · Mon–Fri 08:00–18:30 · Sat 09:00–15:00</p>
+</footer>
+
+</body>
+</html>

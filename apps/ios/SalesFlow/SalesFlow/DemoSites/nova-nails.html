@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova Nails & Beauty — W1F 8ZT</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #09080c; --surface: #110f18; --border: #1e1c28; --text: #f5f4f8; --muted: #7a7888; --accent: #b49de8; --pink: #e8a0c0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Helvetica Neue', sans-serif; }
+
+  .hero {
+    min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 48px 28px 56px;
+    background: linear-gradient(160deg, #120c1a 0%, #09080c 65%);
+    border-bottom: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '✦'; position: absolute; top: 80px; right: 36px;
+    font-size: 140px; opacity: 0.03; pointer-events: none;
+  }
+  .eyebrow { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+  .hero h1 { font-size: 48px; font-weight: 800; line-height: 1.0; margin-bottom: 14px; }
+  .hero p { font-size: 16px; color: var(--muted); line-height: 1.6; max-width: 280px; margin-bottom: 32px; }
+  .cta { display: inline-block; background: var(--accent); color: #0a080f; padding: 14px 28px; border-radius: 6px; font-size: 14px; font-weight: 700; text-decoration: none; }
+  .tags { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .tag { background: rgba(180,157,232,0.06); border: 1px solid rgba(180,157,232,0.15); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--muted); }
+
+  .section { padding: 52px 28px; border-bottom: 1px solid var(--border); }
+  .section-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 28px; }
+
+  .treatments { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .treatment { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 14px; }
+  .treatment-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .treatment-duration { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .treatment-price { font-size: 14px; color: var(--accent); }
+
+  .reviews { display: flex; flex-direction: column; gap: 12px; }
+  .review { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .stars { color: var(--pink); font-size: 11px; letter-spacing: 2px; margin-bottom: 8px; }
+  .review-text { font-size: 14px; line-height: 1.6; color: #ccc; font-style: italic; margin-bottom: 8px; }
+  .reviewer { font-size: 12px; color: var(--muted); }
+
+  .info-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--muted); }
+
+  footer { padding: 40px 28px; text-align: center; border-top: 1px solid var(--border); }
+  .address { font-size: 14px; color: #ccc; margin-bottom: 6px; }
+  footer p { font-size: 12px; color: var(--muted); line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">Wardour Street · Soho</div>
+  <h1>Nova Nails<br>& Beauty</h1>
+  <p>Award-winning nail art, lash extensions, and brow treatments. Vegan products exclusively.</p>
+  <a href="#" class="cta">Book Now</a>
+  <div class="tags">
+    <span class="tag">Award-winning nail art</span>
+    <span class="tag">Vegan products only</span>
+    <span class="tag">4.4★ · 96 reviews</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Treatments</div>
+  <div class="treatments">
+    <div class="treatment"><div class="treatment-name">Gel Manicure</div><div class="treatment-duration">45 min</div><div class="treatment-price">£45</div></div>
+    <div class="treatment"><div class="treatment-name">Acrylic Full Set</div><div class="treatment-duration">90 min</div><div class="treatment-price">£65</div></div>
+    <div class="treatment"><div class="treatment-name">Nail Art</div><div class="treatment-duration">60 min</div><div class="treatment-price">from £55</div></div>
+    <div class="treatment"><div class="treatment-name">Lash Extensions</div><div class="treatment-duration">2 hrs</div><div class="treatment-price">£90</div></div>
+    <div class="treatment"><div class="treatment-name">Brow Tint</div><div class="treatment-duration">30 min</div><div class="treatment-price">£28</div></div>
+    <div class="treatment"><div class="treatment-name">Classic Facial</div><div class="treatment-duration">60 min</div><div class="treatment-price">£70</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">What people say</div>
+  <div class="reviews">
+    <div class="review">
+      <div class="stars">★★★★★</div>
+      <div class="review-text">"Nina is an artist — my nails always get compliments wherever I go."</div>
+      <div class="reviewer">— Becky R.</div>
+    </div>
+    <div class="review">
+      <div class="stars">★★★★★</div>
+      <div class="review-text">"Cleanest salon I've been to. Incredibly welcoming. Won't go anywhere else."</div>
+      <div class="reviewer">— Zara M.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Info</div>
+  <div class="info-row"><span class="info-label">Address</span><span>22 Wardour St, W1F 8ZT</span></div>
+  <div class="info-row"><span class="info-label">Phone</span><span>020 7439 5678</span></div>
+  <div class="info-row"><span class="info-label">Mon–Sat</span><span>10:00 – 20:00</span></div>
+  <div class="info-row"><span class="info-label">Sunday</span><span>11:00 – 18:00</span></div>
+</div>
+
+<footer>
+  <div class="address">22 Wardour Street, Soho, W1F 8ZT</div>
+  <p>020 7439 5678 · All vegan products · Walk-ins welcome</p>
+</footer>
+
+</body>
+</html>
