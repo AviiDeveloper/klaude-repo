@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginUser } from '@/lib/auth';
+import { createHash, createHmac } from 'crypto';
+import { getSupabaseServer } from '@/lib/supabase';
 
+const SD_SECRET = process.env.SD_SECRET || 'sales-dashboard-dev-secret-change-in-production';
 const TOKEN_EXPIRY_DAYS = 30;
+
+function hashPin(pin: string): string {
+  return createHash('sha256').update(`${SD_SECRET}:${pin}`).digest('hex');
+}
+
+function createToken(payload: { user_id: string; name: string; exp: number }): string {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = createHmac('sha256', SD_SECRET).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,28 +26,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = loginUser(body.name.trim(), body.pin.trim());
+    const sb = getSupabaseServer();
+    const pinHash = hashPin(body.pin.trim());
 
-    if (!result) {
+    const { data: user } = await sb
+      .from('sales_users')
+      .select('*')
+      .ilike('name', body.name.trim())
+      .eq('pin_hash', pinHash)
+      .eq('active', true)
+      .maybeSingle();
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid name or PIN', code: 'INVALID_CREDENTIALS' },
         { status: 401 },
       );
     }
 
-    // Build response with token for mobile clients
-    const response = NextResponse.json({
-      data: {
-        user: result.user,
-        token: result.token,
-      },
-    });
+    // Update last active
+    await sb.from('sales_users').update({ last_active_at: new Date().toISOString() }).eq('id', user.id);
 
-    // Set cookie on the response for web clients
-    // secure: false because we serve over HTTP via Tailscale (not HTTPS)
-    response.cookies.set('sd_session', result.token, {
+    const exp = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_DAYS * 24 * 60 * 60;
+    const token = createToken({ user_id: user.id, name: user.name, exp });
+
+    const response = NextResponse.json({ data: { user, token } });
+    response.cookies.set('sd_session', token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60,
       path: '/',
