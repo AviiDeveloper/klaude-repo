@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/signup', '/api/auth/login', '/api/auth/signup', '/demo', '/api/demo-links', '/api/demo-site'];
+const PUBLIC_PATHS = ['/login', '/signup', '/api/auth/login', '/api/auth/signup', '/demo', '/api/demo-links', '/api/demo-site', '/legal'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Root landing page is public
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {

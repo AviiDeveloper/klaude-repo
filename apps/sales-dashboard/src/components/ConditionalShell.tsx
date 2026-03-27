@@ -7,7 +7,7 @@ const NO_SHELL_ROUTES = ['/login', '/signup', '/demo', '/legal'];
 
 export function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideShell = NO_SHELL_ROUTES.some((r) => pathname.startsWith(r));
+  const hideShell = pathname === '/' || NO_SHELL_ROUTES.some((r) => pathname.startsWith(r));
 
   // For demo and legal pages — render children directly, no shell at all
   if (hideShell) {
