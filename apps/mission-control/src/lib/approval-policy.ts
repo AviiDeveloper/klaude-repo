@@ -93,9 +93,9 @@ export function listApprovalPolicies(): Array<{
     policies.push({ action: rule.action, type });
   }
 
-  for (const action of MANUAL_REQUIRED) {
+  Array.from(MANUAL_REQUIRED).forEach((action) => {
     policies.push({ action, type: 'manual' });
-  }
+  });
 
   return policies.sort((a, b) => a.action.localeCompare(b.action));
 }
