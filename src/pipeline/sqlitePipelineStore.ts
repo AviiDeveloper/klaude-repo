@@ -675,8 +675,27 @@ export class SQLitePipelineStore {
 
   private computeNextRunAt(scheduleRrule: string, fromIso: string): string {
     const intervalMatch = scheduleRrule.match(/INTERVAL=(\d+)/);
-    const intervalHours = Math.max(1, Number(intervalMatch?.[1] ?? "1"));
-    return new Date(new Date(fromIso).getTime() + intervalHours * 60 * 60 * 1000).toISOString();
+    const interval = Math.max(1, Number(intervalMatch?.[1] ?? "1"));
+    const freqMatch = scheduleRrule.match(/FREQ=(\w+)/);
+    const freq = (freqMatch?.[1] ?? "HOURLY").toUpperCase();
+
+    let ms: number;
+    switch (freq) {
+      case "MINUTELY":
+        ms = interval * 60 * 1000;
+        break;
+      case "DAILY":
+        ms = interval * 24 * 60 * 60 * 1000;
+        break;
+      case "WEEKLY":
+        ms = interval * 7 * 24 * 60 * 60 * 1000;
+        break;
+      case "HOURLY":
+      default:
+        ms = interval * 60 * 60 * 1000;
+        break;
+    }
+    return new Date(new Date(fromIso).getTime() + ms).toISOString();
   }
 
   private toDefinition(row: DefinitionRow): PipelineDefinition {

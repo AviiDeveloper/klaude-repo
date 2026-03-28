@@ -391,6 +391,35 @@ function computeWorkerScores(task: Task, workspaceId: string, leadAgentId: strin
   const learningSignal = getLearningSignal(workspaceId);
   const learningMode = learningSignal?.delegation_mode || 'balanced';
 
+  // Memory-driven scoring: query past outcomes for similar tasks
+  const memoryBias = new Map<string, { bonus: number; reason: string }>();
+  try {
+    const memRows = queryAll<{ agent_id: string; outcome: string }>(
+      `SELECT agent_id, json_extract(tags_json, '$.outcome') as outcome
+       FROM memory_documents
+       WHERE workspace_id = ?
+         AND source_type IN ('trace', 'eval')
+         AND agent_id IS NOT NULL
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [workspaceId],
+    );
+    const agentOutcomes = new Map<string, { successes: number; failures: number }>();
+    for (const row of memRows) {
+      const existing = agentOutcomes.get(row.agent_id) || { successes: 0, failures: 0 };
+      if (row.outcome === 'success') existing.successes++;
+      else if (row.outcome === 'fail') existing.failures++;
+      agentOutcomes.set(row.agent_id, existing);
+    }
+    for (const [agentId, counts] of Array.from(agentOutcomes.entries())) {
+      if (counts.failures > counts.successes && counts.failures >= 2) {
+        memoryBias.set(agentId, { bonus: -15, reason: `memory: ${counts.failures} recent failures > ${counts.successes} successes` });
+      } else if (counts.successes > counts.failures && counts.successes >= 2) {
+        memoryBias.set(agentId, { bonus: 10, reason: `memory: ${counts.successes} recent successes` });
+      }
+    }
+  } catch { /* memory scoring is non-critical */ }
+
   return workers.map((agent) => {
     let score = 0;
     const reasons: string[] = [];
@@ -461,6 +490,13 @@ function computeWorkerScores(task: Task, workspaceId: string, leadAgentId: strin
     if (task.priority === 'urgent' && agent.status === 'working') {
       score += 4;
       reasons.push('already active for urgent turnaround');
+    }
+
+    // Memory-driven bias from past outcomes
+    const memBias = memoryBias.get(agent.id);
+    if (memBias) {
+      score += memBias.bonus;
+      reasons.push(memBias.reason);
     }
 
     // keep Lead from self-delegating
