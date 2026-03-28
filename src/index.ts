@@ -26,6 +26,7 @@ import { PipelineScheduler } from "./pipeline/scheduler.js";
 import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
+import { MemorySystem } from "./memory/index.js";
 
 async function main(): Promise<void> {
   const changelogChangeId =
@@ -45,6 +46,28 @@ async function main(): Promise<void> {
     buildVersion,
     changelogChangeId,
   });
+  const memoryDbPath = process.env.MEMORY_DB_PATH ?? "data/memory.db";
+  const memorySystem = new MemorySystem({
+    dbPath: memoryDbPath,
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    telegramChatId: process.env.TELEGRAM_CHAT_ID,
+  });
+
+  // Subscribe memory indexer to agent completion events
+  bus.subscribe("agent.completed", async (event) => {
+    const payload = event.payload as { task_id?: string };
+    if (payload.task_id) {
+      try {
+        const trace = await traceStore.read(payload.task_id);
+        if (trace.final_state !== "in_progress") {
+          memorySystem.indexTrace(trace);
+        }
+      } catch {
+        // Trace may not be finalized yet — skip silently
+      }
+    }
+  });
+
   const orchestrator = new Orchestrator(
     taskStore,
     bus,
@@ -216,6 +239,28 @@ async function main(): Promise<void> {
         `Unsupported SCHEDULER_MODE: ${schedulerMode}. Use "internal" or "openclaw-cron".`,
       );
     }
+
+    // Memory system cron: daily compression + MSA weight check at 09:00
+    const MEMORY_CRON_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const runMemoryCron = async () => {
+      try {
+        const compResult = memorySystem.runCompression();
+        if (compResult.compressed > 0 || compResult.archived > 0) {
+          console.log(`[Memory] Compression: ${compResult.compressed} compressed, ${compResult.archived} archived`);
+        }
+      } catch (err) {
+        console.error("[Memory] Compression failed:", err);
+      }
+      try {
+        await memorySystem.checkMSAWeights();
+      } catch (err) {
+        console.error("[Memory] MSA weight check failed:", err);
+      }
+    };
+    // Run once on startup then every 24 hours
+    void runMemoryCron();
+    setInterval(() => void runMemoryCron(), MEMORY_CRON_INTERVAL_MS);
+    console.log("[Memory] Memory system active: compression + MSA monitor cron started");
     const server = new MissionControlServer(
       taskStore,
       traceStore,

@@ -177,7 +177,33 @@ export function logLeadDecision(input: {
       now,
     ],
   );
-  return queryOne<LeadDecisionLogRecord>('SELECT * FROM lead_decision_logs WHERE id = ?', [id]) as LeadDecisionLogRecord;
+  const record = queryOne<LeadDecisionLogRecord>('SELECT * FROM lead_decision_logs WHERE id = ?', [id]) as LeadDecisionLogRecord;
+
+  // Fire-and-forget: index decision into memory system
+  try {
+    const routingText = `${input.decisionType} ${input.summary}`;
+    const tags = JSON.stringify({
+      agent_id: input.actorId || null,
+      task_type: input.decisionType,
+      outcome: 'unknown',
+      concepts: [],
+    });
+    run(
+      `INSERT OR IGNORE INTO memory_documents
+        (id, workspace_id, agent_id, source_type, source_id, routing_keys_json, tags_json, tier, compressed_content, full_content, relevance_decay, created_at, updated_at)
+       VALUES (?, ?, ?, 'decision', ?, '[]', ?, 'detailed', ?, ?, 1.0, ?, ?)`,
+      [id, input.workspaceId, input.actorId || null, id, tags, input.summary, routingText, now, now],
+    );
+    try {
+      run(
+        `INSERT INTO memory_fts (rowid, routing_text, compressed_text)
+         VALUES ((SELECT rowid FROM memory_documents WHERE id = ?), ?, ?)`,
+        [id, routingText, input.summary],
+      );
+    } catch { /* FTS table may not exist yet */ }
+  } catch { /* Memory indexing is optional */ }
+
+  return record;
 }
 
 export function intakeTask(input: {
@@ -876,21 +902,46 @@ export function appendLeadMemoryJournal(input: {
   content: string;
   metadata?: Record<string, unknown>;
 }): void {
+  const journalId = uuidv4();
+  const now = nowIso();
   run(
     `INSERT INTO lead_memory_journal
       (id, workspace_id, task_id, decision_id, entry_type, content, metadata_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      uuidv4(),
+      journalId,
       input.workspaceId,
       input.taskId || null,
       input.decisionId || null,
       input.entryType,
       input.content,
       input.metadata ? JSON.stringify(input.metadata) : null,
-      nowIso(),
+      now,
     ],
   );
+
+  // Fire-and-forget: index journal entry into memory system
+  try {
+    const fullText = `[${input.entryType}] ${input.content}`;
+    const tags = JSON.stringify({
+      task_type: input.entryType,
+      outcome: 'unknown',
+      concepts: [],
+    });
+    run(
+      `INSERT OR IGNORE INTO memory_documents
+        (id, workspace_id, source_type, source_id, routing_keys_json, tags_json, tier, compressed_content, full_content, relevance_decay, created_at, updated_at)
+       VALUES (?, ?, 'journal', ?, '[]', ?, 'detailed', ?, ?, 1.0, ?, ?)`,
+      [journalId, input.workspaceId, journalId, tags, input.content, fullText, now, now],
+    );
+    try {
+      run(
+        `INSERT INTO memory_fts (rowid, routing_text, compressed_text)
+         VALUES ((SELECT rowid FROM memory_documents WHERE id = ?), ?, ?)`,
+        [journalId, fullText, input.content],
+      );
+    } catch { /* FTS table may not exist yet */ }
+  } catch { /* Memory indexing is optional */ }
 }
 
 export function recordLeadOperatorCommand(input: {

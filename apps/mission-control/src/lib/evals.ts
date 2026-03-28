@@ -302,5 +302,30 @@ export function runTaskEvaluation(input: {
 
   const runRow = queryOne<AgentEvalRun>('SELECT * FROM agent_eval_runs WHERE id = ?', [id]) as AgentEvalRun;
   refreshAgentPerformanceProfile(input.workspaceId, input.agentId);
+
+  // Fire-and-forget: index eval into memory system
+  try {
+    const evalText = `Evaluation of agent ${input.agentId}: score=${score} status=${status} fault=${faultAttribution} reasons=${reasonCodes.join(',')}`;
+    const tags = JSON.stringify({
+      agent_id: input.agentId,
+      task_type: 'evaluation',
+      outcome: status === 'pass' ? 'success' : status === 'partial' ? 'partial' : 'fail',
+      concepts: reasonCodes,
+    });
+    run(
+      `INSERT OR IGNORE INTO memory_documents
+        (id, workspace_id, agent_id, source_type, source_id, routing_keys_json, tags_json, tier, compressed_content, full_content, relevance_decay, created_at, updated_at)
+       VALUES (?, ?, ?, 'eval', ?, '[]', ?, 'detailed', ?, ?, 1.0, ?, ?)`,
+      [id, input.workspaceId, input.agentId, id, tags, summary, evalText, now, now],
+    );
+    try {
+      run(
+        `INSERT INTO memory_fts (rowid, routing_text, compressed_text)
+         VALUES ((SELECT rowid FROM memory_documents WHERE id = ?), ?, ?)`,
+        [id, evalText, summary],
+      );
+    } catch { /* FTS table may not exist yet */ }
+  } catch { /* Memory indexing is optional */ }
+
   return runRow;
 }
