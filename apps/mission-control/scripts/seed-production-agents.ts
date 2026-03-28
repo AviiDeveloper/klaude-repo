@@ -5,14 +5,14 @@
  * Creates all 11 production agents via the factory with full reference sheets.
  * Safe to run multiple times — skips agents that already exist by name.
  *
- * Usage: npx tsx apps/mission-control/scripts/seed-production-agents.ts
+ * Usage: cd apps/mission-control && npx tsx scripts/seed-production-agents.ts
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { getDb, queryOne, run } from '../src/lib/db';
-import { buildAgentFactoryArtifacts } from '../src/lib/agent-factory';
-import { PRODUCTION_AGENTS } from '../src/lib/production-agent-profiles';
-import type { Agent } from '../src/lib/types';
+import { getDb, queryOne, run } from '@/lib/db';
+import { buildAgentFactoryArtifacts } from '@/lib/agent-factory';
+import { PRODUCTION_AGENTS } from '@/lib/production-agent-profiles';
+import type { Agent } from '@/lib/types';
 
 function seed(): void {
   const db = getDb();
