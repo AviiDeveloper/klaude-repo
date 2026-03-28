@@ -5,6 +5,8 @@ interface BuildMemoryPacketParams {
   workspaceId?: string;
   taskId?: string;
   agentId?: string;
+  includeMemory?: boolean;
+  memoryQueryHint?: string;
 }
 
 type LearningAnswerRow = {
@@ -144,8 +146,62 @@ export function buildMemoryPacket(params: BuildMemoryPacketParams): MemoryPacket
     : null;
   const learning = getLearningSignal(workspaceId);
 
+  // Memory retrieval (MSA-inspired three-stage query)
+  let memoryContext: MemoryPacket['memory_context'] = null;
+  if (params.includeMemory) {
+    const queryText = params.memoryQueryHint || task?.title || '';
+    if (queryText) {
+      try {
+        const startMs = Date.now();
+        // FTS5 search across memory_documents
+        const memRows = queryAll<{
+          id: string;
+          source_type: string;
+          compressed_content: string;
+          tags_json: string;
+        }>(
+          `SELECT d.id, d.source_type, d.compressed_content, d.tags_json,
+                  (-1 * bm25(memory_fts, 1.0, 0.5)) * d.relevance_decay AS score
+           FROM memory_fts f
+           JOIN memory_documents d ON d.rowid = f.rowid
+           WHERE memory_fts MATCH ?
+           AND d.workspace_id = ?
+           ORDER BY score DESC
+           LIMIT 3`,
+          [queryText.replace(/[^a-zA-Z0-9\s]/g, ' ').trim(), workspaceId],
+        );
+        const latencyMs = Date.now() - startMs;
+
+        if (memRows.length > 0) {
+          memoryContext = {
+            results: memRows.map((row: { source_type: string; compressed_content: string; tags_json: string }) => {
+              const tags = JSON.parse(row.tags_json || '{}');
+              return {
+                source_type: row.source_type,
+                summary: (row.compressed_content || '').slice(0, 300),
+                score: 0,
+                hop: 1,
+                tags: {
+                  task_type: tags.task_type,
+                  outcome: tags.outcome,
+                  concepts: tags.concepts || [],
+                },
+              };
+            }),
+            query_used: queryText,
+            total_retrieved: memRows.length,
+            latency_ms: latencyMs,
+          };
+        }
+      } catch {
+        // Memory query is optional — don't fail packet assembly
+      }
+    }
+  }
+
   return {
     workspace_id: workspaceId,
+    memory_context: memoryContext,
     operator_profile: operator
       ? {
           operator_name: operator.operator_name || undefined,
@@ -234,6 +290,16 @@ export function formatMemoryPacketForPrompt(packet: MemoryPacket): string {
     }
   } else {
     lines.push('- Learning signal: none yet (default balanced delegation).');
+  }
+
+  if (packet.memory_context && packet.memory_context.results.length > 0) {
+    lines.push(`- Memory retrieval: ${packet.memory_context.total_retrieved} relevant memories found (${packet.memory_context.latency_ms}ms)`);
+    for (const mem of packet.memory_context.results) {
+      const conceptStr = mem.tags.concepts.length > 0 ? ` [${mem.tags.concepts.slice(0, 3).join(', ')}]` : '';
+      lines.push(`  - [${mem.source_type}] ${mem.summary.slice(0, 150)}${conceptStr}`);
+    }
+  } else {
+    lines.push('- Memory retrieval: no relevant memories found.');
   }
 
   lines.push('- Apply this memory context to decisions and reporting style.');

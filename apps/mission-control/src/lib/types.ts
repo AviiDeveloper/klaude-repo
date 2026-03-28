@@ -140,6 +140,18 @@ export interface MemoryPacket {
     coaching_focus: string;
     latest_concept_tag?: string | null;
   } | null;
+  memory_context: {
+    results: Array<{
+      source_type: string;
+      summary: string;
+      score: number;
+      hop: number;
+      tags: { task_type?: string; outcome?: string; concepts: string[] };
+    }>;
+    query_used: string;
+    total_retrieved: number;
+    latency_ms: number;
+  } | null;
 }
 
 export interface Task {

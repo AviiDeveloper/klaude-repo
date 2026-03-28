@@ -763,6 +763,72 @@ const migrations: Migration[] = [
         // Column may already exist
       }
     }
+  },
+  {
+    id: '016',
+    name: 'add_memory_system_tables',
+    up: (db) => {
+      console.log('[Migration 016] Adding MSA-inspired memory system tables...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_documents (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          agent_id TEXT,
+          source_type TEXT NOT NULL,
+          source_id TEXT,
+          routing_keys_json TEXT NOT NULL,
+          tags_json TEXT NOT NULL,
+          tier TEXT NOT NULL DEFAULT 'detailed' CHECK (tier IN ('detailed', 'compressed', 'archived')),
+          compressed_content TEXT,
+          full_content TEXT,
+          access_count INTEGER NOT NULL DEFAULT 0,
+          last_accessed_at TEXT,
+          relevance_decay REAL NOT NULL DEFAULT 1.0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_docs_workspace ON memory_documents(workspace_id, tier, created_at DESC)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_docs_agent ON memory_documents(agent_id, created_at DESC)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_docs_source ON memory_documents(source_type, source_id)`);
+
+      db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(routing_text, compressed_text, content='')`);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_idf (
+          term TEXT PRIMARY KEY,
+          doc_frequency INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_retrievals (
+          id TEXT PRIMARY KEY,
+          query_text TEXT NOT NULL,
+          query_tags_json TEXT,
+          workspace_id TEXT NOT NULL,
+          agent_id TEXT,
+          retrieved_doc_ids_json TEXT NOT NULL,
+          scores_json TEXT NOT NULL,
+          hop_number INTEGER NOT NULL DEFAULT 1,
+          latency_ms INTEGER,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_retrievals_workspace ON memory_retrievals(workspace_id, created_at DESC)`);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS monitor_state (
+          key TEXT PRIMARY KEY,
+          state_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    }
   }
 ];
 
