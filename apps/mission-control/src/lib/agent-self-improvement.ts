@@ -93,12 +93,12 @@ export function evaluateAgentForRevision(
     faultCounts.set(failure.fault_attribution, (faultCounts.get(failure.fault_attribution) || 0) + 1);
   }
 
-  const commonReasonCodes = [...reasonCodeCounts.entries()]
+  const commonReasonCodes = Array.from(reasonCodeCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([code]) => code);
 
-  const primaryFault = [...faultCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+  const primaryFault = Array.from(faultCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
 
   // Query memory for failure context
   const failureMemories = queryAll<MemoryDocRow>(
