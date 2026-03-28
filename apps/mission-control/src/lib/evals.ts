@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
+import { generateLearningQuestionFromFailure } from '@/lib/learning';
+import { evaluateAgentForRevision } from '@/lib/agent-self-improvement';
 import type {
+  Agent,
   AgentEvalRun,
   AgentEvalSpec,
   AgentPerformanceProfile,
@@ -302,6 +305,31 @@ export function runTaskEvaluation(input: {
 
   const runRow = queryOne<AgentEvalRun>('SELECT * FROM agent_eval_runs WHERE id = ?', [id]) as AgentEvalRun;
   refreshAgentPerformanceProfile(input.workspaceId, input.agentId);
+
+  // Self-improvement: generate learning question from failure + check for revision
+  if (status === 'fail' || status === 'partial') {
+    try {
+      const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [input.agentId]);
+      const task = queryOne<{ title: string }>('SELECT title FROM tasks WHERE id = ?', [input.taskId]);
+      if (agent && task) {
+        generateLearningQuestionFromFailure({
+          workspaceId: input.workspaceId,
+          agentName: agent.name,
+          taskTitle: task.title,
+          evalStatus: status as 'fail' | 'partial',
+          faultAttribution,
+          reasonCodes,
+          qualityScore: score,
+        });
+      }
+    } catch { /* learning question generation is non-critical */ }
+
+    if (status === 'fail') {
+      try {
+        evaluateAgentForRevision(input.agentId, input.workspaceId);
+      } catch { /* self-improvement check is non-critical */ }
+    }
+  }
 
   // Fire-and-forget: index eval into memory system
   try {

@@ -27,6 +27,7 @@ import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
 import { MemorySystem } from "./memory/index.js";
+import { registerProductionHandlers } from "./pipeline/productionHandlers.js";
 
 async function main(): Promise<void> {
   const changelogChangeId =
@@ -140,6 +141,7 @@ async function main(): Promise<void> {
   ]);
   const agentRuntime = new MultiAgentRuntime();
   registerOutreachAgents(agentRuntime);
+  registerProductionHandlers(agentRuntime, memorySystem);
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
     agentRuntime,
@@ -150,6 +152,17 @@ async function main(): Promise<void> {
   if (!pipelineStore.getDefinition("content-automation-default")) {
     pipelineEngine.createDefaultDefinition();
   }
+
+  // Cross-pipeline trigger: AGENT-04 (Sentinel) → starts training pipeline when threshold met
+  pipelineEngine.registerCompletionHook("production-monitoring-agent", (_runId, _nodeId, artifacts) => {
+    const data = artifacts as { threshold_met?: boolean };
+    if (data.threshold_met) {
+      console.log("[Pipeline] Sentinel detected 100+ outcomes — triggering training pipeline");
+      void pipelineEngine
+        .startRun({ definitionId: "production-monitoring-training", trigger: "manual" })
+        .catch((err) => console.error("[Pipeline] Training pipeline trigger failed:", err));
+    }
+  });
   const pipelineScheduler = new PipelineScheduler(pipelineStore, pipelineEngine);
   const telephonyBridgeUrl =
     process.env.MISSION_CONTROL_BRIDGE_URL ??

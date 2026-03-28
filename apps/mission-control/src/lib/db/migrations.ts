@@ -829,6 +829,26 @@ const migrations: Migration[] = [
         );
       `);
     }
+  },
+  {
+    id: '017',
+    name: 'add_agent_schedule_columns',
+    up: (db) => {
+      console.log('[Migration 017] Adding agent schedule and budget columns...');
+
+      const cols = db.prepare('PRAGMA table_info(agents)').all() as Array<{ name: string }>;
+      const has = (name: string) => cols.some((c) => c.name === name);
+
+      if (!has('budget_limit_usd')) {
+        db.exec('ALTER TABLE agents ADD COLUMN budget_limit_usd REAL DEFAULT NULL');
+      }
+      if (!has('schedule_type')) {
+        db.exec("ALTER TABLE agents ADD COLUMN schedule_type TEXT DEFAULT 'manual'");
+      }
+      if (!has('schedule_config')) {
+        db.exec('ALTER TABLE agents ADD COLUMN schedule_config TEXT DEFAULT NULL');
+      }
+    }
   }
 ];
 

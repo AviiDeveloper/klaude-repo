@@ -5,7 +5,11 @@ import { DispatchReasonCode, PostDispatchAdapter } from "./postDispatch.js";
 import { SQLitePipelineStore } from "./sqlitePipelineStore.js";
 import { PipelineBudgetPolicy, PipelineNodeRun, PipelineRun } from "./types.js";
 
+export type CompletionHook = (runId: string, nodeId: string, artifacts: Record<string, unknown>) => void | Promise<void>;
+
 export class PipelineEngine {
+  private readonly completionHooks = new Map<string, CompletionHook[]>();
+
   constructor(
     private readonly store: SQLitePipelineStore,
     private readonly runtime: MultiAgentRuntime,
@@ -16,6 +20,30 @@ export class PipelineEngine {
     },
     private readonly dispatchAdapters?: Map<string, PostDispatchAdapter>,
   ) {}
+
+  /**
+   * Register a completion hook for a specific agent ID.
+   * Fires after the agent's node completes successfully.
+   * Used for cross-pipeline triggers (e.g., AGENT-04 triggers training pipeline).
+   */
+  registerCompletionHook(agentId: string, hook: CompletionHook): void {
+    const existing = this.completionHooks.get(agentId) || [];
+    existing.push(hook);
+    this.completionHooks.set(agentId, existing);
+  }
+
+  /** Fire registered completion hooks for an agent. */
+  private async fireCompletionHooks(agentId: string, runId: string, nodeId: string, artifacts: Record<string, unknown>): Promise<void> {
+    const hooks = this.completionHooks.get(agentId);
+    if (!hooks || hooks.length === 0) return;
+    for (const hook of hooks) {
+      try {
+        await hook(runId, nodeId, artifacts);
+      } catch (err) {
+        console.error(`[Pipeline] Completion hook failed for ${agentId}:`, err);
+      }
+    }
+  }
 
   createDefaultDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
     return this.store.upsertDefinition({
@@ -326,6 +354,10 @@ export class PipelineEngine {
           attempts: attempt,
           ended: true,
         });
+
+        // Fire completion hooks for cross-pipeline triggers
+        void this.fireCompletionHooks(node.agent_id, runId, node.node_id, settled.artifacts);
+
         return true;
       } catch (error) {
         if (attempt <= maxRetries) {

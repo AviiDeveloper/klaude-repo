@@ -519,3 +519,78 @@ export function listLearningHistory(workspaceId: string): Array<{
     [workspaceId],
   );
 }
+
+/**
+ * Generate a learning question from an agent failure.
+ * Called when an eval run results in 'fail' status.
+ */
+export function generateLearningQuestionFromFailure(input: {
+  workspaceId: string;
+  agentName: string;
+  taskTitle: string;
+  evalStatus: 'fail' | 'partial';
+  faultAttribution: string;
+  reasonCodes: string[];
+  qualityScore: number;
+}): LearningQuestion {
+  const id = uuidv4();
+  const now = nowIso();
+  const reasonStr = input.reasonCodes.length > 0 ? input.reasonCodes.join(', ') : 'unspecified';
+
+  let question: string;
+  let expected: ExpectedAnswerSpec;
+
+  if (input.faultAttribution === 'agent_error') {
+    question = `Agent "${input.agentName}" failed task "${input.taskTitle}" with score ${input.qualityScore}/100. Reason codes: ${reasonStr}. What pattern in the agent's approach should be adjusted to prevent this failure mode?`;
+    expected = {
+      key_points: [
+        `${input.agentName} produced output below quality threshold`,
+        'failure mode relates to: ' + reasonStr,
+        'agent behavior should be adjusted, not input pipeline',
+      ],
+      tradeoff: 'Tighter quality checks may slow agent output but prevent recurring failures',
+      risk_if_changed: 'Without adjustment, similar tasks will continue to fail at the same rate',
+      concept: 'agent-self-improvement',
+    };
+  } else if (input.faultAttribution === 'input_gap') {
+    question = `Agent "${input.agentName}" failed task "${input.taskTitle}" due to insufficient input context (score ${input.qualityScore}/100). Reason codes: ${reasonStr}. What upstream data or context should be provided to prevent this?`;
+    expected = {
+      key_points: [
+        'failure was caused by missing or weak input, not agent capability',
+        'upstream delegation should include richer context',
+        'specific missing inputs: ' + reasonStr,
+      ],
+      tradeoff: 'Richer input context increases delegation overhead but prevents input-gap failures',
+      risk_if_changed: 'Agent will continue to fail on similar tasks without better input',
+      concept: 'delegation-input-quality',
+    };
+  } else {
+    question = `Agent "${input.agentName}" ${input.evalStatus === 'fail' ? 'failed' : 'partially completed'} task "${input.taskTitle}" (score ${input.qualityScore}/100, fault: ${input.faultAttribution}). Reason codes: ${reasonStr}. What is the root cause and what should change?`;
+    expected = {
+      key_points: [
+        'mixed fault attribution suggests both agent and input issues',
+        'reason codes indicate: ' + reasonStr,
+        'both agent behavior and input quality need review',
+      ],
+      tradeoff: 'Comprehensive fix requires changes to both delegation and agent reference sheet',
+      risk_if_changed: 'Partial fixes may shift failures from one mode to another',
+      concept: 'mixed-fault-remediation',
+    };
+  }
+
+  run(
+    `INSERT INTO learning_questions (id, workspace_id, source_type, source_ref, question, expected_answer_json, concept_tag, created_at)
+     VALUES (?, ?, 'decision_log', ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.workspaceId,
+      `eval-failure:${input.agentName}`,
+      question,
+      JSON.stringify(expected),
+      expected.concept,
+      now,
+    ],
+  );
+
+  return queryOne<LearningQuestion>('SELECT * FROM learning_questions WHERE id = ?', [id]) as LearningQuestion;
+}
