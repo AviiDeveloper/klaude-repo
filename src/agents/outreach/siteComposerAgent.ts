@@ -1,4 +1,5 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { DemoRecorder, extractDesignElements } from "../../demos/demoRecorder.js";
 import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
 import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
@@ -70,7 +71,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     }
   }
 
-  const config = (input.config ?? {}) as { lead_ids?: string[]; template_id?: string; max_sites?: number };
+  const config = (input.config ?? {}) as { lead_ids?: string[]; template_id?: string; max_sites?: number; demoRecorder?: DemoRecorder };
   const maxSites = config.max_sites ?? 10;
   const targetLeads = config.lead_ids
     ? leads.filter((l) => config.lead_ids!.includes(l.lead_id ?? ""))
@@ -381,6 +382,26 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       font_pairing: `${design.fonts.heading} / ${design.fonts.body}`,
       avoid_topics: brief?.avoidTopics ?? [],
     });
+  }
+
+  // Record demos if a DemoRecorder is available
+  if (config.demoRecorder) {
+    for (const site of generatedSites) {
+      try {
+        const designElements = extractDesignElements(site);
+        const demoId = await config.demoRecorder.recordDemo({
+          leadId: (site.lead_id as string) ?? "",
+          html: site.html_output as string,
+          css: (site.css_output as string) ?? "",
+          modelVersion: (site.ai_generated ? "ai-generated" : site.template_id) as string,
+          scrapeQualityScore: 0, // filled by upstream profiler
+          designElements,
+        });
+        site.demo_id = demoId;
+      } catch (err) {
+        console.error(`[Composer] Failed to record demo for ${site.business_name}:`, err);
+      }
+    }
   }
 
   const withBrand = generatedSites.filter((s) => s.brand_source !== "vertical_default").length;

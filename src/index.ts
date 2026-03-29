@@ -4,6 +4,8 @@ import { OpsAgent } from "./agents/opsAgent.js";
 import { CallerModel } from "./caller/callerModel.js";
 import { DecisionLogger } from "./decisions/decisionLogger.js";
 import { SQLiteDecisionStore } from "./decisions/sqliteDecisionStore.js";
+import { DemoRecorder } from "./demos/demoRecorder.js";
+import { SQLiteDemoRecordStore } from "./demos/sqliteDemoRecordStore.js";
 import { InMemoryEventBus } from "./events/bus.js";
 import { InterfaceController } from "./interface/controller.js";
 import { LatencyTracker } from "./metrics/latencyTracker.js";
@@ -49,6 +51,8 @@ async function main(): Promise<void> {
   });
   const decisionStore = new SQLiteDecisionStore(dbPath);
   const decisionLogger = new DecisionLogger(decisionStore, bus);
+  const demoRecordStore = new SQLiteDemoRecordStore(dbPath);
+  const demoRecorder = new DemoRecorder(demoRecordStore, decisionLogger);
 
   const orchestrator = new Orchestrator(
     taskStore,
@@ -124,6 +128,7 @@ async function main(): Promise<void> {
   ]);
   const agentRuntime = new MultiAgentRuntime();
   agentRuntime.setDecisionLogger(decisionLogger);
+  agentRuntime.setDemoRecorder(demoRecorder);
   registerOutreachAgents(agentRuntime);
   const pipelineEngine = new PipelineEngine(
     pipelineStore,

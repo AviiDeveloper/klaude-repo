@@ -1,4 +1,5 @@
 import { DecisionLogger } from "../decisions/decisionLogger.js";
+import { DemoRecorder } from "../demos/demoRecorder.js";
 import { PipelineAgentId } from "./types.js";
 
 export interface AgentExecutionInput {
@@ -26,6 +27,7 @@ export type AgentHandler = (
 export class MultiAgentRuntime {
   private handlers = new Map<string, AgentHandler>();
   private decisionLogger?: DecisionLogger;
+  private demoRecorder?: DemoRecorder;
 
   constructor() {
     this.registerDefaults();
@@ -33,6 +35,10 @@ export class MultiAgentRuntime {
 
   setDecisionLogger(logger: DecisionLogger): void {
     this.decisionLogger = logger;
+  }
+
+  setDemoRecorder(recorder: DemoRecorder): void {
+    this.demoRecorder = recorder;
   }
 
   register(agentId: string, handler: AgentHandler): void {
@@ -58,6 +64,11 @@ export class MultiAgentRuntime {
         `No handler registered for agent "${input.agent_id}". ` +
         `Registered: ${this.listRegistered().join(", ") || "(none)"}`,
       );
+    }
+
+    // Inject demoRecorder into config for site-composer and site-qa agents
+    if (this.demoRecorder && (input.agent_id === "site-composer-agent" || input.agent_id === "site-qa-agent")) {
+      input = { ...input, config: { ...input.config, demoRecorder: this.demoRecorder } };
     }
 
     let decisionId: string | undefined;

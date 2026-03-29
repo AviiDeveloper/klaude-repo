@@ -1,4 +1,5 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { DemoRecorder } from "../../demos/demoRecorder.js";
 import { assetExists, getAssetPath } from "../../lib/assetStore.js";
 import { statSync } from "node:fs";
 
@@ -8,6 +9,7 @@ import { statSync } from "node:fs";
 
 interface GeneratedSite {
   lead_id?: string;
+  demo_id?: string;
   site_name: string;
   html_output: string;
   css_output: string;
@@ -61,6 +63,7 @@ function contrastRatio(hex1: string, hex2: string): number {
  * mobile responsiveness, SEO, image validation, colour contrast.
  */
 export const siteQaAgent: AgentHandler = async (input) => {
+  const qaConfig = (input.config ?? {}) as { demoRecorder?: DemoRecorder };
   const upstream = input.upstreamArtifacts as Record<string, { sites?: GeneratedSite[] }>;
 
   const sites: GeneratedSite[] = [];
@@ -258,6 +261,7 @@ export const siteQaAgent: AgentHandler = async (input) => {
 
     results.push({
       lead_id: site.lead_id,
+      demo_id: site.demo_id,
       site_name: site.site_name,
       domain: site.domain,
       passed,
@@ -270,6 +274,24 @@ export const siteQaAgent: AgentHandler = async (input) => {
       image_checks: issues.filter((i) => i.category === "images").length,
       accessibility_checks: issues.filter((i) => i.category === "accessibility").length,
     });
+  }
+
+  // Record QA results to demo records if recorder available
+  if (qaConfig.demoRecorder) {
+    for (const result of results) {
+      const demoId = (result as Record<string, unknown>).demo_id as string | undefined;
+      if (demoId) {
+        try {
+          qaConfig.demoRecorder.recordQaResult(
+            demoId,
+            result.score as number,
+            result.passed as boolean,
+          );
+        } catch (err) {
+          console.error(`[QA] Failed to record QA result for demo ${demoId}:`, err);
+        }
+      }
+    }
   }
 
   const passCount = results.filter((r) => r.passed).length;
