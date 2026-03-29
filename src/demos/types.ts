@@ -67,6 +67,7 @@ export interface DemoQuery {
   business_id?: string;
   quality_passed?: boolean;
   has_outcome?: boolean;
+  pitched_no_outcome?: boolean;
   pending_qa?: boolean;
   model_version?: string;
   since?: string;

@@ -53,6 +53,7 @@ export class DemoRecorder {
         description: `Demo recorded for business ${input.leadId}`,
         rationale: `Model: ${input.modelVersion}, scrape quality: ${input.scrapeQualityScore}`,
         input_data: {
+          demo_id: demoId,
           lead_id: input.leadId,
           model_version: input.modelVersion,
           colour_source: input.designElements.colour_source,
@@ -140,7 +141,7 @@ export class DemoRecorder {
    * (pitched_at is set but pitch_outcome is null)
    */
   listPendingOutcomes(limit?: number): DemoRecord[] {
-    return this.store.query({ has_outcome: false, limit });
+    return this.store.query({ pitched_no_outcome: true, limit });
   }
 }
 
@@ -153,8 +154,14 @@ export function extractDesignElements(
   siteData: Record<string, unknown>,
 ): DesignElements {
   const colourPalette: string[] = [];
-  // Try to extract from config_json which contains all template vars
-  if (typeof siteData.config_json === "string") {
+
+  // Try direct colour fields first (AI-generated path)
+  if (typeof siteData.colour_primary === "string") colourPalette.push(siteData.colour_primary);
+  if (typeof siteData.colour_secondary === "string") colourPalette.push(siteData.colour_secondary);
+  if (typeof siteData.colour_accent === "string") colourPalette.push(siteData.colour_accent);
+
+  // Fall back to config_json (template path)
+  if (colourPalette.length === 0 && typeof siteData.config_json === "string") {
     try {
       const config = JSON.parse(siteData.config_json) as Record<string, string>;
       if (config.primary_color) colourPalette.push(config.primary_color);

@@ -65,6 +65,9 @@ export class InMemoryDemoRecordStore implements DemoRecordStore {
         ? results.filter((r) => r.pitch_outcome !== null)
         : results.filter((r) => r.pitch_outcome === null);
     }
+    if (q.pitched_no_outcome) {
+      results = results.filter((r) => r.pitched_at !== null && r.pitch_outcome === null);
+    }
     if (q.pending_qa) {
       results = results.filter((r) => r.quality_score === null);
     }

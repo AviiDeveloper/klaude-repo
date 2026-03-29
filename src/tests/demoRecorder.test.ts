@@ -164,12 +164,13 @@ test("list pending QA", async () => {
   assert.equal(pending[0].business_id, "lead-b");
 });
 
-test("list pending outcomes", async () => {
+test("list pending outcomes returns only pitched demos without outcome", async () => {
   const store = new InMemoryDemoRecordStore();
   const recorder = new DemoRecorder(store);
 
-  const id1 = await recorder.recordDemo(makeInput());
-  await recorder.recordDemo(makeInput({ leadId: "lead-b" }));
+  const id1 = await recorder.recordDemo(makeInput()); // will be closed
+  const id2 = await recorder.recordDemo(makeInput({ leadId: "lead-b" })); // unpitched — should NOT appear
+  const id3 = await recorder.recordDemo(makeInput({ leadId: "lead-c" })); // pitched but no outcome — SHOULD appear
 
   await recorder.recordPitchOutcome(id1, {
     salespersonId: "sp-001",
@@ -177,9 +178,13 @@ test("list pending outcomes", async () => {
     salespersonCloseRateAtTime: 0.1,
   });
 
+  // Simulate pitched but no outcome by setting pitched_at directly
+  const record3 = store.get(id3)!;
+  record3.pitched_at = new Date().toISOString();
+
   const pending = recorder.listPendingOutcomes();
   assert.equal(pending.length, 1);
-  assert.equal(pending[0].business_id, "lead-b");
+  assert.equal(pending[0].business_id, "lead-c");
 });
 
 test("extractDesignElements from site composer output", () => {
@@ -214,6 +219,37 @@ test("extractDesignElements from site composer output", () => {
   assert.equal(elements.has_logo, true);
   assert.equal(elements.has_menu, true);
   assert.equal(elements.has_map, false);
+});
+
+test("extractDesignElements from AI-generated site with direct colour fields", () => {
+  const siteData: Record<string, unknown> = {
+    lead_id: "lead-ai",
+    template_id: "ai-generated",
+    config_json: "{}",
+    colour_primary: "#e74c3c",
+    colour_secondary: "#2ecc71",
+    colour_accent: "#3498db",
+    brand_source: "scraped",
+    component_style: "glassmorphism",
+    hero_variant: "split_image",
+    font_pairing: "Montserrat / Open Sans",
+    sections_count: 8,
+    has_logo: true,
+    has_hero_image: true,
+    has_gallery: false,
+    has_reviews: true,
+    has_map: true,
+    has_menu: false,
+    ai_generated: true,
+  };
+
+  const elements = extractDesignElements(siteData);
+
+  assert.deepEqual(elements.colour_palette, ["#e74c3c", "#2ecc71", "#3498db"]);
+  assert.equal(elements.colour_source, "scraped");
+  assert.equal(elements.colour_temperature, "warm"); // #e74c3c is red
+  assert.equal(elements.density, "rich"); // 8 sections
+  assert.equal(elements.layout_type, "glassmorphism");
 });
 
 test("extractDesignElements handles missing data", () => {

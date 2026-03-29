@@ -118,6 +118,9 @@ export class SQLiteDemoRecordStore implements DemoRecordStore {
     if (q.has_outcome !== undefined) {
       conditions.push(q.has_outcome ? "pitch_outcome IS NOT NULL" : "pitch_outcome IS NULL");
     }
+    if (q.pitched_no_outcome) {
+      conditions.push("pitched_at IS NOT NULL AND pitch_outcome IS NULL");
+    }
     if (q.pending_qa) {
       conditions.push("quality_score IS NULL");
     }

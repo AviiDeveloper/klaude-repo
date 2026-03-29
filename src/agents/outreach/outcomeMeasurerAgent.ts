@@ -120,12 +120,19 @@ async function tryMeasure(
 ): Promise<boolean> {
   // demo_generated decisions → check if the demo passed QA
   if (decision.decision_type === "demo_generated" && demoRecorder) {
+    // Prefer precise demo_id match, fall back to lead_id
+    const demoId = decision.input_data.demo_id as string | undefined;
     const leadId = decision.input_data.lead_id as string | undefined;
-    if (!leadId) return false;
 
-    const demos = demoRecorder.getByBusiness(leadId);
-    // Find the most recent demo that has a QA result
-    const qaDemo = demos.find((d) => d.quality_score !== null);
+    let qaDemo;
+    if (demoId) {
+      qaDemo = demoRecorder.get(demoId);
+      if (qaDemo && qaDemo.quality_score === null) qaDemo = undefined; // not yet QA'd
+    } else if (leadId) {
+      const demos = demoRecorder.getByBusiness(leadId);
+      qaDemo = demos.find((d) => d.quality_score !== null);
+    }
+
     if (!qaDemo) return false;
 
     await decisionLogger.recordOutcome(decision.decision_id, {

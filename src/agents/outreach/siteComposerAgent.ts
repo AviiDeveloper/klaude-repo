@@ -23,6 +23,7 @@ interface LeadData {
   google_rating?: number;
   google_review_count?: number;
   qualification_score?: number;
+  website_quality_score?: number;
   pain_points_json?: string;
   reviews_json?: string;
   opening_hours_json?: string;
@@ -184,7 +185,12 @@ export const siteComposerAgent: AgentHandler = async (input) => {
           vertical,
           assets_used_json: JSON.stringify(assetsUsed),
           brand_source: design.colours.source,
+          colour_primary: design.colours.primary,
+          colour_secondary: design.colours.secondary,
+          colour_accent: design.colours.accent,
+          has_logo: hasLogo,
           brief_used: true,
+          has_hero_image: hasHeroImage,
           has_reviews: hasReviews,
           has_map: hasMap,
           has_hours: hasHours,
@@ -386,15 +392,20 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 
   // Record demos if a DemoRecorder is available
   if (config.demoRecorder) {
+    const leadsByName = new Map(targetLeads.map((l) => [l.business_name, l]));
     for (const site of generatedSites) {
       try {
         const designElements = extractDesignElements(site);
+        const matchedLead = leadsByName.get(site.business_name as string);
+        const scrapeQuality = matchedLead?.website_quality_score
+          ? matchedLead.website_quality_score / 100 // normalise 0-100 to 0-1
+          : 0;
         const demoId = await config.demoRecorder.recordDemo({
           leadId: (site.lead_id as string) ?? "",
           html: site.html_output as string,
           css: (site.css_output as string) ?? "",
           modelVersion: (site.ai_generated ? "ai-generated" : site.template_id) as string,
-          scrapeQualityScore: 0, // filled by upstream profiler
+          scrapeQualityScore: scrapeQuality,
           designElements,
         });
         site.demo_id = demoId;
