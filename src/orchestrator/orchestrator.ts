@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { CodeAgent } from "../agents/codeAgent.js";
 import { OpsAgent } from "../agents/opsAgent.js";
+import { DecisionLogger } from "../decisions/decisionLogger.js";
 import { InMemoryEventBus } from "../events/bus.js";
 import { SideEffectExecutor } from "../sideEffects/executor.js";
 import { TaskStore } from "../storage/taskStore.js";
@@ -21,6 +22,8 @@ interface ExecuteTaskOptions {
 }
 
 export class Orchestrator {
+  private readonly decisionIds = new Map<string, string>();
+
   constructor(
     private readonly taskStore: TaskStore,
     private readonly bus: InMemoryEventBus,
@@ -28,6 +31,7 @@ export class Orchestrator {
     private readonly opsAgent: OpsAgent,
     private readonly traceStore: TraceStore,
     private readonly sideEffectExecutor = new SideEffectExecutor(),
+    private readonly decisionLogger?: DecisionLogger,
   ) {}
 
   async createTask(input: CreateTaskInput): Promise<Task> {
@@ -51,6 +55,20 @@ export class Orchestrator {
     };
 
     this.taskStore.save(task);
+
+    if (this.decisionLogger) {
+      const decisionId = await this.decisionLogger.log({
+        agent_id: "orchestrator",
+        decision_type: "task_created",
+        description: `Created task: ${input.title}`,
+        rationale: `Objective: ${input.objective}`,
+        input_data: { title: input.title, objective: input.objective, constraints: input.constraints },
+        expected_outcome: "completed",
+        expected_metric: { plan_steps: planSteps.length },
+      });
+      this.decisionIds.set(task.id, decisionId);
+    }
+
     await this.traceStore.create(task);
     await this.traceStore.appendTimeline(task.id, {
       timestamp: new Date().toISOString(),
@@ -112,6 +130,17 @@ export class Orchestrator {
           agent: agent.name,
           step,
         });
+
+        if (this.decisionLogger) {
+          await this.decisionLogger.log({
+            agent_id: agent.name,
+            decision_type: "agent_dispatched",
+            description: `Agent ${agent.name} executing step: ${step}`,
+            rationale: `Step ${index + 1}/${task.plan_steps.length} of task ${task.id}`,
+            input_data: { task_id: task.id, step, objective: task.objective },
+            expected_outcome: "ok",
+          });
+        }
 
         const response = await agent.run(request);
 
@@ -199,6 +228,17 @@ export class Orchestrator {
         summary: "Task execution failed.",
         details: { error: String(error) },
       });
+      if (this.decisionLogger) {
+        const decisionId = this.decisionIds.get(task.id);
+        if (decisionId) {
+          await this.decisionLogger.recordOutcome(decisionId, {
+            actual_outcome: "failed",
+            actual_metric: { error: String(error) },
+          });
+          this.decisionIds.delete(task.id);
+        }
+      }
+
       await this.traceStore.finalize({
         taskId: task.id,
         finalState: "failed",
@@ -213,6 +253,20 @@ export class Orchestrator {
       status: "completed",
       logs: [...current.logs, "Execution completed."],
     }));
+
+    if (this.decisionLogger) {
+      const decisionId = this.decisionIds.get(task.id);
+      if (decisionId) {
+        await this.decisionLogger.recordOutcome(decisionId, {
+          actual_outcome: "completed",
+          actual_metric: {
+            steps_completed: task.plan_steps.length,
+            artifacts_count: completed.artifacts.length,
+          },
+        });
+        this.decisionIds.delete(task.id);
+      }
+    }
 
     await this.traceStore.finalize({
       taskId: task.id,

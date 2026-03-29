@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { CodeAgent } from "./agents/codeAgent.js";
 import { OpsAgent } from "./agents/opsAgent.js";
 import { CallerModel } from "./caller/callerModel.js";
+import { DecisionLogger } from "./decisions/decisionLogger.js";
+import { SQLiteDecisionStore } from "./decisions/sqliteDecisionStore.js";
 import { InMemoryEventBus } from "./events/bus.js";
 import { InterfaceController } from "./interface/controller.js";
 import { LatencyTracker } from "./metrics/latencyTracker.js";
@@ -45,12 +47,17 @@ async function main(): Promise<void> {
     buildVersion,
     changelogChangeId,
   });
+  const decisionStore = new SQLiteDecisionStore(dbPath);
+  const decisionLogger = new DecisionLogger(decisionStore, bus);
+
   const orchestrator = new Orchestrator(
     taskStore,
     bus,
     new CodeAgent(modelProvider),
     new OpsAgent(modelProvider),
     traceStore,
+    undefined,
+    decisionLogger,
   );
 
   const controller = new InterfaceController(
@@ -116,6 +123,7 @@ async function main(): Promise<void> {
     ],
   ]);
   const agentRuntime = new MultiAgentRuntime();
+  agentRuntime.setDecisionLogger(decisionLogger);
   registerOutreachAgents(agentRuntime);
   const pipelineEngine = new PipelineEngine(
     pipelineStore,

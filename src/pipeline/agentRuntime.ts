@@ -1,3 +1,4 @@
+import { DecisionLogger } from "../decisions/decisionLogger.js";
 import { PipelineAgentId } from "./types.js";
 
 export interface AgentExecutionInput {
@@ -24,9 +25,14 @@ export type AgentHandler = (
 
 export class MultiAgentRuntime {
   private handlers = new Map<string, AgentHandler>();
+  private decisionLogger?: DecisionLogger;
 
   constructor() {
     this.registerDefaults();
+  }
+
+  setDecisionLogger(logger: DecisionLogger): void {
+    this.decisionLogger = logger;
   }
 
   register(agentId: string, handler: AgentHandler): void {
@@ -53,7 +59,47 @@ export class MultiAgentRuntime {
         `Registered: ${this.listRegistered().join(", ") || "(none)"}`,
       );
     }
-    return handler(input);
+
+    let decisionId: string | undefined;
+    if (this.decisionLogger) {
+      decisionId = await this.decisionLogger.log({
+        agent_id: input.agent_id,
+        decision_type: "pipeline_execution",
+        description: `Pipeline agent ${input.agent_id} executing node ${input.node_id}`,
+        rationale: `Run ${input.run_id}, node ${input.node_id}`,
+        input_data: {
+          run_id: input.run_id,
+          node_id: input.node_id,
+          config: input.config ?? {},
+          upstream_keys: Object.keys(input.upstreamArtifacts),
+        },
+        expected_outcome: "success",
+      });
+    }
+
+    try {
+      const output = await handler(input);
+
+      if (this.decisionLogger && decisionId) {
+        await this.decisionLogger.recordOutcome(decisionId, {
+          actual_outcome: "success",
+          actual_metric: {
+            cost_usd: output.cost_usd ?? 0,
+            has_post_payloads: (output.post_payloads?.length ?? 0) > 0,
+          },
+        });
+      }
+
+      return output;
+    } catch (error) {
+      if (this.decisionLogger && decisionId) {
+        await this.decisionLogger.recordOutcome(decisionId, {
+          actual_outcome: "failed",
+          actual_metric: { error: String(error) },
+        });
+      }
+      throw error;
+    }
   }
 
   private registerDefaults(): void {

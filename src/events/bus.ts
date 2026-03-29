@@ -4,7 +4,9 @@ export type EventName =
   | "agent.completed"
   | "approval.requested"
   | "approval.resolved"
-  | "notify.requested";
+  | "notify.requested"
+  | "decision.logged"
+  | "decision.outcome_measured";
 
 export interface Event<T = Record<string, unknown>> {
   name: EventName;
