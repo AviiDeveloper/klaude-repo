@@ -120,6 +120,11 @@ export interface DesignInput {
   // Lead data
   googleRating?: number;
   googleReviewCount?: number;
+  // From brand intelligence (AI-derived, optional)
+  brandTone?: string;
+  marketPosition?: string;
+  recommendedColours?: { primary: string; secondary: string; accent: string };
+  recommendedFonts?: { heading: string; body: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -438,10 +443,21 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   // ---------------------------------------------------------------
   // 1. COLOUR PALETTE
   // ---------------------------------------------------------------
-  const primary = input.scrapedPrimary ?? profile.defaultPrimary;
-  const paletteSource: ResolvedPalette["source"] = input.scrapedPrimary
-    ? (input.paletteSource === "scraped_css" ? "scraped" : "logo")
-    : "vertical_default";
+  // Priority: scraped CSS → logo extraction → AI intelligence recommendation → vertical default
+  let primary: string;
+  let paletteSource: ResolvedPalette["source"];
+
+  if (input.scrapedPrimary) {
+    primary = input.scrapedPrimary;
+    paletteSource = input.paletteSource === "scraped_css" ? "scraped" : "logo";
+  } else if (input.recommendedColours?.primary) {
+    primary = input.recommendedColours.primary;
+    paletteSource = "generated";
+    rationale.push(`Primary colour: ${primary} (AI intelligence recommendation)`);
+  } else {
+    primary = profile.defaultPrimary;
+    paletteSource = "vertical_default";
+  }
 
   rationale.push(`Primary colour: ${primary} (${paletteSource})`);
 
@@ -450,6 +466,9 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   if (input.scrapedSecondary && input.scrapedSecondary !== primary) {
     secondary = input.scrapedSecondary;
     rationale.push(`Secondary: ${secondary} (scraped)`);
+  } else if (!input.scrapedPrimary && input.recommendedColours?.secondary) {
+    secondary = input.recommendedColours.secondary;
+    rationale.push(`Secondary: ${secondary} (AI recommendation)`);
   } else {
     // Use analogous colour for harmony
     const [analog1] = analogous(primary);
@@ -461,6 +480,9 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   let accent: string;
   if (input.scrapedAccent && input.scrapedAccent !== primary) {
     accent = input.scrapedAccent;
+  } else if (!input.scrapedPrimary && input.recommendedColours?.accent) {
+    accent = input.recommendedColours.accent;
+    rationale.push(`Accent: ${accent} (AI recommendation)`);
   } else {
     // Split-complementary for visual pop
     const [split1] = splitComplementary(primary);
@@ -491,12 +513,37 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   // ---------------------------------------------------------------
   // 2. TYPOGRAPHY
   // ---------------------------------------------------------------
-  const fontPairing = selectFontPairing(input.vertical, input.scrapedFonts);
+  // Priority: scraped fonts → AI intelligence recommendation → vertical default
+  let fontPairing: ReturnType<typeof selectFontPairing>;
 
-  // Scale based on vertical
+  if (input.scrapedFonts && input.scrapedFonts.length > 0) {
+    fontPairing = selectFontPairing(input.vertical, input.scrapedFonts);
+    rationale.push(`Fonts: ${fontPairing.heading} / ${fontPairing.body} (scraped)`);
+  } else if (input.recommendedFonts?.heading) {
+    // AI recommended — build a custom pairing
+    const headingName = input.recommendedFonts.heading.split(",")[0].trim();
+    const bodyName = (input.recommendedFonts.body ?? headingName).split(",")[0].trim();
+    fontPairing = {
+      heading: headingName,
+      headingWeight: "600;700;800",
+      headingImport: `${headingName.replace(/\s+/g, "+")}:wght@600;700;800`,
+      body: bodyName,
+      bodyWeight: "400;500;600",
+      bodyImport: `${bodyName.replace(/\s+/g, "+")}:wght@400;500;600`,
+      mood: ["ai-recommended"],
+      verticals: [input.vertical],
+    };
+    rationale.push(`Fonts: ${headingName} / ${bodyName} (AI intelligence recommendation)`);
+  } else {
+    fontPairing = selectFontPairing(input.vertical);
+    rationale.push(`Fonts: ${fontPairing.heading} / ${fontPairing.body} (${fontPairing.mood.join(", ")})`);
+  }
+
+  // Scale based on vertical and market position
   let scale: ResolvedFonts["scale"] = "normal";
   if (input.vertical === "food" || input.vertical === "health") scale = "large";
   if (input.vertical === "professional") scale = "compact";
+  if (input.marketPosition === "luxury" || input.marketPosition === "premium") scale = "large";
 
   const fonts: ResolvedFonts = {
     heading: fontPairing.heading,
@@ -508,18 +555,27 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
     scale,
   };
 
-  rationale.push(`Fonts: ${fonts.heading} / ${fonts.body} (${fontPairing.mood.join(", ")})`);
-
   // ---------------------------------------------------------------
   // 3. LAYOUT STRATEGY
   // ---------------------------------------------------------------
   const hasRichContent = input.hasGallery || input.hasMenu || input.hasReviews;
 
+  // Adjust spacing/hero based on market position
+  let sectionSpacing = profile.sectionSpacing;
+  let heroHeight: LayoutStrategy["heroHeight"] = input.hasHeroImage ? "tall" : (input.vertical === "food" ? "tall" : "standard");
+  if (input.marketPosition === "luxury" || input.marketPosition === "premium") {
+    sectionSpacing = "airy";
+    heroHeight = input.hasHeroImage ? "fullscreen" : "tall";
+  } else if (input.marketPosition === "budget") {
+    sectionSpacing = "tight";
+    heroHeight = input.hasHeroImage ? "standard" : "compact";
+  }
+
   const layout: LayoutStrategy = {
     maxWidth: hasRichContent ? "1200px" : "1100px",
-    sectionSpacing: profile.sectionSpacing,
+    sectionSpacing,
     gridColumns: input.galleryCount >= 6 ? 3 : input.galleryCount >= 3 ? 3 : 2,
-    heroHeight: input.hasHeroImage ? "tall" : (input.vertical === "food" ? "tall" : "standard"),
+    heroHeight,
     cornerRadius: profile.cornerRadius,
     shadowDepth: profile.shadowDepth,
   };
@@ -589,12 +645,30 @@ export function makeDesignDecision(input: DesignInput): DesignDecision {
   rationale.push(`Sections: ${enabledCount} enabled, ordered by priority`);
 
   // ---------------------------------------------------------------
-  // 6. COMPONENT STYLE
+  // 6. COMPONENT STYLE (brand tone overrides vertical default)
   // ---------------------------------------------------------------
   let componentStyle = profile.componentStyle;
 
-  // Upgrade to glassmorphism if we have good imagery
-  if (input.hasHeroImage && input.hasGallery && componentStyle === "card") {
+  // Brand tone mapping — when AI intelligence provides a tone, use it
+  if (input.brandTone) {
+    const toneStyleMap: Record<string, ComponentStyle> = {
+      luxury: "glassmorphism",
+      edgy: "bold",
+      traditional: "card",
+      minimal: "minimal",
+      friendly: "card",
+      playful: "bordered",
+      professional: "clean",
+    };
+    const toneMapped = toneStyleMap[input.brandTone];
+    if (toneMapped) {
+      componentStyle = toneMapped;
+      rationale.push(`Component style: ${componentStyle} (from brand tone: ${input.brandTone})`);
+    }
+  }
+
+  // Upgrade to glassmorphism if we have good imagery (only if not already overridden)
+  if (input.hasHeroImage && input.hasGallery && componentStyle === "card" && !input.brandTone) {
     componentStyle = "glassmorphism";
     rationale.push("Component style upgraded to glassmorphism (rich imagery available)");
   }

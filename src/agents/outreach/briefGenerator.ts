@@ -13,6 +13,7 @@ import { ensureLeadDir, getLeadDir } from "../../lib/assetStore.js";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BrandAnalysis } from "./brandAnalyser.js";
+import type { BrandTone, MarketPosition } from "./brandIntelligence.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +65,15 @@ export interface SiteBrief {
 
   // Menu (food only)
   menuItems?: Array<{ name: string; price?: string; description?: string }>;
+
+  // Brand intelligence (from AI analysis — optional)
+  brandTone?: BrandTone;
+  brandPersonality?: string;
+  voiceExamples?: string[];
+  customerSentiment?: string;
+  uniqueSellingPoints?: string[];
+  marketPosition?: MarketPosition;
+  differentiators?: string[];
 
   // Raw markdown for review
   markdown: string;
@@ -365,9 +375,18 @@ export function buildBrief(
   const email = lead.email ?? `info@${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "")}.co.uk`;
   const address = lead.address ?? "";
 
-  // --- Services: prefer scraped, fall back to profile defaults ---
+  // --- Services: prefer intelligence-refined → scraped → profile defaults ---
   const services: ServiceItem[] = [];
-  if (brand?.services && brand.services.length > 0) {
+  if (brand?.intelligence?.refinedServices && brand.intelligence.refinedServices.length > 0) {
+    // Intelligence has analysed reviews + scrape data for business-specific services
+    for (const rs of brand.intelligence.refinedServices.slice(0, 6)) {
+      services.push({
+        name: rs.name,
+        description: rs.description,
+        isScraped: true, // treated as scraped since derived from real data
+      });
+    }
+  } else if (brand?.services && brand.services.length > 0) {
     for (const s of brand.services.slice(0, 6)) {
       // Try to find a matching default for a better description
       const matchingDefault = profile.typicalServices.find(
@@ -410,9 +429,12 @@ export function buildBrief(
     description = `${businessName} is your local ${businessType}.${locationBit} customers across the area with care and professionalism.${ratingBit}`;
   }
 
+  // --- Intelligence layer (prefer AI-derived copy when available) ---
+  const intel = brand?.intelligence;
+
   // --- Hero copy ---
-  const heroHeadline = generateSmartHeadline(businessName, businessType, profile, lead.google_rating);
-  const heroSubtext = generateSmartSubtext(businessName, businessType, description, lead, profile);
+  const heroHeadline = intel?.suggestedHeadline ?? generateSmartHeadline(businessName, businessType, profile, lead.google_rating);
+  const heroSubtext = intel?.suggestedTagline ?? generateSmartSubtext(businessName, businessType, description, lead, profile);
 
   // --- CTA ---
   const ctaPrimary: CtaDirective = {
@@ -435,7 +457,7 @@ export function buildBrief(
     : undefined;
 
   // --- About copy ---
-  const aboutCopy = generateAboutCopy(businessName, businessType, description, lead, profile);
+  const aboutCopy = intel?.suggestedAbout ?? generateAboutCopy(businessName, businessType, description, lead, profile);
 
   // --- Opening hours ---
   const openingHours = safeJsonParse<string[]>(lead.opening_hours_json, []);
@@ -454,6 +476,11 @@ export function buildBrief(
   if (openingHours.length > 0) sectionOrder.push("hours");
   sectionOrder.push("cta", "contact");
   if (lead.maps_embed_url) sectionOrder.push("map");
+
+  // --- Trust badges: prefer intelligence-derived ---
+  const trustBadges = intel?.trustSignals && intel.trustSignals.length > 0
+    ? intel.trustSignals.slice(0, 5)
+    : profile.trustBadges;
 
   // --- Build the brief ---
   const brief: SiteBrief = {
@@ -482,10 +509,18 @@ export function buildBrief(
     ctaPrimary,
     ctaSecondary,
     aboutCopy,
-    trustBadges: profile.trustBadges,
+    trustBadges,
     sectionOrder,
     avoidTopics: profile.avoidTopics,
     menuItems: brand?.menu_items,
+    // Brand intelligence fields
+    brandTone: intel?.brandTone,
+    brandPersonality: intel?.brandPersonality,
+    voiceExamples: intel?.voiceExamples,
+    customerSentiment: intel?.customerSentiment,
+    uniqueSellingPoints: intel?.uniqueSellingPoints,
+    marketPosition: intel?.marketPosition,
+    differentiators: intel?.differentiators,
     markdown: "", // will be filled below
   };
 
@@ -659,6 +694,25 @@ function generateMarkdown(brief: SiteBrief): string {
     lines.push(`${i + 1}. ${brief.sectionOrder[i]}`);
   }
   lines.push("");
+
+  if (brief.brandTone || brief.brandPersonality) {
+    lines.push("## Brand Intelligence");
+    if (brief.brandTone) lines.push(`- **Tone:** ${brief.brandTone}`);
+    if (brief.brandPersonality) lines.push(`- **Personality:** ${brief.brandPersonality}`);
+    if (brief.marketPosition) lines.push(`- **Market position:** ${brief.marketPosition}`);
+    if (brief.voiceExamples && brief.voiceExamples.length > 0) {
+      lines.push("- **Voice examples:**");
+      for (const v of brief.voiceExamples) lines.push(`  - "${v}"`);
+    }
+    if (brief.customerSentiment) lines.push(`- **Customer sentiment:** ${brief.customerSentiment}`);
+    if (brief.uniqueSellingPoints && brief.uniqueSellingPoints.length > 0) {
+      lines.push("- **USPs:** " + brief.uniqueSellingPoints.join(" · "));
+    }
+    if (brief.differentiators && brief.differentiators.length > 0) {
+      lines.push("- **Differentiators:** " + brief.differentiators.join(" · "));
+    }
+    lines.push("");
+  }
 
   lines.push("## Avoid Topics");
   lines.push(`Do NOT mention: ${brief.avoidTopics.join(", ")}`);

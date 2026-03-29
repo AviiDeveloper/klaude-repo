@@ -169,6 +169,26 @@ SECTION ORDER (follow this sequence)
 ═══════════════════════════════════════════════════
 ${brief.sectionOrder.map((s, i) => `${i + 1}. ${s}`).join("\n")}
 
+${brief.brandTone || brief.brandPersonality ? `═══════════════════════════════════════════════════
+BRAND PERSONALITY & VOICE
+═══════════════════════════════════════════════════
+${brief.brandTone ? `Tone: ${brief.brandTone}` : ""}
+${brief.brandPersonality ? `Personality: ${brief.brandPersonality}` : ""}
+${brief.marketPosition ? `Market position: ${brief.marketPosition}` : ""}
+${brief.voiceExamples && brief.voiceExamples.length > 0 ? `Voice examples (write ALL copy in this style):
+${brief.voiceExamples.map((v) => `  - "${v}"`).join("\n")}` : ""}
+
+CRITICAL: Write ALL copy in this voice. The site should sound like ${brief.businessName}, not like a generic template. Use the voice examples as your guide.
+` : ""}
+${brief.customerSentiment || (brief.uniqueSellingPoints && brief.uniqueSellingPoints.length > 0) ? `═══════════════════════════════════════════════════
+CUSTOMER INSIGHTS (from real Google reviews)
+═══════════════════════════════════════════════════
+${brief.customerSentiment ? `What customers love: ${brief.customerSentiment}` : ""}
+${brief.uniqueSellingPoints && brief.uniqueSellingPoints.length > 0 ? `Unique selling points: ${brief.uniqueSellingPoints.join(" · ")}` : ""}
+${brief.differentiators && brief.differentiators.length > 0 ? `Differentiators: ${brief.differentiators.join(" · ")}` : ""}
+
+Use these insights to emphasise what real customers value most about this business.
+` : ""}
 ═══════════════════════════════════════════════════
 AVOID TOPICS (DO NOT mention any of these)
 ═══════════════════════════════════════════════════

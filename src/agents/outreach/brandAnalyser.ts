@@ -14,7 +14,8 @@ import {
   type AssetMetadata,
   type AssetCategory,
 } from "../../lib/assetStore.js";
-import type { ProfileResult } from "./leadProfilerAgent.js";
+import type { ProfileResult, GoogleReview, SocialProfile } from "./leadProfilerAgent.js";
+import type { BrandIntelligenceResult } from "./brandIntelligence.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +56,13 @@ export interface BrandAnalysis {
   logo_path?: string;
   has_sufficient_assets: boolean;
   menu_items?: Array<{ name: string; price?: string; description?: string }>;
+  // Raw data passed through for downstream AI analysis
+  rawReviews: GoogleReview[];
+  rawSocialBios: string[];
+  rawGoogleCategories: string[];
+  rawBusinessDescription: string;
+  // Populated by brandIntelligenceAgent (downstream)
+  intelligence?: BrandIntelligenceResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +275,20 @@ export const brandAnalyserAgent: AgentHandler = async (input) => {
     const hasUsablePhotos = photoInventory.filter((p) => p.usable_for.length > 0).length;
     const hasSufficientAssets = hasLogo || hasUsablePhotos >= 2;
 
+    // --- Raw data for downstream intelligence agent ---
+    const googleBusiness = safeJsonParse<{ reviews?: GoogleReview[]; categories?: string[] }>(
+      profile.google_business_json, {},
+    );
+    const socialProfiles = safeJsonParse<SocialProfile[]>(profile.social_profiles_json, []);
+    const rawReviews: GoogleReview[] = [
+      ...(googleBusiness.reviews ?? []),
+      ...safeJsonParse<GoogleReview[]>(profile.reviews_json, []),
+    ];
+    const rawSocialBios: string[] = socialProfiles
+      .map((sp) => sp.bio)
+      .filter((b): b is string => !!b && b.length > 5);
+    const rawGoogleCategories: string[] = googleBusiness.categories ?? [];
+
     analyses.push({
       lead_id: leadId,
       colours,
@@ -277,6 +299,10 @@ export const brandAnalyserAgent: AgentHandler = async (input) => {
       logo_path: profile.logo_path,
       has_sufficient_assets: hasSufficientAssets,
       menu_items: menuItems,
+      rawReviews,
+      rawSocialBios,
+      rawGoogleCategories,
+      rawBusinessDescription: profile.business_description_raw ?? description,
     });
   }
 

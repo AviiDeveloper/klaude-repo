@@ -119,6 +119,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     const hasMenu = brief?.menuItems ? brief.menuItems.length > 0 : !!(brand?.menu_items && brand.menu_items.length > 0);
 
     // --- DESIGN SYSTEM: consult the design brain ---
+    const intel = brand?.intelligence;
     const designInput: DesignInput = {
       vertical,
       businessName,
@@ -141,6 +142,15 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       socialImageCount: socialPhotos.length,
       googleRating: brief?.googleRating ?? lead.google_rating ?? undefined,
       googleReviewCount: brief?.googleReviewCount ?? lead.google_review_count ?? undefined,
+      // Brand intelligence (AI-derived, optional)
+      brandTone: intel?.brandTone,
+      marketPosition: intel?.marketPosition,
+      recommendedColours: intel?.colourRecommendation
+        ? { primary: intel.colourRecommendation.primary, secondary: intel.colourRecommendation.secondary, accent: intel.colourRecommendation.accent }
+        : undefined,
+      recommendedFonts: intel?.fontRecommendation
+        ? { heading: intel.fontRecommendation.heading, body: intel.fontRecommendation.body }
+        : undefined,
     };
 
     const design = makeDesignDecision(designInput);
