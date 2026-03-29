@@ -7,6 +7,7 @@ import { briefGeneratorAgent } from "./briefGenerator.js";
 import { siteComposerAgent } from "./siteComposerAgent.js";
 import { siteQaAgent } from "./siteQaAgent.js";
 import { leadAssignerAgent } from "./leadAssignerAgent.js";
+import { outcomeMeasurerAgent } from "./outcomeMeasurerAgent.js";
 
 /**
  * Register all outreach pipeline agents with the runtime.
@@ -24,6 +25,8 @@ export function registerOutreachAgents(runtime: MultiAgentRuntime): void {
   runtime.register("brief-generator-agent", briefGeneratorAgent);
   runtime.register("site-composer-agent", siteComposerAgent);
   runtime.register("site-qa-agent", siteQaAgent);
+  // Phase 3: Nightly feedback loop
+  runtime.register("outcome-measurer-agent", outcomeMeasurerAgent);
 }
 
 export { leadScoutAgent } from "./leadScoutAgent.js";
@@ -34,3 +37,4 @@ export { briefGeneratorAgent } from "./briefGenerator.js";
 export { siteComposerAgent } from "./siteComposerAgent.js";
 export { siteQaAgent } from "./siteQaAgent.js";
 export { leadAssignerAgent } from "./leadAssignerAgent.js";
+export { outcomeMeasurerAgent } from "./outcomeMeasurerAgent.js";

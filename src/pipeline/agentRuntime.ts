@@ -71,6 +71,11 @@ export class MultiAgentRuntime {
       input = { ...input, config: { ...input.config, demoRecorder: this.demoRecorder } };
     }
 
+    // Inject decisionLogger + demoRecorder into outcome-measurer-agent
+    if (input.agent_id === "outcome-measurer-agent") {
+      input = { ...input, config: { ...input.config, decisionLogger: this.decisionLogger, demoRecorder: this.demoRecorder } };
+    }
+
     let decisionId: string | undefined;
     if (this.decisionLogger) {
       decisionId = await this.decisionLogger.log({

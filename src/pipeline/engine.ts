@@ -128,6 +128,20 @@ export class PipelineEngine {
     });
   }
 
+  createOutcomeMeasurerDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
+    return this.store.upsertDefinition({
+      id: "outcome-measurer-v1",
+      name: "Outcome Measurer (Nightly)",
+      enabled: true,
+      schedule_rrule: "FREQ=DAILY;BYHOUR=2",
+      max_retries: 1,
+      nodes: [
+        { id: "measure", agent_id: "outcome-measurer-agent", depends_on: [] },
+      ],
+      config: {},
+    });
+  }
+
   async startRun(input: {
     definitionId: string;
     trigger: PipelineRun["trigger"];

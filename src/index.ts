@@ -140,6 +140,9 @@ async function main(): Promise<void> {
   if (!pipelineStore.getDefinition("content-automation-default")) {
     pipelineEngine.createDefaultDefinition();
   }
+  if (!pipelineStore.getDefinition("outcome-measurer-v1")) {
+    pipelineEngine.createOutcomeMeasurerDefinition();
+  }
   const pipelineScheduler = new PipelineScheduler(pipelineStore, pipelineEngine);
   const telephonyBridgeUrl =
     process.env.MISSION_CONTROL_BRIDGE_URL ??
