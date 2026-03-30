@@ -100,6 +100,46 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_lead_photos_assignment ON lead_photos(assignment_id);
     CREATE INDEX IF NOT EXISTS idx_sync_journal_user ON sync_journal(user_id, synced_at);
   `);
+
+  // Training / Academy tables
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS training_units (
+      unit_id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      subtitle TEXT,
+      estimated_minutes INTEGER DEFAULT 10,
+      sort_order INTEGER NOT NULL,
+      is_advanced INTEGER DEFAULT 0,
+      lessons_json TEXT NOT NULL,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS training_progress (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      unit_id TEXT NOT NULL,
+      lesson_index INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'locked',
+      started_at TEXT,
+      completed_at TEXT,
+      score REAL DEFAULT 0,
+      UNIQUE(user_id, unit_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS training_responses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      unit_id TEXT NOT NULL,
+      lesson_index INTEGER NOT NULL,
+      scenario_id TEXT NOT NULL,
+      selected_option TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      responded_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_training_progress_user ON training_progress(user_id);
+    CREATE INDEX IF NOT EXISTS idx_training_responses_user ON training_responses(user_id, unit_id);
+  `);
 }
 
 // Query helpers
