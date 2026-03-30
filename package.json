@@ -4,10 +4,13 @@
   "private": true,
   "description": "Single-node local voice-orchestrated multi-agent MVP scaffold",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:ts": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "start:node": "node dist/index.js",
+    "dev:node": "tsx src/index.ts",
     "mc:install": "npm --prefix apps/mission-control install",
     "mc:dev": "npm --prefix apps/mission-control run dev",
     "mc:dev:safe": "npm --prefix apps/mission-control run dev:safe",
@@ -26,12 +29,21 @@
     "@playwright/test": "^1.58.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "@types/ws": "^8.18.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
     "tsx": "^4.19.4",
     "typescript": "^5.8.2"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "lucide-react": "^0.468.0",
+    "next": "14.2.35",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sharp": "^0.34.5",
     "ws": "^8.19.0"
   }
