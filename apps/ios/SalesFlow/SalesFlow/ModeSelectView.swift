@@ -2,143 +2,157 @@ import SwiftUI
 import SwiftData
 
 // MARK: — ModeSelectView
-// First screen after launch. Splits into dashboard (salesman) or client demo mode.
+// First screen after login. Always dark. Splits into dashboard or client demo mode.
 
 struct ModeSelectView: View {
     @EnvironmentObject private var authStore: AuthStore
     @State private var showClientPicker = false
     @State private var presentationLead: Lead? = nil
+    @State private var logoAppeared = false
+    @State private var buttonsAppeared = false
+    @State private var footerAppeared = false
+
+    // Hard-coded dark — this screen is always dark regardless of system setting
+    private let bg        = Color(hex: "#000000")
+    private let cardBg    = Color(hex: "#0a0a0a")
+    private let elevBg    = Color(hex: "#111111")
+    private let borderClr = Color(hex: "#333333")
+    private let txtMuted  = Color(hex: "#666666")
+    private let txtDim    = Color(hex: "#444444")
+    private let txtSec    = Color(hex: "#999999")
+    private let accentClr = Color(hex: "#0071E3")
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            bg.ignoresSafeArea()
+
+            // Subtle glow
+            RadialGradient(
+                colors: [accentClr.opacity(0.06), .clear],
+                center: .top,
+                startRadius: 10,
+                endRadius: 350
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer()
 
-                // Wordmark
-                VStack(spacing: 6) {
-                    HStack(spacing: 10) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(hex: "#0070F3"))
-                            .frame(width: 30, height: 30)
+                // ── Wordmark ──────────────────────────────────
+                VStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(.white.opacity(0.05))
+                            .frame(width: 56, height: 56)
+
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.white)
+                            .frame(width: 44, height: 44)
+                            .shadow(color: .white.opacity(0.12), radius: 16, y: 4)
                             .overlay(
-                                Text("S")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(.white)
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundStyle(Color(hex: "#f59e0b"))
                             )
-                        Text("SalesFlow")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.white)
                     }
+                    .padding(.bottom, 4)
+
+                    Text("SalesFlow")
+                        .font(.system(size: 26, weight: .bold))
+                        .tracking(-0.8)
+                        .foregroundStyle(.white)
+
                     Text("What are you doing today?")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color(hex: "#666666"))
+                        .font(.system(size: 15))
+                        .foregroundStyle(txtMuted)
                 }
+                .opacity(logoAppeared ? 1 : 0)
+                .offset(y: logoAppeared ? 0 : 10)
                 .padding(.bottom, 48)
 
-                // Mode buttons
+                // ── Mode buttons ──────────────────────────────
                 VStack(spacing: 12) {
 
-                    // ── Dashboard ──────────────────────────────────────────
+                    // Dashboard
                     NavigationLink(destination: MainTabView().navigationBarHidden(true)) {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(hex: "#111111"))
-                                    .frame(width: 48, height: 48)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color(hex: "#333333"), lineWidth: 1)
-                                    )
-                                Image(systemName: "list.bullet.rectangle")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Color(hex: "#999999"))
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("My Dashboard")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                Text("Leads, map, payouts, profile")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color(hex: "#666666"))
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color(hex: "#444444"))
-                        }
-                        .padding(16)
-                        .background(Color(hex: "#0a0a0a"))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color(hex: "#333333"), lineWidth: 1)
+                        ModeButtonRow(
+                            icon: "rectangle.grid.1x2",
+                            iconBg: elevBg,
+                            iconBorderColor: borderClr,
+                            iconColor: txtSec,
+                            title: "My Dashboard",
+                            subtitle: "Leads, map, payouts, profile",
+                            cardBg: cardBg,
+                            borderColor: borderClr,
+                            arrowColor: txtDim
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ModeButtonStyle())
 
-                    // ── Client demo ────────────────────────────────────────
+                    // Client demo
                     Button(action: { showClientPicker = true }) {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(hex: "#0070F3").opacity(0.12))
-                                    .frame(width: 48, height: 48)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color(hex: "#0070F3").opacity(0.3), lineWidth: 1)
-                                    )
-                                Image(systemName: "iphone")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Color(hex: "#0070F3"))
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Show Client Demo")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                Text("Full-screen site preview for the owner")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color(hex: "#666666"))
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color(hex: "#444444"))
-                        }
-                        .padding(16)
-                        .background(Color(hex: "#0a0a0a"))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color(hex: "#0070F3").opacity(0.25), lineWidth: 1)
+                        ModeButtonRow(
+                            icon: "iphone",
+                            iconBg: accentClr.opacity(0.12),
+                            iconBorderColor: accentClr.opacity(0.3),
+                            iconColor: accentClr,
+                            title: "Show Client Demo",
+                            subtitle: "Full-screen site preview for the owner",
+                            cardBg: cardBg,
+                            borderColor: accentClr.opacity(0.2),
+                            arrowColor: accentClr.opacity(0.5)
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ModeButtonStyle())
+
+                    // Sales Academy
+                    let greenAccent = Color(hex: "#059669")
+                    NavigationLink(destination: AcademyPathView()) {
+                        ModeButtonRow(
+                            icon: "book.closed",
+                            iconBg: greenAccent.opacity(0.12),
+                            iconBorderColor: greenAccent.opacity(0.3),
+                            iconColor: greenAccent,
+                            title: "Sales Academy",
+                            subtitle: "Training, scripts, and scenarios",
+                            cardBg: cardBg,
+                            borderColor: greenAccent.opacity(0.2),
+                            arrowColor: greenAccent.opacity(0.5)
+                        )
+                    }
+                    .buttonStyle(ModeButtonStyle())
                 }
                 .padding(.horizontal, 24)
+                .opacity(buttonsAppeared ? 1 : 0)
+                .offset(y: buttonsAppeared ? 0 : 12)
 
                 Spacer()
 
-                // Sign out hint
+                // Sign out
                 Button(action: { authStore.signOut() }) {
                     Text("Sign out")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color(hex: "#444444"))
+                        .foregroundStyle(txtDim)
                 }
-                .padding(.bottom, 32)
+                .opacity(footerAppeared ? 1 : 0)
+                .padding(.bottom, 36)
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.45)) {
+                logoAppeared = true
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.12)) {
+                buttonsAppeared = true
+            }
+            withAnimation(.easeOut(duration: 0.35).delay(0.3)) {
+                footerAppeared = true
             }
         }
         .sheet(isPresented: $showClientPicker) {
             ClientLeadPickerView(onSelect: { lead in
                 showClientPicker = false
-                // Small delay so the sheet fully dismisses before fullScreenCover appears
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     presentationLead = lead
                 }
@@ -152,9 +166,78 @@ struct ModeSelectView: View {
     }
 }
 
+// MARK: — ModeButtonRow
+
+private struct ModeButtonRow: View {
+    let icon: String
+    let iconBg: Color
+    let iconBorderColor: Color
+    let iconColor: Color
+    let title: String
+    let subtitle: String
+    let cardBg: Color
+    let borderColor: Color
+    let arrowColor: Color
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(iconBg)
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(iconBorderColor, lineWidth: 1)
+                    )
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(iconColor)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(hex: "#666666"))
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(arrowColor)
+        }
+        .padding(18)
+        .background(cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [borderColor.opacity(0.8), borderColor.opacity(0.3)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
+    }
+}
+
+// MARK: — ModeButtonStyle (press feedback)
+
+private struct ModeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
 // MARK: — ClientLeadPickerView
-// Shown when salesman taps "Show Client Demo" from the launch screen.
-// Lists leads that have a demo site so salesman picks who they're about to pitch.
 
 struct ClientLeadPickerView: View {
     let onSelect: (Lead) -> Void
@@ -172,12 +255,12 @@ struct ClientLeadPickerView: View {
                 Color.black.ignoresSafeArea()
 
                 if demoLeads.isEmpty {
-                    VStack(spacing: 10) {
-                        Image(systemName: "globe.slash")
-                            .font(.system(size: 32, weight: .light))
-                            .foregroundStyle(Color(hex: "#444444"))
+                    VStack(spacing: 12) {
+                        Image(systemName: "globe.desk")
+                            .font(.system(size: 36, weight: .thin))
+                            .foregroundStyle(Color(hex: "#333333"))
                         Text("No demo sites available")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color(hex: "#999999"))
                         Text("Leads with demo sites will appear here")
                             .font(.system(size: 13))
@@ -187,21 +270,18 @@ struct ClientLeadPickerView: View {
                     List {
                         Section {
                             ForEach(demoLeads) { lead in
-                                Button(action: {
-                                    onSelect(lead)
-                                }) {
-                                    HStack(spacing: 12) {
-                                        // Initials
+                                Button(action: { onSelect(lead) }) {
+                                    HStack(spacing: 14) {
                                         ZStack {
-                                            RoundedRectangle(cornerRadius: 8)
+                                            RoundedRectangle(cornerRadius: 10)
                                                 .fill(Color(hex: "#111111"))
-                                                .frame(width: 40, height: 40)
+                                                .frame(width: 42, height: 42)
                                                 .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
+                                                    RoundedRectangle(cornerRadius: 10)
                                                         .stroke(Color(hex: "#333333"), lineWidth: 1)
                                                 )
                                             Text(lead.businessName.prefix(2).uppercased())
-                                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                .font(.system(size: 13, weight: .bold, design: .monospaced))
                                                 .foregroundStyle(Color(hex: "#666666"))
                                         }
 
@@ -213,7 +293,7 @@ struct ClientLeadPickerView: View {
                                                 Text(lead.businessType)
                                                     .font(.system(size: 12))
                                                     .foregroundStyle(Color(hex: "#666666"))
-                                                Text("·")
+                                                Text("\u{00B7}")
                                                     .foregroundStyle(Color(hex: "#444444"))
                                                 Text(lead.postcode)
                                                     .font(.system(size: 11, design: .monospaced))
@@ -223,9 +303,9 @@ struct ClientLeadPickerView: View {
 
                                         Spacer()
 
-                                        Image(systemName: "play.circle")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(Color(hex: "#0070F3"))
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(Color(hex: "#0071E3"))
                                     }
                                     .padding(.vertical, 4)
                                 }
@@ -250,10 +330,11 @@ struct ClientLeadPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Color(hex: "#0070F3"))
+                        .foregroundStyle(Color(hex: "#0071E3"))
                 }
             }
         }
+        .preferredColorScheme(.dark)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }

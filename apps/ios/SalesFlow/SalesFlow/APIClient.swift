@@ -47,6 +47,37 @@ final class APIClient {
         return try decoder.decode(LoginResponse.self, from: data)
     }
 
+    func signup(name: String, pin: String, phone: String, area: String) async throws -> LoginResponse {
+        struct Body: Encodable { let name: String; let pin: String; let phone: String; let area_postcode: String }
+        let data = try await request(path: "/auth/register", method: "POST", body: Body(name: name, pin: pin, phone: phone, area_postcode: area))
+        return try decoder.decode(LoginResponse.self, from: data)
+    }
+
+    // MARK: — Training / Academy
+    func fetchTrainingUnits() async throws -> [TrainingUnit] {
+        let data = try await request(path: "/training")
+        return try decoder.decode(TrainingUnitsResponse.self, from: data).units
+    }
+
+    func fetchTrainingUnit(id: String) async throws -> TrainingUnitDetailResponse {
+        let data = try await request(path: "/training/\(id)")
+        return try decoder.decode(TrainingUnitDetailResponse.self, from: data)
+    }
+
+    func startTrainingUnit(id: String) async throws {
+        _ = try await request(path: "/training/\(id)/start", method: "POST")
+    }
+
+    func respondToScenario(unitId: String, lessonIndex: Int, scenarioId: String, option: String, score: Int) async throws {
+        struct Body: Encodable { let lesson_index: Int; let scenario_id: String; let selected_option: String; let score: Int }
+        _ = try await request(path: "/training/\(unitId)/respond", method: "POST",
+                              body: Body(lesson_index: lessonIndex, scenario_id: scenarioId, selected_option: option, score: score))
+    }
+
+    func completeTrainingUnit(id: String) async throws {
+        _ = try await request(path: "/training/\(id)/complete", method: "POST")
+    }
+
     // MARK: — Leads
     func fetchLeads() async throws -> [LeadDTO] {
         let data = try await request(path: "/leads")

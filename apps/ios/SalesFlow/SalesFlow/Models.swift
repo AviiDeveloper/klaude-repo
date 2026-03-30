@@ -267,3 +267,119 @@ struct VisitRequest: Encodable {
 struct APIError: Codable {
     let error: String
 }
+
+// MARK: — Training / Academy
+
+struct TrainingUnit: Codable, Identifiable {
+    var id: String { unitId }
+    let unitId: String
+    let title: String
+    let subtitle: String?
+    let estimatedMinutes: Int
+    let sortOrder: Int
+    let isAdvanced: Int
+    var status: String           // locked | available | in_progress | completed
+    var lessonIndex: Int
+    var score: Double
+    var lessons: [TrainingLesson]?
+
+    enum CodingKeys: String, CodingKey {
+        case unitId = "unit_id"
+        case title, subtitle
+        case estimatedMinutes = "estimated_minutes"
+        case sortOrder = "sort_order"
+        case isAdvanced = "is_advanced"
+        case status
+        case lessonIndex = "lesson_index"
+        case score, lessons
+    }
+}
+
+struct TrainingLesson: Codable, Identifiable {
+    var id: String { lessonId }
+    let lessonId: String
+    let type: String             // editorial | scenario | roleplay | quickfire
+    let title: String?
+    let content: String?         // editorial body text
+    let highlight: String?       // editorial key phrase
+    let setup: String?           // scenario setup text
+    let prompt: String?          // quickfire prompt
+    let options: [ScenarioOption]?
+    let messages: [RoleplayMessage]?
+    let items: [QuickfireItem]?
+
+    enum CodingKeys: String, CodingKey {
+        case lessonId = "id"
+        case type, title, content, highlight, setup, prompt
+        case options, messages, items
+    }
+}
+
+struct ScenarioOption: Codable, Identifiable {
+    var id: String { optionId }
+    let optionId: String
+    let text: String
+    let score: Int
+    let feedback: String?
+
+    enum CodingKeys: String, CodingKey {
+        case optionId = "id"
+        case text, score, feedback
+    }
+}
+
+struct RoleplayMessage: Codable, Identifiable {
+    var id: String { UUID().uuidString }
+    let role: String             // owner | you
+    let text: String?
+    let options: [ScenarioOption]?
+}
+
+struct QuickfireItem: Codable, Identifiable {
+    var id: String { itemId }
+    let itemId: String
+    let situation: String
+    let answer: String           // stay | go
+    let reason: String
+
+    enum CodingKeys: String, CodingKey {
+        case itemId = "id"
+        case situation, answer, reason
+    }
+}
+
+struct TrainingUnitsResponse: Codable {
+    let units: [TrainingUnit]
+}
+
+struct TrainingUnitDetailResponse: Codable {
+    let unit: TrainingUnit
+    let progress: TrainingProgressDTO?
+    let responses: [TrainingResponseDTO]?
+}
+
+struct TrainingProgressDTO: Codable {
+    let status: String
+    let lessonIndex: Int
+    let score: Double
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case lessonIndex = "lesson_index"
+        case score
+    }
+}
+
+struct TrainingResponseDTO: Codable {
+    let lessonIndex: Int
+    let scenarioId: String
+    let selectedOption: String
+    let score: Int
+
+    enum CodingKeys: String, CodingKey {
+        case lessonIndex = "lesson_index"
+        case scenarioId = "scenario_id"
+        case selectedOption = "selected_option"
+        case score
+    }
+}
