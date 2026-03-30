@@ -8,9 +8,11 @@ final class AuthStore: ObservableObject {
 
     @Published var isAuthenticated: Bool = false
     @Published var currentUser: User?
+    @Published var hasCompletedOnboarding: Bool
 
     private let tokenKey = "salesflow_auth_token"
     private let userKey  = "salesflow_user"
+    private let onboardingKey = "salesflow_onboarding_completed"
 
     // Keychain-backed token property
     var token: String? {
@@ -25,11 +27,11 @@ final class AuthStore: ObservableObject {
     }
 
     private init() {
+        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: onboardingKey)
         // Restore session if token exists
         if let savedToken = token {
             APIClient.shared.token = savedToken
             isAuthenticated = true
-            // Restore user from UserDefaults
             if let data = UserDefaults.standard.data(forKey: userKey),
                let user = try? JSONDecoder().decode(User.self, from: data) {
                 currentUser = user
@@ -48,6 +50,24 @@ final class AuthStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: userKey)
         }
         isAuthenticated = true
+    }
+
+    @MainActor
+    func signUp(name: String, pin: String, phone: String, area: String) async throws {
+        let response = try await APIClient.shared.signup(name: name, pin: pin, phone: phone, area: area)
+        token = response.token
+        APIClient.shared.token = response.token
+        currentUser = response.user
+        if let user = response.user, let data = try? JSONEncoder().encode(user) {
+            UserDefaults.standard.set(data, forKey: userKey)
+        }
+        isAuthenticated = true
+    }
+
+    @MainActor
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        UserDefaults.standard.set(true, forKey: onboardingKey)
     }
 
     @MainActor

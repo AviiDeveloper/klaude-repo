@@ -47,6 +47,12 @@ final class APIClient {
         return try decoder.decode(LoginResponse.self, from: data)
     }
 
+    func signup(name: String, pin: String, phone: String, area: String) async throws -> LoginResponse {
+        struct Body: Encodable { let name: String; let pin: String; let phone: String; let area_postcode: String }
+        let data = try await request(path: "/auth/signup", method: "POST", body: Body(name: name, pin: pin, phone: phone, area_postcode: area))
+        return try decoder.decode(LoginResponse.self, from: data)
+    }
+
     // MARK: — Leads
     func fetchLeads() async throws -> [LeadDTO] {
         let data = try await request(path: "/leads")
