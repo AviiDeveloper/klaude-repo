@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
 
-// MARK: — LeadsView
+// MARK: — LeadsView (Editorial redesign)
+// Typography and whitespace do the work, not chrome.
+// New York serif for business names. Zero borders. Grouped by urgency.
 
 struct LeadsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,27 +13,38 @@ struct LeadsView: View {
     @State private var selectedFilter: String = "all"
     @State private var isRefreshing = false
     @State private var isOffline = false
-    @State private var appeared = false
     @State private var searchText = ""
     @State private var showSearch = false
 
     private let filters = ["all", "new", "visited", "pitched", "rejected"]
     private let pageBg = Color(hex: "#F8F7F5")
 
+    private var activeleads: [Lead] {
+        leads.filter { $0.status.lowercased() != "sold" }
+    }
+
     private var filteredLeads: [Lead] {
-        var result = leads.filter { $0.status.lowercased() != "sold" }
+        var result = activeleads
         if selectedFilter != "all" {
             result = result.filter { $0.status.lowercased() == selectedFilter }
         }
         if !searchText.isEmpty {
-            let query = searchText.lowercased()
+            let q = searchText.lowercased()
             result = result.filter {
-                $0.businessName.lowercased().contains(query) ||
-                $0.businessType.lowercased().contains(query) ||
-                $0.postcode.lowercased().contains(query)
+                $0.businessName.lowercased().contains(q) ||
+                $0.businessType.lowercased().contains(q) ||
+                $0.postcode.lowercased().contains(q)
             }
         }
         return result
+    }
+
+    private var followUpLeads: [Lead] {
+        filteredLeads.filter { $0.followUpAt != nil && ($0.followUpAt ?? .distantPast) > .now }
+    }
+
+    private var regularLeads: [Lead] {
+        filteredLeads.filter { $0.followUpAt == nil || ($0.followUpAt ?? .distantPast) <= .now }
     }
 
     var body: some View {
@@ -41,13 +54,7 @@ struct LeadsView: View {
 
                 VStack(spacing: 0) {
                     statsHeader
-                        .opacity(appeared ? 1 : 0)
-                        .offset(y: appeared ? 0 : -8)
-                        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: appeared)
-
                     filterBar
-                        .opacity(appeared ? 1 : 0)
-                        .animation(.spring(response: 0.45, dampingFraction: 0.85).delay(0.05), value: appeared)
 
                     if showSearch {
                         searchBar
@@ -55,8 +62,7 @@ struct LeadsView: View {
                     }
 
                     if filteredLeads.isEmpty && !isRefreshing {
-                        EmptyLeadsView(filter: selectedFilter, isOffline: isOffline, hasSearch: !searchText.isEmpty)
-                            .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                        emptyState
                     } else {
                         leadsList
                     }
@@ -66,102 +72,90 @@ struct LeadsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        if isOffline {
-                            Label("Offline", systemImage: "wifi.slash")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(Color(hex: "#6B7280"))
-                                .labelStyle(.titleAndIcon)
-                                .transition(.opacity)
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            showSearch.toggle()
+                            if !showSearch { searchText = "" }
                         }
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                showSearch.toggle()
-                                if !showSearch { searchText = "" }
-                            }
-                        } label: {
-                            Image(systemName: showSearch ? "xmark.circle.fill" : "magnifyingglass")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(showSearch ? Color(hex: "#0071E3") : Color(hex: "#6B7280"))
-                                .contentTransition(.symbolEffect(.replace))
-                        }
+                    } label: {
+                        Image(systemName: showSearch ? "xmark" : "magnifyingglass")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color(hex: "#6B7280"))
                     }
                 }
             }
         }
         .task { await loadData() }
-        .onAppear {
-            withAnimation { appeared = true }
-        }
     }
 
-    // MARK: — Stats header
+    // ── Stats ────────────────────────────────────────────────────────
 
     private var statsHeader: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            // Hero: Earned
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .bottom) {
+            // Hero earned
+            VStack(alignment: .leading, spacing: 1) {
                 Text("£\(Int(stats.earned))")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(hex: "#16A34A"))
                     .contentTransition(.numericText())
                     .animation(.spring(response: 0.4), value: stats.earned)
-                Text("EARNED")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#6B7280"))
-                    .tracking(0.8)
+                Text("earned this week")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(hex: "#9CA3AF"))
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(hex: "#F0FDF4"))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             Spacer()
 
-            // Secondary stats — more breathing room
-            HStack(spacing: 24) {
-                SecondaryStatCell(value: "\(stats.queue)", label: "Queue")
-                SecondaryStatCell(value: "\(stats.visited)", label: "Visited")
-                SecondaryStatCell(value: "\(stats.pitched)", label: "Pitched")
-                SecondaryStatCell(value: "\(stats.sold)", label: "Sold")
-            }
+            // Inline secondary stats
+            Text("\(stats.queue) queue \u{00B7} \(stats.visited) visited \u{00B7} \(stats.pitched) pitched \u{00B7} \(stats.sold) sold")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(hex: "#6B7280"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .padding(12)
-        .background(Color(hex: "#F0FDF4"))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color(hex: "#EEEDE9")).frame(height: 1)
+        }
     }
 
-    // MARK: — Filter bar
+    // ── Filter tabs (underline style) ────────────────────────────────
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: 24) {
                 ForEach(filters, id: \.self) { filter in
-                    let count = filter == "all"
-                        ? leads.filter { $0.status.lowercased() != "sold" }.count
-                        : leads.filter { $0.status.lowercased() == filter }.count
-                    FilterTab(
-                        label: filter == "all" ? "All" : Theme.statusLabel(for: filter),
-                        count: count,
-                        isSelected: selectedFilter == filter
-                    ) {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                            selectedFilter = filter
-                            appeared = false
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
-                                appeared = true
-                            }
+                    let count = filter == "all" ? activeleads.count : leads.filter { $0.status.lowercased() == filter }.count
+                    let label = filter == "all" ? "All" : Theme.statusLabel(for: filter)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { selectedFilter = filter }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text("\(label) \(count)")
+                                .font(.system(size: 13, weight: selectedFilter == filter ? .semibold : .medium))
+                                .foregroundStyle(selectedFilter == filter ? Color(hex: "#111111") : Color(hex: "#9CA3AF"))
+
+                            Rectangle()
+                                .fill(selectedFilter == filter ? Color(hex: "#111111") : .clear)
+                                .frame(height: 2)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 20)
         }
+        .padding(.top, 8)
     }
 
-    // MARK: — Search bar
+    // ── Search ───────────────────────────────────────────────────────
 
     private var searchBar: some View {
         HStack(spacing: 10) {
@@ -174,9 +168,7 @@ struct LeadsView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
             if !searchText.isEmpty {
-                Button {
-                    withAnimation { searchText = "" }
-                } label: {
+                Button { withAnimation { searchText = "" } } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(hex: "#9CA3AF"))
@@ -185,44 +177,75 @@ struct LeadsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.white)
+        .background(Color(hex: "#F0EFEB"))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(hex: "#E5E7EB"), lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20)
         .padding(.vertical, 8)
     }
 
-    // MARK: — Leads list
+    // ── Lead list (grouped) ──────────────────────────────────────────
 
     private var leadsList: some View {
         ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(Array(filteredLeads.enumerated()), id: \.element.id) { index, lead in
-                    NavigationLink(destination: LeadDetailView(lead: lead)) {
-                        LeadCard(lead: lead)
+            LazyVStack(spacing: 6) {
+
+                // Follow-up section
+                if !followUpLeads.isEmpty {
+                    sectionHeader("Follow up")
+                    ForEach(followUpLeads) { lead in
+                        NavigationLink(destination: LeadDetailView(lead: lead)) {
+                            LeadRow(lead: lead)
+                        }
+                        .buttonStyle(RowPress())
                     }
-                    .buttonStyle(CardPressStyle())
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 12)
-                    .animation(
-                        .spring(response: 0.42, dampingFraction: 0.82)
-                            .delay(Double(index) * 0.04),
-                        value: appeared
-                    )
+                }
+
+                // Regular leads section
+                if !regularLeads.isEmpty {
+                    sectionHeader(followUpLeads.isEmpty ? "Your leads" : "Other leads")
+                    ForEach(regularLeads) { lead in
+                        NavigationLink(destination: LeadDetailView(lead: lead)) {
+                            LeadRow(lead: lead)
+                        }
+                        .buttonStyle(RowPress())
+                    }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 24)
+            .padding(.bottom, 32)
         }
         .background(pageBg)
         .refreshable { await loadData() }
     }
 
-    // MARK: — Data
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(Color(hex: "#9CA3AF"))
+            .tracking(1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20)
+            .padding(.bottom, 6)
+            .padding(.leading, 4)
+    }
+
+    // ── Empty state ──────────────────────────────────────────────────
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Text(isOffline ? "Can't reach server" : searchText.isEmpty ? "No leads" : "No results")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color(hex: "#111111"))
+            Text(isOffline ? "Pull to retry" : searchText.isEmpty ? "Pull down to refresh" : "Try a different search")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(hex: "#9CA3AF"))
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // ── Data ─────────────────────────────────────────────────────────
 
     @MainActor
     private func loadData() async {
@@ -266,182 +289,99 @@ struct LeadsView: View {
     }
 }
 
-// MARK: — Secondary stat cell
+// MARK: — Lead row (editorial)
 
-private struct SecondaryStatCell: View {
-    let value: String
-    let label: String
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(hex: "#111111"))
-                .contentTransition(.numericText())
-                .animation(.spring(response: 0.4), value: value)
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
-                .textCase(.uppercase)
-                .tracking(0.4)
-        }
-    }
-}
-
-// MARK: — Filter tab
-
-private struct FilterTab: View {
-    let label: String
-    let count: Int
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Text(label)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color(hex: "#9CA3AF"))
-                }
-            }
-            .foregroundStyle(isSelected ? .white : Color(hex: "#6B7280"))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color(hex: "#0A0A0A") : .clear)
-            .clipShape(Capsule())
-            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isSelected)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: — Lead card
-
-struct LeadCard: View {
+private struct LeadRow: View {
     let lead: Lead
 
     private var isRejected: Bool { lead.status.lowercased() == "rejected" }
-    private var catColor: Color { categoryColor(for: lead.businessType) }
 
     var body: some View {
         HStack(spacing: 0) {
-            // ── Bold category stripe (14px) ──────────────────────
-            UnevenRoundedRectangle(
-                topLeadingRadius: 8,
-                bottomLeadingRadius: 8,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 0
-            )
-            .fill(isRejected ? Color(hex: "#D1D5DB") : catColor)
-            .frame(width: 14)
+            // Category colour stripe
+            RoundedRectangle(cornerRadius: 3)
+                .fill(isRejected ? Color(hex: "#D1D5DB") : categoryColor(for: lead.businessType))
+                .frame(width: 5)
+                .padding(.vertical, 2)
 
-            // ── Content ──────────────────────────────────────────
             VStack(alignment: .leading, spacing: 4) {
-                // Row 1: Name + status
-                HStack(alignment: .center) {
+                // Name + status
+                HStack(alignment: .firstTextBaseline) {
                     Text(lead.businessName)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(isRejected ? Color(hex: "#9CA3AF") : Color(hex: "#0A0A0A"))
+                        .font(.system(size: 18, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color(hex: "#0A0A0A"))
                         .lineLimit(1)
                     Spacer(minLength: 8)
-                    statusIndicator
+                    statusText
                 }
 
-                // Row 2: Category · Postcode · Demo · Follow-up
-                HStack(spacing: 0) {
-                    Text(lead.businessType.uppercased())
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
-                        .tracking(0.8)
-
-                    Text(" \u{00B7} ")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: "#D1D5DB"))
-
-                    Text(lead.postcode)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
-
-                    if lead.hasDemoSite {
-                        Text(" \u{00B7} ")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color(hex: "#D1D5DB"))
-
-                        Text("Demo")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color(hex: "#374151"))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(Color(hex: "#E5E7EB"), lineWidth: 1)
-                            )
-                    }
-
-                    if let followUp = lead.followUpAt, followUp > .now {
-                        Text(" \u{00B7} ")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color(hex: "#D1D5DB"))
-                        Circle()
-                            .fill(Color(hex: "#F59E0B"))
-                            .frame(width: 5, height: 5)
-                            .padding(.trailing, 3)
-                        Text(followUpLabel(followUp))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color(hex: "#92400E"))
-                    }
-
-                    Spacer()
-                }
+                // Metadata line
+                metadataLine
             }
             .padding(.leading, 12)
             .padding(.trailing, 14)
             .padding(.vertical, 12)
         }
-        .background(isRejected ? Color(hex: "#F9F9F9") : .white)
+        .background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        .opacity(isRejected ? 0.5 : 1.0)
         .contentShape(Rectangle())
     }
 
-    // ── Status indicator ────────────────────────────────────
     @ViewBuilder
-    private var statusIndicator: some View {
+    private var statusText: some View {
         switch lead.status.lowercased() {
         case "new":
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(Color(hex: "#16A34A"))
-                    .frame(width: 6, height: 6)
-                Text("NEW")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color(hex: "#16A34A"))
-            }
+            Text("NEW")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color(hex: "#16A34A"))
         case "visited":
             Text("VISITED")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color(hex: "#D97706"))
-                .clipShape(Capsule())
+                .foregroundStyle(Color(hex: "#D97706"))
         case "pitched":
             Text("PITCHED")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color(hex: "#1D4ED8"))
-                .clipShape(Capsule())
-        case "rejected":
-            EmptyView()
+                .foregroundStyle(Color(hex: "#1D4ED8"))
         default:
             EmptyView()
         }
+    }
+
+    private var metadataLine: some View {
+        HStack(spacing: 0) {
+            Text(lead.businessType.uppercased())
+                .font(.system(size: 11, weight: .medium))
+                .tracking(0.6)
+
+            sep
+
+            Text(lead.postcode)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+
+            if lead.hasDemoSite {
+                sep
+                Text("Demo")
+                    .font(.system(size: 11, weight: .medium))
+            }
+
+            if let followUp = lead.followUpAt, followUp > .now {
+                sep
+                Text(followUpLabel(followUp))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#D97706"))
+            }
+
+            Spacer()
+        }
+        .foregroundStyle(Color(hex: "#9CA3AF"))
+    }
+
+    private var sep: some View {
+        Text(" \u{00B7} ")
+            .font(.system(size: 11))
+            .foregroundStyle(Color(hex: "#D1D5DB"))
     }
 
     private func followUpLabel(_ date: Date) -> String {
@@ -452,17 +392,18 @@ struct LeadCard: View {
     }
 }
 
-// MARK: — Card press style
+// MARK: — Row press style
 
-private struct CardPressStyle: ButtonStyle {
+private struct RowPress: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
-// MARK: — Category colour mapping
+// MARK: — Category colour
 
 private func categoryColor(for type: String) -> Color {
     let t = type.lowercased()
@@ -475,60 +416,7 @@ private func categoryColor(for type: String) -> Color {
     return Color(hex: "#6B7280")
 }
 
-// MARK: — Empty state
-
-private struct EmptyLeadsView: View {
-    let filter: String
-    let isOffline: Bool
-    var hasSearch: Bool = false
-
-    private var icon: String {
-        if hasSearch { return "magnifyingglass" }
-        if isOffline { return "wifi.slash" }
-        return "tray"
-    }
-
-    private var title: String {
-        if hasSearch { return "No results" }
-        if isOffline { return "Can't reach server" }
-        if filter == "all" { return "No leads assigned" }
-        return "No \(Theme.statusLabel(for: filter).lowercased()) leads"
-    }
-
-    private var subtitle: String {
-        if hasSearch { return "Try a different search term" }
-        if isOffline { return "Showing cached data. Pull to retry." }
-        return "Pull down to refresh"
-    }
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#F3F4F6"))
-                    .frame(width: 64, height: 64)
-                Image(systemName: icon)
-                    .font(.system(size: 26, weight: .light))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
-            }
-            VStack(spacing: 5) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#111111"))
-                Text(subtitle)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
-                    .multilineTextAlignment(.center)
-            }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 32)
-    }
-}
-
-// MARK: — Preview seeding
+// MARK: — Preview
 
 extension Stats {
     static let seeded = Stats(queue: 8, visited: 3, pitched: 2, sold: 1, rejected: nil,
