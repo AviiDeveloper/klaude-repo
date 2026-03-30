@@ -275,12 +275,12 @@ struct TrainingUnit: Codable, Identifiable {
     let unitId: String
     let title: String
     let subtitle: String?
-    let estimatedMinutes: Int
-    let sortOrder: Int
-    let isAdvanced: Int
-    var status: String           // locked | available | in_progress | completed
-    var lessonIndex: Int
-    var score: Double
+    let estimatedMinutes: Int?
+    let sortOrder: Int?
+    let isAdvanced: Int?
+    var status: String?
+    var lessonIndex: Int?
+    var score: Double?
     var lessons: [TrainingLesson]?
 
     enum CodingKeys: String, CodingKey {
@@ -329,7 +329,7 @@ struct ScenarioOption: Codable, Identifiable {
 }
 
 struct RoleplayMessage: Codable, Identifiable {
-    var id: String { UUID().uuidString }
+    var id: String { "\(role)-\(text?.prefix(20) ?? "")" }
     let role: String             // owner | you
     let text: String?
     let options: [ScenarioOption]?

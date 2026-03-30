@@ -198,7 +198,7 @@ private struct AcademyNodeView: View {
                             .foregroundStyle(isLocked ? borderClr : textGray)
                     }
                     if !isLocked {
-                        Text("\(unit.estimatedMinutes) min")
+                        Text("\(unit.estimatedMinutes ?? 5) min")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(textLight)
                     }
