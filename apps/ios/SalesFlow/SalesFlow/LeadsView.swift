@@ -297,31 +297,22 @@ private struct LeadRow: View {
     private var isRejected: Bool { lead.status.lowercased() == "rejected" }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Category colour stripe
-            RoundedRectangle(cornerRadius: 3)
-                .fill(isRejected ? Color(hex: "#D1D5DB") : categoryColor(for: lead.businessType))
-                .frame(width: 5)
-                .padding(.vertical, 2)
-
-            VStack(alignment: .leading, spacing: 4) {
-                // Name + status
-                HStack(alignment: .firstTextBaseline) {
-                    Text(lead.businessName)
-                        .font(.system(size: 18, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color(hex: "#0A0A0A"))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    statusText
-                }
-
-                // Metadata line
-                metadataLine
+        VStack(alignment: .leading, spacing: 4) {
+            // Name + status
+            HStack(alignment: .firstTextBaseline) {
+                Text(lead.businessName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#0A0A0A"))
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                statusText
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 14)
-            .padding(.vertical, 12)
+
+            // Metadata line
+            metadataLine
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
@@ -401,19 +392,6 @@ private struct RowPress: ButtonStyle {
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
-}
-
-// MARK: — Category colour
-
-private func categoryColor(for type: String) -> Color {
-    let t = type.lowercased()
-    if t.contains("restaurant") || t.contains("kitchen") || t.contains("takeaway") || t.contains("food") || t.contains("chinese") || t.contains("thai") || t.contains("indian") { return Color(hex: "#FF6B35") }
-    if t.contains("beauty") || t.contains("nail") || t.contains("hair") || t.contains("salon") || t.contains("barber") { return Color(hex: "#C084FC") }
-    if t.contains("auto") || t.contains("garage") || t.contains("car") || t.contains("motor") { return Color(hex: "#3B82F6") }
-    if t.contains("gym") || t.contains("fitness") || t.contains("sport") { return Color(hex: "#10B981") }
-    if t.contains("florist") || t.contains("flower") || t.contains("retail") || t.contains("shop") || t.contains("print") { return Color(hex: "#F59E0B") }
-    if t.contains("coffee") || t.contains("cafe") || t.contains("café") { return Color(hex: "#6B4F3A") }
-    return Color(hex: "#6B7280")
 }
 
 // MARK: — Preview
