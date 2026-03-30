@@ -20,6 +20,7 @@
     "mc:start:safe": "npm --prefix apps/mission-control run start:safe",
     "mc:push:pi": "bash scripts/pi/mc-push-pi.sh",
     "test": "npm run build && node --test dist/tests/**/*.test.js",
+    "test:demo": "tsx scripts/test-demo-gen.ts",
     "verify": "npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {

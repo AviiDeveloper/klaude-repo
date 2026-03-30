@@ -8,6 +8,7 @@ traces/
 traces-test/
 data/
 data-test/
+output/
 .claude/worktrees/
 .claude/plans/
 
