@@ -9,7 +9,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                Color.black.ignoresSafeArea()
 
                 List {
                     // ── User card ─────────────────────────────────────────────
@@ -263,7 +263,7 @@ struct HelpView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                Color.black.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(steps, id: \.0) { step in

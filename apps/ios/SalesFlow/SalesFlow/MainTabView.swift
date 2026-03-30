@@ -31,8 +31,8 @@ struct MainTabView: View {
                 .tag(3)
         }
         .tint(Theme.accent)
-        // Force dark, black-background tab bar
-        .toolbarBackground(Theme.surface, for: .tabBar)
+        .preferredColorScheme(.dark)
+        .toolbarBackground(Color.black, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
     }
 }

@@ -13,7 +13,7 @@ struct PayoutsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                Color.black.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
 
@@ -78,11 +78,11 @@ struct PayoutsView: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text("£")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color(hex: "#999999"))
                 Text("\(Int(totalEarned))")
-                    .font(.system(size: 48, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(.system(size: 42, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
 
                 Spacer()
 
@@ -128,7 +128,7 @@ struct PayoutsView: View {
         .padding(.horizontal, 16)
         .padding(.top, 16)
         .padding(.bottom, 14)
-        .background(Theme.surface)
+        .background(Color(hex: "#0a0a0a"))
         // Top corners rounded, bottom corners sharp (merges with breakdown row below)
         .clipShape(
             UnevenRoundedRectangle(
@@ -162,7 +162,7 @@ struct PayoutsView: View {
             BreakdownCell(value: "Fri", label: "Payout day", color: Theme.textSecondary)
         }
         .padding(.vertical, 11)
-        .background(Theme.surfaceElevated)
+        .background(Color(hex: "#111111"))
         .clipShape(
             UnevenRoundedRectangle(
                 topLeadingRadius: 0,
