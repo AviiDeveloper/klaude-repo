@@ -16,8 +16,6 @@ struct LeadsView: View {
     @State private var showSearch = false
 
     private let filters = ["all", "new", "visited", "pitched", "rejected"]
-
-    // Warm off-white background
     private let pageBg = Color(hex: "#F8F7F5")
 
     private var filteredLeads: [Lead] {
@@ -97,51 +95,46 @@ struct LeadsView: View {
         }
     }
 
-    // MARK: — Stats header (hero earned + secondary stats)
+    // MARK: — Stats header
 
     private var statsHeader: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .bottom, spacing: 0) {
-                // Hero: Earned
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("£\(Int(stats.earned))")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(hex: "#166534"))
-                        .contentTransition(.numericText())
-                        .animation(.spring(response: 0.4), value: stats.earned)
-                    Text("EARNED")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color(hex: "#6B7280"))
-                        .tracking(0.8)
-                }
-
-                Spacer()
-
-                // Secondary stats
-                HStack(spacing: 20) {
-                    SecondaryStatCell(value: "\(stats.queue)", label: "Queue")
-                    SecondaryStatCell(value: "\(stats.visited)", label: "Visited")
-                    SecondaryStatCell(value: "\(stats.pitched)", label: "Pitched")
-                    SecondaryStatCell(value: "\(stats.sold)", label: "Sold")
-                }
+        HStack(alignment: .bottom, spacing: 0) {
+            // Hero: Earned
+            VStack(alignment: .leading, spacing: 2) {
+                Text("£\(Int(stats.earned))")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(hex: "#16A34A"))
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.4), value: stats.earned)
+                Text("EARNED")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .tracking(0.8)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 14)
 
-            // Subtle divider
-            Rectangle()
-                .fill(Color(hex: "#E5E5E3"))
-                .frame(height: 1)
+            Spacer()
+
+            // Secondary stats — more breathing room
+            HStack(spacing: 24) {
+                SecondaryStatCell(value: "\(stats.queue)", label: "Queue")
+                SecondaryStatCell(value: "\(stats.visited)", label: "Visited")
+                SecondaryStatCell(value: "\(stats.pitched)", label: "Pitched")
+                SecondaryStatCell(value: "\(stats.sold)", label: "Sold")
+            }
         }
-        .background(.white)
+        .padding(12)
+        .background(Color(hex: "#F0FDF4"))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     // MARK: — Filter bar
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(filters, id: \.self) { filter in
                     let count = filter == "all"
                         ? leads.filter { $0.status.lowercased() != "sold" }.count
@@ -149,8 +142,7 @@ struct LeadsView: View {
                     FilterTab(
                         label: filter == "all" ? "All" : Theme.statusLabel(for: filter),
                         count: count,
-                        isSelected: selectedFilter == filter,
-                        statusColor: filter == "all" ? nil : statusBadgeColors(for: filter)
+                        isSelected: selectedFilter == filter
                     ) {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
                             selectedFilter = filter
@@ -164,12 +156,8 @@ struct LeadsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-        }
-        .background(.white)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color(hex: "#E5E5E3")).frame(height: 1)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
     }
 
@@ -198,13 +186,13 @@ struct LeadsView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .stroke(Color(hex: "#E5E7EB"), lineWidth: 1)
         )
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
     }
 
     // MARK: — Leads list
@@ -227,7 +215,7 @@ struct LeadsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.top, 4)
             .padding(.bottom, 24)
         }
         .background(pageBg)
@@ -278,7 +266,7 @@ struct LeadsView: View {
     }
 }
 
-// MARK: — Secondary stat cell (small, monospaced)
+// MARK: — Secondary stat cell
 
 private struct SecondaryStatCell: View {
     let value: String
@@ -306,128 +294,154 @@ private struct FilterTab: View {
     let label: String
     let count: Int
     let isSelected: Bool
-    let statusColor: (bg: Color, text: Color)?
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 Text(label)
-                    .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
                 if count > 0 {
                     Text("\(count)")
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(isSelected ? .white.opacity(0.85) : Color(hex: "#6B7280"))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? .white.opacity(0.25) : Color(hex: "#F3F4F6"))
-                        .clipShape(Capsule())
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color(hex: "#9CA3AF"))
                 }
             }
             .foregroundStyle(isSelected ? .white : Color(hex: "#6B7280"))
             .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(isSelected ? Color(hex: "#111111") : .clear)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color(hex: "#0A0A0A") : .clear)
             .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(isSelected ? .clear : Color(hex: "#E5E7EB"), lineWidth: 1)
-            )
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isSelected)
         }
         .buttonStyle(.plain)
     }
 }
 
-// MARK: — Lead card (redesigned)
+// MARK: — Lead card
 
 struct LeadCard: View {
     let lead: Lead
 
     private var isRejected: Bool { lead.status.lowercased() == "rejected" }
+    private var catColor: Color { categoryColor(for: lead.businessType) }
 
     var body: some View {
         HStack(spacing: 0) {
-            // ── Category colour stripe ──────────────────────────────
-            RoundedRectangle(cornerRadius: 2)
-                .fill(categoryColor(for: lead.businessType))
-                .frame(width: 4)
-                .padding(.vertical, 4)
+            // ── Bold category stripe (14px) ──────────────────────
+            UnevenRoundedRectangle(
+                topLeadingRadius: 8,
+                bottomLeadingRadius: 8,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 0
+            )
+            .fill(isRejected ? Color(hex: "#D1D5DB") : catColor)
+            .frame(width: 14)
 
-            // ── Content ─────────────────────────────────────────────
-            VStack(alignment: .leading, spacing: 8) {
-                // Row 1: Name + status badge
+            // ── Content ──────────────────────────────────────────
+            VStack(alignment: .leading, spacing: 4) {
+                // Row 1: Name + status
                 HStack(alignment: .center) {
                     Text(lead.businessName)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(Color(hex: "#111111"))
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(isRejected ? Color(hex: "#9CA3AF") : Color(hex: "#0A0A0A"))
                         .lineLimit(1)
-                    Spacer()
-                    statusBadge
+                    Spacer(minLength: 8)
+                    statusIndicator
                 }
 
-                // Row 2: Category + demo button + follow-up
-                HStack(spacing: 8) {
+                // Row 2: Category · Postcode · Demo · Follow-up
+                HStack(spacing: 0) {
                     Text(lead.businessType.uppercased())
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(hex: "#6B7280"))
+                        .foregroundStyle(Color(hex: "#9CA3AF"))
                         .tracking(0.8)
 
+                    Text(" \u{00B7} ")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(hex: "#D1D5DB"))
+
+                    Text(lead.postcode)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Color(hex: "#9CA3AF"))
+
                     if lead.hasDemoSite {
-                        Label("Demo", systemImage: "globe")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color(hex: "#0071E3"))
-                            .labelStyle(.titleAndIcon)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
+                        Text(" \u{00B7} ")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color(hex: "#D1D5DB"))
+
+                        Text("Demo")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color(hex: "#374151"))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                             .overlay(
-                                Capsule()
-                                    .stroke(Color(hex: "#0071E3").opacity(0.3), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color(hex: "#E5E7EB"), lineWidth: 1)
                             )
-                            .clipShape(Capsule())
                     }
 
                     if let followUp = lead.followUpAt, followUp > .now {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color(hex: "#F59E0B"))
-                                .frame(width: 5, height: 5)
-                            Text(followUpLabel(followUp))
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color(hex: "#92400E"))
-                        }
+                        Text(" \u{00B7} ")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color(hex: "#D1D5DB"))
+                        Circle()
+                            .fill(Color(hex: "#F59E0B"))
+                            .frame(width: 5, height: 5)
+                            .padding(.trailing, 3)
+                        Text(followUpLabel(followUp))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color(hex: "#92400E"))
                     }
 
                     Spacer()
                 }
-
-                // Row 3: Postcode
-                Text(lead.postcode)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
             }
             .padding(.leading, 12)
-            .padding(.trailing, 16)
-            .padding(.vertical, 16)
+            .padding(.trailing, 14)
+            .padding(.vertical, 12)
         }
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 1)
-        .opacity(isRejected ? 0.6 : 1.0)
+        .background(isRejected ? Color(hex: "#F9F9F9") : .white)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
     }
 
-    // ── Status badge ────────────────────────────────────────────
+    // ── Status indicator ────────────────────────────────────
     @ViewBuilder
-    private var statusBadge: some View {
-        let colors = statusBadgeColors(for: lead.status)
-        Text(Theme.statusLabel(for: lead.status).uppercased())
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(colors.text)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(colors.bg)
-            .clipShape(Capsule())
+    private var statusIndicator: some View {
+        switch lead.status.lowercased() {
+        case "new":
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color(hex: "#16A34A"))
+                    .frame(width: 6, height: 6)
+                Text("NEW")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(hex: "#16A34A"))
+            }
+        case "visited":
+            Text("VISITED")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color(hex: "#D97706"))
+                .clipShape(Capsule())
+        case "pitched":
+            Text("PITCHED")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color(hex: "#1D4ED8"))
+                .clipShape(Capsule())
+        case "rejected":
+            EmptyView()
+        default:
+            EmptyView()
+        }
     }
 
     private func followUpLabel(_ date: Date) -> String {
@@ -459,19 +473,6 @@ private func categoryColor(for type: String) -> Color {
     if t.contains("florist") || t.contains("flower") || t.contains("retail") || t.contains("shop") || t.contains("print") { return Color(hex: "#F59E0B") }
     if t.contains("coffee") || t.contains("cafe") || t.contains("café") { return Color(hex: "#6B4F3A") }
     return Color(hex: "#6B7280")
-}
-
-// MARK: — Status badge colours
-
-private func statusBadgeColors(for status: String) -> (bg: Color, text: Color) {
-    switch status.lowercased() {
-    case "new":      return (Color(hex: "#DCFCE7"), Color(hex: "#166534"))
-    case "visited":  return (Color(hex: "#FEF3C7"), Color(hex: "#92400E"))
-    case "pitched":  return (Color(hex: "#DBEAFE"), Color(hex: "#1E40AF"))
-    case "rejected": return (Color(hex: "#F3F4F6"), Color(hex: "#6B7280"))
-    case "sold":     return (Color(hex: "#DCFCE7"), Color(hex: "#166534"))
-    default:         return (Color(hex: "#F3F4F6"), Color(hex: "#6B7280"))
-    }
 }
 
 // MARK: — Empty state
@@ -562,7 +563,7 @@ private func seededLead(
     [
         seededLead(id: "1", name: "Barber & Co", type: "Barber Shop", address: "12 High St", postcode: "E1 6RF", status: "new", rating: 4.7, reviewCount: 83, phone: nil, hasDemoSite: true),
         seededLead(id: "2", name: "Lotus Thai Kitchen", type: "Restaurant", address: "88 Old St", postcode: "EC1V 9AN", status: "pitched", rating: 4.9, reviewCount: 211, phone: nil, hasDemoSite: true, followUpDays: 2),
-        seededLead(id: "3", name: "The Rusty Spoon", type: "Café", address: "4 Market Lane", postcode: "EC2A 3AB", status: "visited", rating: 4.2, reviewCount: 44, phone: nil, hasDemoSite: false),
+        seededLead(id: "3", name: "The Rusty Spoon", type: "Cafe", address: "4 Market Lane", postcode: "EC2A 3AB", status: "visited", rating: 4.2, reviewCount: 44, phone: nil, hasDemoSite: false),
         seededLead(id: "4", name: "Pixel Print Shop", type: "Print & Copy", address: "33 Brick Lane", postcode: "E1 6PU", status: "sold", rating: 4.5, reviewCount: 19, phone: nil, hasDemoSite: true),
         seededLead(id: "5", name: "Crunch Gym", type: "Fitness Centre", address: "1 City Rd", postcode: "EC1Y 1AG", status: "new", rating: 3.9, reviewCount: 62, phone: nil, hasDemoSite: false),
         seededLead(id: "6", name: "Blooms Florist", type: "Florist", address: "7 Camden Passage", postcode: "N1 8EA", status: "new", rating: 4.8, reviewCount: 57, phone: nil, hasDemoSite: true),
