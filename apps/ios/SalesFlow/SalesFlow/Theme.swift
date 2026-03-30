@@ -1,51 +1,54 @@
 import SwiftUI
 
 // MARK: — Theme
-// All colours are adaptive: they switch automatically between light and dark mode.
-//
-// Dark mode:  dark grey tones (not pure black)
-// Light mode: off-white / light grey tones (not pure white)
+// Design system aligned with the web dashboard (globals.css).
+// Dark mode: pure black base with #0a0a0a surfaces (premium, high contrast).
+// Light mode: off-white / light grey tones.
 
 enum Theme {
     // MARK: — Backgrounds
-    /// Primary page background. Dark: #1a1a1a  Light: #f2f2f2
-    static let background = Color(adaptive: "#1a1a1a", light: "#f2f2f2")
+    /// Primary page background. Dark: #000000  Light: #f2f2f2
+    static let background = Color(adaptive: "#000000", light: "#f2f2f2")
 
-    /// Card / surface. Dark: #242424  Light: #ffffff
-    static let surface = Color(adaptive: "#242424", light: "#ffffff")
+    /// Card / surface. Dark: #0a0a0a  Light: #ffffff
+    static let surface = Color(adaptive: "#0a0a0a", light: "#ffffff")
 
-    /// Elevated surface (nav bars, modals). Dark: #2c2c2c  Light: #f7f7f7
-    static let surfaceElevated = Color(adaptive: "#2c2c2c", light: "#f7f7f7")
+    /// Elevated surface (nav bars, modals). Dark: #111111  Light: #f7f7f7
+    static let surfaceElevated = Color(adaptive: "#111111", light: "#f7f7f7")
+
+    /// Press state surface. Dark: #1a1a1a  Light: #eeeeee
+    static let surfacePressed = Color(adaptive: "#1a1a1a", light: "#eeeeee")
 
     // MARK: — Borders
-    /// Standard border. Dark: #3a3a3a  Light: #e0e0e0
-    static let border = Color(adaptive: "#3a3a3a", light: "#e0e0e0")
+    /// Standard border. Dark: #333333  Light: #e0e0e0
+    static let border = Color(adaptive: "#333333", light: "#e0e0e0")
 
-    /// Subtle separator. Dark: #2e2e2e  Light: #ebebeb
-    static let borderSubtle = Color(adaptive: "#2e2e2e", light: "#ebebeb")
+    /// Subtle separator. Dark: #222222  Light: #ebebeb
+    static let borderSubtle = Color(adaptive: "#222222", light: "#ebebeb")
 
     // MARK: — Text
-    /// Primary text. Dark: #f0f0f0  Light: #111111
-    static let textPrimary = Color(adaptive: "#f0f0f0", light: "#111111")
+    /// Primary text. Dark: #ededed  Light: #111111
+    static let textPrimary = Color(adaptive: "#ededed", light: "#111111")
 
-    /// Secondary text. Dark: #9a9a9a  Light: #555555
-    static let textSecondary = Color(adaptive: "#9a9a9a", light: "#555555")
+    /// Secondary text. Dark: #999999  Light: #555555
+    static let textSecondary = Color(adaptive: "#999999", light: "#555555")
 
     /// Muted / hint text. Dark: #666666  Light: #888888
     static let textMuted = Color(adaptive: "#666666", light: "#888888")
 
     // MARK: — Accent
-    static let accent = Color(hex: "#0070F3")
+    static let accent = Color(hex: "#0071E3")
 
-    // MARK: — Status colours (same in both modes — muted, professional)
-    static let statusNew      = Color(hex: "#4C8BF5")
-    static let statusVisited  = Color(hex: "#B8922A")
-    static let statusPitched  = Color(hex: "#8B6BB5")
-    static let statusSold     = Color(hex: "#3D9E5F")
-    static let statusRejected = Color(hex: "#C0392B")
+    // MARK: — Status colours (aligned with web Tailwind palette)
+    static let statusNew      = Color(hex: "#3b82f6")
+    static let statusVisited  = Color(hex: "#eab308")
+    static let statusPitched  = Color(hex: "#a78bfa")
+    static let statusSold     = Color(hex: "#22c55e")
+    static let statusRejected = Color(hex: "#ef4444")
 
     // MARK: — Geometry
     static let radiusCard:   CGFloat = 12
+    static let radiusLarge:  CGFloat = 16
     static let radiusButton: CGFloat = 8
     static let borderWidth:  CGFloat = 1
 }
@@ -72,6 +75,87 @@ extension Theme {
         case "rejected": return "Rejected"
         default:         return status.capitalized
         }
+    }
+}
+
+// MARK: — View Modifiers
+
+/// Page entrance animation — fade + slide up, matching web's .page-enter
+struct PageEntranceModifier: ViewModifier {
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 6)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.35)) {
+                    appeared = true
+                }
+            }
+    }
+}
+
+/// Staggered entrance — each item fades in with a delay
+struct StaggeredEntranceModifier: ViewModifier {
+    let index: Int
+    let baseDelay: Double
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 8)
+            .onAppear {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * baseDelay)) {
+                    appeared = true
+                }
+            }
+    }
+}
+
+/// Subtle noise texture overlay for dark surfaces
+struct NoiseTextureModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content.overlay(
+            Canvas { context, size in
+                for _ in 0..<Int(size.width * size.height * 0.003) {
+                    let x = Double.random(in: 0...size.width)
+                    let y = Double.random(in: 0...size.height)
+                    let gray = Double.random(in: 0.3...0.7)
+                    context.fill(
+                        Path(ellipseIn: CGRect(x: x, y: y, width: 1, height: 1)),
+                        with: .color(.white.opacity(gray * 0.06))
+                    )
+                }
+            }
+            .allowsHitTesting(false)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusCard))
+        )
+    }
+}
+
+/// Press feedback — scale + opacity on press
+struct PressEffectButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+extension View {
+    func pageEntrance() -> some View {
+        modifier(PageEntranceModifier())
+    }
+
+    func staggeredEntrance(index: Int, baseDelay: Double = 0.06) -> some View {
+        modifier(StaggeredEntranceModifier(index: index, baseDelay: baseDelay))
+    }
+
+    func noiseTexture() -> some View {
+        modifier(NoiseTextureModifier())
     }
 }
 

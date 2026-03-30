@@ -35,6 +35,9 @@ final class AppearanceStore: ObservableObject {
         didSet { UserDefaults.standard.set(preference.rawValue, forKey: "appearance_preference") }
     }
 
+    /// Convenience — the colour scheme to pass to .preferredColorScheme()
+    var colorScheme: ColorScheme? { preference.colorScheme }
+
     private init() {
         let raw = UserDefaults.standard.string(forKey: "appearance_preference") ?? "system"
         preference = Preference(rawValue: raw) ?? .system

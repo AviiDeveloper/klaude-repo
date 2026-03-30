@@ -1,18 +1,14 @@
-//
-//  salesflowApp.swift
-//  salesflow
-//
-//  Created by Avii Developer on 24/03/2026.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
-struct salesflowApp: App {
+struct SalesFlowApp: App {
+    @StateObject private var authStore = AuthStore.shared
+    @StateObject private var appearance = AppearanceStore.shared
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Lead.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +21,18 @@ struct salesflowApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                if authStore.isAuthenticated {
+                    NavigationStack {
+                        ModeSelectView()
+                    }
+                } else {
+                    LoginView()
+                }
+            }
+            .preferredColorScheme(appearance.colorScheme)
+            .environmentObject(authStore)
+            .environmentObject(appearance)
         }
         .modelContainer(sharedModelContainer)
     }
