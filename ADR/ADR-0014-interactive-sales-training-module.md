@@ -1,4 +1,4 @@
-# ADR-0014: Interactive Sales Training Module
+# ADR-0014: SalesFlow Academy — Interactive Sales Training
 
 **Status**: Proposed
 **Date**: 2026-03-30
@@ -6,264 +6,351 @@
 
 ## Context
 
-The platform recruits salespeople with zero experience and tells them "no experience needed." Currently, the only guidance is:
-- Onboarding slides (4 pitch screens during signup)
-- A help modal in ProfileView (6 generic steps)
-- Objection handlers embedded in lead detail cards
+New contractors sign up, see a dashboard full of leads, and freeze. The gap between "I signed up" and "I walked into my first business" is where most churn happens. Telling people "no experience needed" only works if you actually make that true.
 
-This is insufficient. Most new contractors will feel unprepared walking into their first business. The drop-off between signup and first pitch is the highest-risk churn point.
+## Vision
 
-## Decision
+**SalesFlow Academy** — a Duolingo-style learning experience with an editorial, professional tone. Not gamey. Not corporate. Think: a well-designed course that respects your time, teaches through real scenarios, and makes you feel genuinely ready.
 
-Build an interactive, module-based sales training course embedded in both the iOS app and web dashboard. Training is **optional but encouraged** — the dashboard is accessible immediately, but a persistent badge/prompt drives completion. Training progress syncs across platforms.
+The experience should feel like scrolling through a beautifully designed magazine that occasionally asks you to think. Short lessons. Immediate feedback. Satisfying progression. No patronising mascots.
 
-## Training Architecture
+## Design Principles
 
-### Modules (6 core + 2 advanced)
+1. **Bite-sized, not bite-sized-for-the-sake-of-it.** Each lesson is 2-3 minutes. But the content is dense and useful — no filler, no "great job!" after every tap.
 
-#### Core modules (unlock sequentially)
+2. **Learn by doing.** Every lesson ends with a decision. Not "select the correct answer" — more like "you're standing outside a barber shop at 11am. The owner is with a client. What do you do?" The answers aren't obviously right or wrong.
 
-**Module 1: "How This Works"** (5 min)
-- What you're actually selling (website service, not a product)
-- The pricing: £350 upfront + £25/month — what the client gets
-- Your commission: £50 per closed sale, paid weekly
-- The demo site: AI-generated, personalised, already built
-- **Quiz**: 3 questions on pricing and commission
+3. **Editorial voice.** The writing reads like advice from someone who's done this, not a compliance module. Direct. Opinionated. Occasionally dry. Never corporate.
 
-**Module 2: "Reading a Business"** (8 min)
-- What to look for before walking in (signage, foot traffic, existing web presence)
-- Best business types (takeaways, salons, tradespeople, retailers)
-- When NOT to walk in (busy periods, obvious chains, hostile reception)
-- Using the lead card intel (reviews, trust badges, services, avoid topics)
-- **Interactive**: "Would you walk in?" — 5 business scenarios with photos
+4. **Show, don't quiz.** Instead of "what is the commission per sale?" after reading a slide that says "£50 per sale" — show a scenario where the number matters: "A client asks why it costs £350. You need to explain where that money goes. What do you say?"
 
-**Module 3: "The Approach"** (6 min)
-- Opening line: "Hi, I'm [name] — I work with a company that builds websites for local businesses like yours"
-- The 10-second hook: show the demo on your phone immediately
-- Body language: confident but not pushy, stand beside not opposite
-- Reading the room: interested vs polite vs hostile — when to continue, when to leave a card
-- **Role-play**: Text-based conversation sim — 3 scenarios
+5. **Progressive depth.** Surface-level on first pass. If they come back to review, the same scenario has a deeper layer — the advanced response, the nuance they missed.
 
-**Module 4: "The Demo Walkthrough"** (7 min)
-- How to present the demo site (hand the phone, don't describe — let them see)
-- What to point out: their business name, real services, mobile-friendly
-- The "surprise and delight" moment: "This was made specifically for your business"
-- Handling "how much?" early — redirect to value first
-- **Practice**: Guided demo walkthrough with prompts (using a sample demo site)
+## The Path
 
-**Module 5: "Handling Objections"** (10 min)
-- The 8 most common objections with proven responses:
-  1. "We already have a website" → "Can I show you what a modern one looks like for comparison?"
-  2. "We don't need a website" → "Most of your customers Google before they visit..."
-  3. "It's too expensive" → "It works out to less than £1 a day..."
-  4. "I need to think about it" → "Completely understand — can I leave you with this?" (QR code)
-  5. "My nephew does our website" → "That's great — this is professionally maintained so [nephew] doesn't have to..."
-  6. "We use social media" → "A website means you own your online presence..."
-  7. "Business is slow right now" → "That's exactly when visibility matters most..."
-  8. "I've been burned before" → "We offer a 14-day cancellation window..."
-- **Interactive**: Objection cards — hear the objection, choose the best response, see the ideal answer
+Visual progression modelled on Duolingo's path UI — a vertical scroll of nodes, each representing a lesson. Nodes are connected by a subtle line. Completed nodes are filled, current node pulses, locked nodes are dimmed.
 
-**Module 6: "Closing and After"** (5 min)
-- The close: "Would you like to go ahead?" — simple, direct, no tricks
-- Payment flow: what happens when they say yes (Stripe link, instant)
-- After the sale: update status, log the outcome, move to next lead
-- Follow-up strategy: when to go back, how to leave a QR code
-- The referral: "Know any other business owners who might be interested?"
-- **Quiz**: 5 questions covering the full sales process
+```
+◉ The Basics                    ← completed (filled)
+│
+◉ Reading the Room              ← completed
+│
+◎ Your First Words              ← current (pulsing)
+│
+○ The Demo Moment               ← locked (dimmed)
+│
+○ When They Say No
+│
+○ Closing
+│
+┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+○ Working Smarter               ← advanced (unlocks after core)
+│
+○ Building Territory
+```
 
-#### Advanced modules (unlock after all core completed)
+Each node expands to show 3-5 micro-lessons within it. Completing all micro-lessons fills the node.
 
-**Module 7: "Scaling Your Day"** (6 min)
-- Route planning: cluster leads geographically
-- Time management: best hours to pitch (10am-12pm, 2pm-4pm)
-- Batch pitching: aim for 8-12 doors per session
-- Tracking your conversion funnel: visits → pitches → sales
-- Weekly earning targets and how to hit them
+## Lessons
 
-**Module 8: "Advanced Techniques"** (8 min)
-- Social proof: "I just set up [nearby business] last week"
-- The revisit strategy: when and how to go back to a "maybe"
-- Building a territory: becoming the known person in an area
-- Handling multiple decision makers ("I need to ask my partner")
-- Upsell awareness: recognising clients who might want more later
+### Unit 1: "The Basics" (3 lessons, ~6 min total)
 
-### UI Design
+**1.1 — "What you're actually doing"**
+> You're not a door-to-door salesman. You're walking into a business with something they genuinely need — a website that's already been built for them. The hard part is already done. Your job is to show it to them.
 
-#### iOS — Training Tab or Section
+*Scenario*: You're at a pub explaining to a friend what your new side gig is. They ask "so what, you knock on doors?" Pick the response that best describes what you actually do.
 
-**Option A: Fifth tab** — "Learn" tab with graduation cap icon
-- Pro: Always visible, easy to access
-- Con: 5 tabs is crowded, may reduce tab bar usability
+**1.2 — "The numbers"**
+> £350 upfront. £25/month. You get £50. The client gets a live website within 24 hours. No setup fees, no domain fees, no hidden costs.
 
-**Option B: Section in ModeSelectView** — Third mode button: "Sales Training"
-- Pro: Clean, doesn't add tab clutter
-- Con: Hidden behind mode select, less discoverable
+*Scenario*: A salon owner says "three hundred and fifty quid?! My nephew could build one for free." How do you respond? (3 options, each with nuanced feedback — none are "wrong," but one is clearly strongest)
 
-**Option C: Card in LeadsView** — Pinned training card at top of leads list until completed
-- Pro: In-context, impossible to miss
-- Con: Takes space from lead list
+**1.3 — "Your tools"**
+Quick tour of the app itself: lead cards, demo viewer, QR sharing, status updates. Interactive — tapping through actual UI patterns, not screenshots.
 
-**Recommendation**: Option B (mode select) + Option C (pinned card until completion). The training section is a full-screen experience accessed from mode select. A dismissible card in LeadsView shows progress and nudges completion.
+---
 
-#### Screen structure (per module)
+### Unit 2: "Reading the Room" (4 lessons, ~8 min)
 
-1. **Module intro** — title, estimated time, what you'll learn (3 bullets)
-2. **Lesson slides** — swipeable cards with text + illustrations (no video in MVP)
-3. **Interactive checkpoint** — quiz, scenario card, or role-play
-4. **Module complete** — checkmark + what's next
+**2.1 — "Before you walk in"**
+> Stand outside for 10 seconds. Not creepily. Just look. Is it busy? Is the owner visible? Is there a website URL on the sign? These 10 seconds save you from walking into the wrong conversation.
 
-#### Web dashboard — `/training` route
+*Interactive*: 5 storefront photos. For each: "Walk in now?" / "Wait" / "Skip this one" — with reasoning.
 
-Same module content rendered as a full-page experience. Left sidebar shows module list with completion states. Main area shows current lesson content. Responsive — works on mobile web too.
+**2.2 — "The best prospects"**
+> Takeaways. Barbers. Nail salons. Independent cafés. Tradespeople. These are businesses run by their owners, who make decisions on the spot. Chains, franchises, managed properties — skip them.
 
-### Data Model
+*Card sort*: 8 business types appear as cards. Drag into "good prospect" or "probably skip" — see the reasoning after.
+
+**2.3 — "Using your intel"**
+> Every lead card has intelligence: Google rating, reviews, services, trust badges, and topics to avoid. A 4.8-star barber who's "family run since 2014" is a different conversation than a 3.2-star takeaway with "previous negative review."
+
+*Scenario*: Two lead cards side by side. "You have time for one more pitch today. Which lead do you visit, and why?"
+
+**2.4 — "When to walk away"**
+> Not every door is worth opening. If the owner is hostile, if they're mid-rush, if there's clearly a brand-new website on display — thank them and leave. Time spent on a dead lead is time not spent on a live one.
+
+*Quick-fire*: 6 rapid scenarios (3 seconds each). "Stay or go?" — gut instinct training.
+
+---
+
+### Unit 3: "Your First Words" (3 lessons, ~5 min)
+
+**3.1 — "The opener"**
+> "Hi, I'm [name] — I work with a company that builds websites for local businesses. I've actually got one here that was made for yours — can I show you?"
+>
+> That's it. Thirteen seconds. The key is the last five words: "can I show you?" — you're asking for 30 seconds, not a purchase.
+
+*Practice*: Fill-in-the-blank with your own name. Then: "The owner says 'I'm busy.' What's your one-sentence follow-up?"
+
+**3.2 — "Body language"**
+> Stand beside them, not opposite. Hand them the phone — don't hold it up. If they're behind a counter, angle the phone so they can see without leaning. Small things that change the dynamic from "I'm selling to you" to "I'm showing you something."
+
+*Scenario*: Photo of a shop layout. "Where do you stand? Tap the spot." Feedback on positioning.
+
+**3.3 — "Reading their face"**
+> Three reactions you'll see in the first 10 seconds:
+> - **Interested**: They lean in. They ask questions. Keep going.
+> - **Polite**: They nod but don't engage. You have 30 more seconds — make them count.
+> - **Hostile**: Arms crossed. "Not interested." Thank them and leave. Never argue.
+
+*Interactive*: Three short text conversations. Identify which reaction you're getting and choose the right response for each.
+
+---
+
+### Unit 4: "The Demo Moment" (3 lessons, ~5 min)
+
+**4.1 — "Let it speak for itself"**
+> Don't describe the website. Show it. Hand them the phone. The moment they see their business name, their services, their actual Google reviews on a professional site — that's the pitch. Your job is to shut up for five seconds and let them react.
+
+**4.2 — "What to point out"**
+> After they've had the initial reaction:
+> - "See how it pulls in your real reviews?"
+> - "This is how it looks on mobile — which is how 70% of people would find you"
+> - "Everything here is specific to your business — nothing generic"
+
+*Practice*: A sample demo site scrolls. At specific moments, you're prompted: "What do you say here?" — choose from 3 options.
+
+**4.3 — "The QR handoff"**
+> Whether they say yes or "let me think about it," the QR code is your best friend. They scan it, the demo stays on their phone. They show their partner, their staff, their friend. The website does the selling after you leave.
+
+---
+
+### Unit 5: "When They Say No" (5 lessons, ~10 min)
+
+The longest unit. The most important one. Each lesson covers 1-2 objections with deep, nuanced responses.
+
+**5.1 — "We already have a website"**
+> This is the most common objection, and it's the easiest to handle — because their existing website is almost certainly terrible. Don't say that. Say: "Can I show you what a modern version could look like? Just for comparison."
+
+*Role-play*: Full conversation tree. Owner says "we already have one." You respond. They push back. You adapt. 3 turns deep.
+
+**5.2 — "It's too expensive"**
+> £350 sounds like a lot to someone who's never spent money on a website. It sounds like nothing to someone who's been quoted £2,000 by a web agency. Your job is to reframe: "It works out to less than a pound a day. And that includes hosting, the domain, maintenance — everything."
+
+**5.3 — "I need to think about it"**
+> This isn't a no. This is "convince me without pressure." Leave the QR code. Say "completely understand — the demo stays live for you to look at. I'll pop back in a few days." Then actually follow up.
+
+**5.4 — "My nephew / friend does our website"**
+> The nephew argument. Never dismiss it — it insults their relationship. "That's great that you have someone. This is more like a managed service — we handle hosting, updates, SEO, everything — so [nephew] doesn't have to maintain it."
+
+**5.5 — "We just use Instagram / Facebook"**
+> "Social media is great for engagement, but a website means you own your online presence. If Instagram changes their algorithm tomorrow — and they will — your website is still there."
+
+*Each lesson*: Hear the objection → pick your response → see the ideal phrasing → understand *why* it works.
+
+---
+
+### Unit 6: "Closing" (3 lessons, ~5 min)
+
+**6.1 — "The ask"**
+> "Would you like to go ahead?" Five words. No tricks. No urgency. No "special offer if you sign today." Just a direct question. If they say yes: payment link. If they say no: QR code and follow-up date.
+
+**6.2 — "After the sale"**
+> Update the status. Log the outcome. The business gets their site within 24 hours. Your £50 is confirmed within 7 days. Move to the next lead.
+
+**6.3 — "The referral ask"**
+> Before you leave: "Do you know any other business owners around here who might be interested?" Referrals are the highest-conversion leads you'll ever get.
+
+*Final quiz*: 8 questions covering the full journey. Not recall — application. "Given this scenario, what do you do?"
+
+---
+
+### Advanced Units (unlock after core 6)
+
+**Unit 7: "Working Smarter"** — Route planning, time management, batch pitching, weekly targets. For people who are doing this seriously, not casually.
+
+**Unit 8: "Building Territory"** — Social proof loops, revisit strategy, multi-decision-maker handling, earning £300+/week consistently.
+
+## UI Specification
+
+### The Path Screen (main training view)
+
+**iOS**: Full-screen view accessible from ModeSelectView. White/light background (matches onboarding aesthetic — training is an extension of onboarding, not the dashboard).
+
+**Layout**:
+- Top: "SalesFlow Academy" wordmark + overall progress ("4 of 18 lessons complete")
+- Center: Vertical scrolling path with connected nodes
+- Each node: circle + unit title + lesson count + estimated time
+- States: completed (filled, checkmark), current (pulsing ring), locked (gray, padlock)
+- Bottom: "Continue" button fixed at bottom, jumps to current lesson
+
+**Web**: `/training` route. Same path layout, wider content area. Sidebar shows unit list on desktop.
+
+### Lesson Screen
+
+**Layout**: Full-screen, immersive. No tab bar, no navigation chrome — just the content and a "Continue" / back button.
+
+- **Text content**: Large serif-adjacent font (or system font at 18pt+), generous line height (1.7), max-width ~600px. Reads like a magazine article.
+- **Key phrases**: Bold or highlighted in accent blue. Not every other word — only the insight.
+- **Scenarios**: Card that slides up from bottom. Options are full-width buttons (not radio buttons). Selected option shows feedback inline — green border for strong choice, amber for okay, explanation text.
+- **Role-play**: Chat-bubble style. Owner's message on left (gray), your options on right (blue). Feels like a messaging app.
+- **Card sort / interactive**: Smooth drag-and-drop or tap-to-select. Subtle haptic feedback on correct/incorrect.
+- **Progress**: Thin bar at top of lesson screen (within the unit, not the overall path).
+
+### Completion
+
+**Unit complete**: Filled node animation + "Unit complete" toast. No confetti. Clean.
+
+**All core complete**: Full-screen "You're ready" moment — similar to onboarding done screen but with a confidence summary. "You scored 85% across all scenarios. You're better prepared than most."
+
+**Review mode**: Completed units can be revisited. Scenarios shuffle so it's not just re-reading.
+
+## Data Model
 
 ```sql
--- Module definitions (static, seeded)
-CREATE TABLE training_modules (
-    module_id TEXT PRIMARY KEY,          -- 'mod-01', 'mod-02', etc.
+CREATE TABLE training_units (
+    unit_id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
-    description TEXT,
+    subtitle TEXT,
     estimated_minutes INTEGER,
-    sort_order INTEGER,
+    sort_order INTEGER NOT NULL,
     is_advanced BOOLEAN DEFAULT FALSE,
-    content_json JSONB                   -- Lessons, quizzes, scenarios
+    lessons_json JSONB NOT NULL
 );
 
--- User progress (per salesperson)
 CREATE TABLE training_progress (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT NOT NULL,               -- FK to sales_users
-    module_id TEXT NOT NULL,             -- FK to training_modules
-    status TEXT DEFAULT 'locked',        -- locked | available | in_progress | completed
+    user_id TEXT NOT NULL,
+    unit_id TEXT NOT NULL,
+    lesson_index INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'locked',       -- locked | available | in_progress | completed
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    quiz_score FLOAT,                    -- 0-1, percentage correct
-    quiz_attempts INTEGER DEFAULT 0,
-    current_lesson INTEGER DEFAULT 0,    -- Index of current slide
-    UNIQUE(user_id, module_id)
+    score FLOAT,                         -- 0-1 across all scenarios in unit
+    UNIQUE(user_id, unit_id)
 );
 
--- Individual quiz/scenario responses (for analytics)
 CREATE TABLE training_responses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT NOT NULL,
-    module_id TEXT NOT NULL,
-    question_id TEXT NOT NULL,
-    selected_answer TEXT,
-    is_correct BOOLEAN,
+    unit_id TEXT NOT NULL,
+    lesson_index INTEGER NOT NULL,
+    scenario_id TEXT NOT NULL,
+    selected_option INTEGER,
+    score INTEGER,                       -- 1-3 (weak/okay/strong)
     responded_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
-### API Endpoints
+## API
 
 ```
-GET    /training/modules          — List modules with user's progress
-GET    /training/modules/:id      — Module content + lessons
-POST   /training/modules/:id/start    — Mark module as in_progress
-POST   /training/modules/:id/complete — Submit quiz, mark complete
-POST   /training/responses        — Log individual quiz response
-GET    /training/progress         — Overall training progress summary
+GET    /training                  — Units list + user progress
+GET    /training/:unitId          — Unit content (lessons_json) + progress
+POST   /training/:unitId/start    — Begin unit
+POST   /training/:unitId/respond  — Submit scenario response
+POST   /training/:unitId/complete — Finish unit, calculate score
 ```
 
-### Content Format (content_json)
+## Content Format
 
 ```json
 {
   "lessons": [
     {
-      "type": "text",
-      "title": "What You're Actually Selling",
-      "body": "You're not selling a product...",
-      "highlight": "The demo is already built before you walk in."
+      "type": "editorial",
+      "content": "You're not a door-to-door salesman...",
+      "highlight": "Your job is to show it to them."
     },
     {
       "type": "scenario",
-      "prompt": "You walk into a busy salon at 11am. The owner is cutting hair. What do you do?",
+      "setup": "A salon owner says 'three hundred and fifty quid?!'",
       "options": [
-        { "text": "Wait until they finish and approach", "correct": true, "feedback": "Good — shows respect for their time." },
-        { "text": "Interrupt and pitch immediately", "correct": false, "feedback": "Never interrupt someone with a client." },
-        { "text": "Leave and come back later", "correct": false, "feedback": "You could, but a brief wait shows initiative." }
+        {
+          "text": "Break down the value: hosting, domain, maintenance — all included for less than £1/day.",
+          "score": 3,
+          "feedback": "Strong. You reframed the cost without being defensive."
+        },
+        {
+          "text": "Tell them it's a fair price compared to agencies who charge £2,000+.",
+          "score": 2,
+          "feedback": "Valid comparison, but it can feel dismissive of their concern."
+        },
+        {
+          "text": "Offer a discount to close the deal.",
+          "score": 1,
+          "feedback": "Never discount. It undermines the value and your own commission."
+        }
       ]
     },
     {
       "type": "roleplay",
-      "setup": "You've just shown the demo to a restaurant owner. They say:",
-      "dialogue": [
-        { "speaker": "owner", "text": "This looks nice but we already have a Facebook page." },
-        { "options": [
-          { "text": "A website means you own your online presence — Facebook can change their algorithm any time.", "score": 3 },
-          { "text": "Facebook isn't the same as a website.", "score": 1 },
-          { "text": "Most customers Google 'restaurant near me' — they find websites, not Facebook pages.", "score": 3 }
-        ]}
+      "messages": [
+        { "role": "owner", "text": "We just use Facebook, we don't need a website." },
+        {
+          "role": "you",
+          "options": [
+            { "text": "Social media is great for engagement, but a website means you own your presence. If Facebook changes their algorithm — your site is still there.", "score": 3 },
+            { "text": "A lot of businesses say that, but studies show websites convert better.", "score": 2 },
+            { "text": "Facebook isn't enough anymore.", "score": 1 }
+          ]
+        },
+        { "role": "owner", "text": "Hmm, I suppose that's true. But I wouldn't know how to manage a website." },
+        {
+          "role": "you",
+          "options": [
+            { "text": "That's the best part — we manage everything. Hosting, updates, changes. You don't touch anything unless you want to.", "score": 3 },
+            { "text": "It's really easy, we'll show you.", "score": 1 }
+          ]
+        }
       ]
-    }
-  ],
-  "quiz": [
+    },
     {
-      "id": "q1",
-      "question": "How much commission do you earn per sale?",
-      "options": ["£25", "£50", "£75", "£100"],
-      "correct": 1
+      "type": "quickfire",
+      "prompt": "Stay or go?",
+      "items": [
+        { "situation": "Owner is on the phone, gestures you to wait.", "answer": "stay", "reason": "They acknowledged you — wait briefly." },
+        { "situation": "Sign on door says 'No cold callers'.", "answer": "go", "reason": "Respect the sign. Come back another way (email/QR drop)." }
+      ]
     }
   ]
 }
 ```
 
-### Gamification (lightweight)
+## Integration Points
 
-- **Progress bar** in mode select: "3/6 modules complete"
-- **Badge** on leads tab until training is done
-- **Completion celebration**: confetti animation + "You're certified!" screen
-- **Confidence score**: based on quiz accuracy across all modules (shown in profile)
-- No leaderboards, no streaks — this isn't a game, it's preparation
+- **ModeSelectView**: Training button with progress ring (e.g., "4/18")
+- **LeadsView**: Dismissible card at top: "Complete your training — 12 lessons left" until all core done
+- **Profile**: "Academy" section showing completion status and confidence score
+- **Analytics**: training_responses feeds into the analytics agent — which objections are hardest, correlation with close rates
 
-### Analytics Value
+## Build Order
 
-Training response data feeds the self-learning system:
-- Which objections are hardest for salespeople → improve scripts
-- Which modules have lowest completion → improve content
-- Correlation between training scores and close rates → prove ROI
-- Which scenarios people get wrong → target those in follow-up tips
+1. Write all lesson content (editorial text + scenarios + role-plays) as JSON
+2. Database tables + seed content
+3. API endpoints in mobile-api
+4. iOS: Path screen + lesson viewer + scenario/roleplay components
+5. Web: `/training` route
+6. Integration: ModeSelectView button, LeadsView card, Profile section
+7. Analytics wiring
 
-### Build Order
+## What This Is Not
 
-1. **Database**: Create tables, seed module content
-2. **API**: Training endpoints in mobile-api
-3. **iOS**: Training section UI (module list → lesson slides → quiz)
-4. **Web**: `/training` route mirroring iOS content
-5. **Integration**: Pinned card in LeadsView, progress in profile
-6. **Analytics**: Wire training_responses into the analytics agent
+- Not a certification program with pass/fail
+- Not gamified with XP, gems, or virtual currency
+- Not mandatory — people who want to jump straight in can
+- Not video-based (text + interactive only, for now)
+- Not a chatbot or AI tutor — it's authored, opinionated content
 
-### Cost Estimate
-
-- **Content writing**: 2-3 hours to write all 8 modules
-- **iOS UI**: 1-2 sessions (module list, lesson viewer, quiz components)
-- **Web UI**: 1 session (reuse content, different layout)
-- **API + DB**: 1 session
-- **Total**: ~4-5 development sessions
-
-## Consequences
-
-**Positive**:
-- Dramatically reduces first-pitch anxiety
-- Provides structured path from signup to first sale
-- Training data improves the platform's scripts and objection handlers
-- Legal protection: documented training for commission-only workers
-- Differentiator vs competitors who just dump leads and hope
-
-**Negative**:
-- Content must be maintained and updated as pricing/process changes
-- Risk of over-training: people spend too long studying instead of doing
-- Module content is opinionated — may not suit all personality types
-
-**Mitigations**:
-- Keep modules short (5-10 min each)
-- "Optional but encouraged" gating — don't block the doers
-- Version content_json so updates don't break progress
-- A/B test training vs no-training cohorts to measure actual impact
-
-## Decision
-
-Approved for implementation. Build in the order specified above, starting with database schema and module content authoring.
+The goal is simple: someone finishes these 18 lessons and feels like they've done this before, even though they haven't.
