@@ -38,7 +38,7 @@ struct MainTabView: View {
                     .tag(3)
             }
             .tint(Theme.accent)
-            .toolbarBackground(Color.black, for: .tabBar)
+            .toolbarBackground(Theme.background, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
 
             // Guide overlay (shown once)
@@ -51,7 +51,6 @@ struct MainTabView: View {
                     }
             }
         }
-        .preferredColorScheme(.dark)
     }
 }
 

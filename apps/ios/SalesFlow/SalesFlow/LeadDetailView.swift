@@ -27,7 +27,7 @@ struct LeadDetailView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Theme.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Business header strip

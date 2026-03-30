@@ -39,7 +39,7 @@ final class AppearanceStore: ObservableObject {
     var colorScheme: ColorScheme? { preference.colorScheme }
 
     private init() {
-        let raw = UserDefaults.standard.string(forKey: "appearance_preference") ?? "system"
-        preference = Preference(rawValue: raw) ?? .system
+        let raw = UserDefaults.standard.string(forKey: "appearance_preference") ?? "dark"
+        preference = Preference(rawValue: raw) ?? .dark
     }
 }

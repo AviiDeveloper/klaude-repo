@@ -36,7 +36,7 @@ struct LeadsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Theme.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // ── Stats header ────────────────────────────────────────
@@ -101,17 +101,32 @@ struct LeadsView: View {
     // MARK: — Stats header
 
     private var statsHeader: some View {
-        HStack(spacing: 1) {
-            StatCell(value: "\(stats.queue)",      label: "Queue",   color: Theme.textPrimary)
-            StatCell(value: "\(stats.visited)",    label: "Visited", color: Theme.statusVisited)
-            StatCell(value: "\(stats.pitched)",    label: "Pitched", color: Theme.statusPitched)
-            StatCell(value: "\(stats.sold)",       label: "Sold",    color: Theme.statusSold)
-            StatCell(value: "£\(Int(stats.earned))", label: "Earned", color: stats.earned > 0 ? Theme.statusSold : Theme.textPrimary, mono: true)
+        HStack(spacing: 0) {
+            StatCell(value: "\(stats.queue)",      label: "Queue")
+            statDivider
+            StatCell(value: "\(stats.visited)",    label: "Visited")
+            statDivider
+            StatCell(value: "\(stats.pitched)",    label: "Pitched")
+            statDivider
+            StatCell(value: "\(stats.sold)",       label: "Sold")
+            statDivider
+            StatCell(value: "£\(Int(stats.earned))", label: "Earned", highlight: stats.earned > 0)
         }
-        .background(Color(hex: "#333333"))
+        .padding(.vertical, 14)
+        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Theme.border, lineWidth: 1)
+        )
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(width: 0.5, height: 28)
     }
 
     // MARK: — Filter bar
@@ -140,7 +155,7 @@ struct LeadsView: View {
                 }
             }
             .padding(4)
-            .background(Color(hex: "#1a1a1a"))
+            .background(Theme.surfacePressed)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -171,11 +186,11 @@ struct LeadsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(hex: "#111111"))
+        .background(Theme.surfaceElevated)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(hex: "#333333"), lineWidth: 1)
+                .stroke(Theme.border, lineWidth: 1)
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -201,7 +216,7 @@ struct LeadsView: View {
 
                     if index < filteredLeads.count - 1 {
                         Rectangle()
-                            .fill(Color(hex: "#222222"))
+                            .fill(Theme.borderSubtle)
                             .frame(height: 0.5)
                             .padding(.leading, 76)
                     }
@@ -209,7 +224,7 @@ struct LeadsView: View {
             }
             .padding(.bottom, 24)
         }
-        .background(Color.black)
+        .background(Theme.background)
         .refreshable { await loadData() }
     }
 
@@ -262,25 +277,22 @@ struct LeadsView: View {
 private struct StatCell: View {
     let value: String
     let label: String
-    var color: Color = Theme.textPrimary
-    var mono: Bool = false
+    var highlight: Bool = false
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 20, weight: .bold, design: .monospaced))
-                .foregroundStyle(color)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                .foregroundStyle(highlight ? Theme.statusSold : Theme.textPrimary)
                 .contentTransition(.numericText())
                 .animation(.spring(response: 0.4), value: value)
             Text(label)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color(hex: "#666666"))
+                .foregroundStyle(Theme.textMuted)
                 .textCase(.uppercase)
-                .tracking(0.5)
+                .tracking(0.4)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(Color(hex: "#0a0a0a"))
     }
 }
 
@@ -306,15 +318,14 @@ private struct FilterChip: View {
                 if count > 0 {
                     Text("\(count)")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : Color(hex: "#666666"))
+                        .foregroundStyle(isSelected ? .white.opacity(0.7) : Theme.textMuted)
                 }
             }
-            .foregroundStyle(isSelected ? .white : Color(hex: "#666666"))
+            .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textMuted)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(isSelected ? Color(hex: "#333333") : .clear)
+            .background(isSelected ? Theme.border : .clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(color: isSelected ? .black.opacity(0.2) : .clear, radius: 2, y: 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isSelected)
         }
         .buttonStyle(.plain)
@@ -336,16 +347,20 @@ struct LeadCardRow: View {
             ZStack(alignment: .bottomTrailing) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(statusColor.opacity(0.1))
+                        .fill(Theme.surfaceElevated)
                         .frame(width: 48, height: 48)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Theme.border, lineWidth: 0.5)
+                        )
                     Text(initials)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(statusColor)
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.textMuted)
                 }
                 Circle()
                     .fill(statusColor)
-                    .frame(width: 9, height: 9)
-                    .overlay(Circle().stroke(Theme.surface, lineWidth: 2))
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
                     .offset(x: 2, y: 2)
             }
             .padding(.top, 2)
@@ -463,7 +478,7 @@ struct LeadCardRow: View {
 private struct LeadRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color(hex: "#111111") : .clear)
+            .background(configuration.isPressed ? Theme.surfaceElevated : .clear)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }

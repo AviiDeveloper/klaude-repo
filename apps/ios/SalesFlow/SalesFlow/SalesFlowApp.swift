@@ -32,6 +32,7 @@ struct SalesFlowApp: App {
                     NavigationStack {
                         ModeSelectView()
                     }
+                    .preferredColorScheme(appearanceStore.colorScheme)
                 }
             }
             .environmentObject(authStore)

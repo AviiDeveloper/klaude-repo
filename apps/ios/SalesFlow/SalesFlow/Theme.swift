@@ -39,12 +39,12 @@ enum Theme {
     // MARK: — Accent
     static let accent = Color(hex: "#0071E3")
 
-    // MARK: — Status colours (aligned with web Tailwind palette)
-    static let statusNew      = Color(hex: "#3b82f6")
-    static let statusVisited  = Color(hex: "#eab308")
-    static let statusPitched  = Color(hex: "#a78bfa")
-    static let statusSold     = Color(hex: "#22c55e")
-    static let statusRejected = Color(hex: "#ef4444")
+    // MARK: — Status colours (muted, professional — not neon)
+    static let statusNew      = Color(hex: "#5b8def")
+    static let statusVisited  = Color(hex: "#b8922a")
+    static let statusPitched  = Color(hex: "#8b6bb5")
+    static let statusSold     = Color(hex: "#3d9e5f")
+    static let statusRejected = Color(hex: "#666666")
 
     // MARK: — Geometry
     static let radiusCard:   CGFloat = 12
