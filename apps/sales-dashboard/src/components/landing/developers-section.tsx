@@ -5,52 +5,53 @@ import { Copy, Check } from "lucide-react";
 
 const codeExamples = [
   {
-    label: "Install",
-    code: `npm install @optimus/sdk
+    label: "The opener",
+    code: `"Hi, I'm [name] from SalesFlow.
 
-# or
-yarn add @optimus/sdk
-pnpm add @optimus/sdk`,
+We built a free demo website
+for [business name] — can I
+show you on my phone?
+
+It takes 30 seconds."`,
   },
   {
-    label: "Initialize",
-    code: `import { Optimus } from '@optimus/sdk'
+    label: "The objection",
+    code: `// "We already have a website"
 
-const optimus = new Optimus({
-  apiKey: process.env.OPTIMUS_KEY
-})`,
+"That's great — can I show you
+what a modern one looks like?
+
+Most businesses we visit see
+theirs is 5+ years outdated."`,
   },
   {
-    label: "Deploy",
-    code: `const app = await optimus.deploy({
-  name: 'my-app',
-  region: 'auto',
-  scaling: {
-    min: 1,
-    max: 100
-  }
-})
+    label: "The close",
+    code: `// "How much does it cost?"
 
-console.log('Live at:', app.url)`,
+"£350 one-time, or £25/month.
+
+That includes hosting, updates,
+and a custom design based on
+what you just saw."`,
   },
 ];
 
 const features = [
-  { 
-    title: "TypeScript native", 
-    description: "Full type safety with auto-generated types."
+  {
+    title: "Word-for-word scripts",
+    description: "Know exactly what to say in every situation."
   },
-  { 
-    title: "Zero config", 
-    description: "Sensible defaults that just work."
+  {
+    title: "Objection handlers",
+    description: "Proven responses for every pushback."
   },
-  { 
-    title: "Edge-ready", 
-    description: "Runs anywhere: Node, Deno, Bun, browsers."
+  {
+    title: "Demo walkthrough",
+    description: "Show the site in 30 seconds flat."
   },
-  { 
-    title: "12KB gzipped", 
-    description: "Lightweight with zero dependencies."
+  {
+    title: "Closing framework",
+    description: "Simple steps from pitch to signed deal."
   },
 ];
 
@@ -107,7 +108,7 @@ export function DevelopersSection() {
   }, []);
 
   return (
-    <section id="developers" ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="toolkit" ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: codeAnimationStyles }} />
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
@@ -119,16 +120,16 @@ export function DevelopersSection() {
           >
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              For developers
+              Your sales toolkit
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Built by devs.
+              Built for
               <br />
-              <span className="text-muted-foreground">For devs.</span>
+              <span className="text-muted-foreground">confidence.</span>
             </h2>
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
-              A thoughtfully designed SDK that gets out of your way. 
-              Ship faster with intuitive APIs and exceptional documentation.
+              No experience needed. Our scripts and pitch framework give you
+              the exact words to say — from the opener to the close.
             </p>
             
             {/* Features */}
@@ -220,11 +221,11 @@ export function DevelopersSection() {
             {/* Links */}
             <div className="mt-6 flex items-center gap-6 text-sm">
               <a href="#" className="text-foreground hover:underline underline-offset-4">
-                Read the docs
+                See all scripts
               </a>
               <span className="text-foreground/20">|</span>
               <a href="#" className="text-muted-foreground hover:text-foreground">
-                View on GitHub
+                Watch training video
               </a>
             </div>
           </div>

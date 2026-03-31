@@ -45,29 +45,29 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
 }
 
 const metrics = [
-  { 
-    value: 2847392, 
-    suffix: "", 
-    prefix: "",
-    label: "API requests today",
+  {
+    value: 50,
+    suffix: "",
+    prefix: "£",
+    label: "Per sale commission",
   },
-  { 
-    value: 99, 
-    suffix: ".99%", 
+  {
+    value: 500,
+    suffix: "+",
     prefix: "",
-    label: "Uptime this quarter",
+    label: "Active leads nationwide",
   },
-  { 
-    value: 23, 
-    suffix: "ms", 
+  {
+    value: 2,
+    suffix: " min",
     prefix: "",
-    label: "Average response time",
+    label: "Signup time",
   },
-  { 
-    value: 184, 
-    suffix: "", 
+  {
+    value: 7,
+    suffix: " day",
     prefix: "",
-    label: "Countries served",
+    label: "Payout cycle",
   },
 ];
 

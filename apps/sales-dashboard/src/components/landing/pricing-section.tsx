@@ -5,50 +5,50 @@ import { ArrowRight, Check } from "lucide-react";
 
 const plans = [
   {
-    name: "Starter",
-    description: "For individuals and small projects",
-    price: { monthly: 0, annual: 0 },
+    name: "Part-time",
+    description: "A few hours a week around your schedule",
+    price: { monthly: 100, annual: 150 },
     features: [
-      "Up to 3 projects",
-      "1GB storage",
-      "Community support",
-      "Basic analytics",
-      "SSL certificates",
+      "2–3 sales per week",
+      "£100–£150 weekly earnings",
+      "Work around your day job",
+      "Choose your own hours",
+      "All tools included",
     ],
-    cta: "Start free",
+    cta: "Start earning",
     popular: false,
   },
   {
-    name: "Pro",
-    description: "For growing teams and businesses",
-    price: { monthly: 29, annual: 24 },
+    name: "Full-time",
+    description: "Dedicate your week to earning more",
+    price: { monthly: 250, annual: 400 },
     features: [
-      "Unlimited projects",
-      "100GB storage",
-      "Priority support",
-      "Advanced analytics",
-      "Custom domains",
-      "Team collaboration",
-      "API access",
+      "5–8 sales per week",
+      "£250–£400 weekly earnings",
+      "Full territory access",
+      "Priority lead assignment",
+      "Advanced sales scripts",
+      "Earnings dashboard",
+      "Weekly bank transfer",
     ],
-    cta: "Start trial",
+    cta: "Start earning",
     popular: true,
   },
   {
-    name: "Enterprise",
-    description: "For large-scale operations",
-    price: { monthly: null, annual: null },
+    name: "Top performer",
+    description: "Maximise your potential",
+    price: { monthly: 500, annual: null },
     features: [
-      "Everything in Pro",
-      "Unlimited storage",
-      "24/7 dedicated support",
-      "Custom integrations",
-      "SLA guarantee",
-      "On-premise option",
-      "Security audit",
-      "Custom contracts",
+      "10+ sales per week",
+      "£500+ weekly earnings",
+      "Exclusive territories",
+      "First access to new leads",
+      "Referral bonuses",
+      "Performance rewards",
+      "Direct support line",
+      "Top earner community",
     ],
-    cta: "Contact sales",
+    cta: "Start earning",
     popular: false,
   },
 ];
@@ -57,31 +57,31 @@ export function PricingSection() {
   const [isAnnual, setIsAnnual] = useState(true);
 
   return (
-    <section id="pricing" className="relative py-32 lg:py-40 border-t border-foreground/10">
+    <section id="earnings" className="relative py-32 lg:py-40 border-t border-foreground/10">
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         {/* Header */}
         <div className="max-w-3xl mb-20">
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-6">
-            Pricing
+            Earnings
           </span>
           <h2 className="font-display text-5xl md:text-6xl lg:text-7xl tracking-tight text-foreground mb-6">
             Simple, transparent
             <br />
-            <span className="text-stroke">pricing</span>
+            <span className="text-stroke">earnings</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl">
-            Start free and scale as you grow. No hidden fees, no surprises.
+            £50 per confirmed sale. The more you sell, the more you earn. No caps, no limits.
           </p>
         </div>
 
-        {/* Billing Toggle */}
+        {/* Effort Toggle */}
         <div className="flex items-center gap-4 mb-16">
           <span
             className={`text-sm transition-colors ${
               !isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            Monthly
+            Weekly
           </span>
           <button
             onClick={() => setIsAnnual(!isAnnual)}
@@ -98,11 +98,11 @@ export function PricingSection() {
               isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            Annual
+            Monthly
           </span>
           {isAnnual && (
             <span className="ml-2 px-2 py-1 bg-foreground text-primary-foreground text-xs font-mono">
-              Save 17%
+              Projected
             </span>
           )}
         </div>
@@ -118,7 +118,7 @@ export function PricingSection() {
             >
               {plan.popular && (
                 <span className="absolute -top-3 left-8 px-3 py-1 bg-foreground text-primary-foreground text-xs font-mono uppercase tracking-widest">
-                  Most Popular
+                  Most Common
                 </span>
               )}
 
@@ -136,12 +136,12 @@ export function PricingSection() {
                 {plan.price.monthly !== null ? (
                   <div className="flex items-baseline gap-2">
                     <span className="font-display text-5xl lg:text-6xl text-foreground">
-                      ${isAnnual ? plan.price.annual : plan.price.monthly}
+                      £{isAnnual ? plan.price.annual : plan.price.monthly}
                     </span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-muted-foreground">/{isAnnual ? "month" : "week"}</span>
                   </div>
                 ) : (
-                  <span className="font-display text-4xl text-foreground">Custom</span>
+                  <span className="font-display text-4xl text-foreground">£500+</span>
                 )}
               </div>
 
@@ -172,9 +172,9 @@ export function PricingSection() {
 
         {/* Bottom Note */}
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          All plans include automatic updates, HTTPS, and DDoS protection.{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-foreground transition-colors">
-            Compare all features
+          Commission-only. No guaranteed earnings. Figures based on real contractor data from last month.{" "}
+          <a href="/legal/contractor" className="underline underline-offset-4 hover:text-foreground transition-colors">
+            View contractor agreement
           </a>
         </p>
       </div>

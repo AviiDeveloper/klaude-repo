@@ -5,38 +5,42 @@ import { useEffect, useRef, useState } from "react";
 const steps = [
   {
     number: "I",
-    title: "Connect your tools",
-    description: "Integrate with your existing stack in minutes. We support 200+ data sources out of the box.",
-    code: `import { optimus } from '@optimus/core'
+    title: "Get your leads",
+    description: "Open SalesFlow and see your assigned leads — local businesses that need a website. We find them, you visit them.",
+    code: `// Your daily leads
+leads.assigned({
+  area: 'Manchester',
+  radius: '5 miles',
+  count: 12
+})
 
-optimus.connect({
-  source: 'your-database',
-  sync: true
-})`,
+// Ready to visit`,
   },
   {
     number: "II",
-    title: "Build your workflow",
-    description: "Design powerful automations with our visual builder or write code directly.",
-    code: `optimus.workflow('process', {
-  trigger: 'event',
-  actions: [
-    'validate',
-    'transform', 
-    'deliver'
-  ]
-})`,
+    title: "Show the demo",
+    description: "Pull up their custom AI-generated website on your phone. They see their own business name, logo, and content — already built.",
+    code: `// Demo for the business
+demo.generate({
+  business: 'Rose & Crown Pub',
+  category: 'hospitality',
+  location: 'Leeds'
+})
+
+// Site ready in seconds`,
   },
   {
     number: "III",
-    title: "Ship to production",
-    description: "Deploy globally with zero configuration. Your app goes live in under 30 seconds.",
-    code: `optimus.deploy({
-  target: 'production',
-  regions: 'auto'
+    title: "Close and earn",
+    description: "Handle objections with our scripts, close the deal, and earn £50. Paid to your bank within 7 days.",
+    code: `// Sale confirmed!
+commission.calculate({
+  sale: 'confirmed',
+  amount: '£50',
+  payout: 'Friday'
 })
 
-// Deployed to 12 regions`,
+// £50 to your bank`,
   },
 ];
 
@@ -88,7 +92,7 @@ export function HowItWorksSection() {
         <div className="mb-16 lg:mb-24">
           <span className="inline-flex items-center gap-3 text-sm font-mono text-background/50 mb-6">
             <span className="w-8 h-px bg-background/30" />
-            Process
+            How it works
           </span>
           <h2
             className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${
@@ -97,7 +101,7 @@ export function HowItWorksSection() {
           >
             Three steps.
             <br />
-            <span className="text-background/50">Infinite possibilities.</span>
+            <span className="text-background/50">That&apos;s it.</span>
           </h2>
         </div>
 
@@ -151,7 +155,7 @@ export function HowItWorksSection() {
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                 </div>
-                <span className="text-xs font-mono text-background/40">workflow.ts</span>
+                <span className="text-xs font-mono text-background/40">salesflow.ts</span>
               </div>
 
               {/* Code content */}

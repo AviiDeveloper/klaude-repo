@@ -3,18 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 
 const integrations = [
-  { name: "GitHub", category: "Version Control" },
-  { name: "Slack", category: "Communication" },
-  { name: "Stripe", category: "Payments" },
-  { name: "PostgreSQL", category: "Database" },
-  { name: "Redis", category: "Cache" },
-  { name: "AWS", category: "Cloud" },
-  { name: "MongoDB", category: "Database" },
-  { name: "Vercel", category: "Hosting" },
-  { name: "Figma", category: "Design" },
-  { name: "Linear", category: "Project Management" },
-  { name: "Notion", category: "Documentation" },
-  { name: "OpenAI", category: "AI/ML" },
+  { name: "Demo Sites", category: "AI-Generated" },
+  { name: "Sales Scripts", category: "Objection Handling" },
+  { name: "Objection Handlers", category: "Conversation Tools" },
+  { name: "Lead Pipeline", category: "Local Businesses" },
+  { name: "Earnings Dashboard", category: "Real-Time Tracking" },
+  { name: "Payout System", category: "Weekly Transfers" },
+  { name: "Territory Map", category: "Area Management" },
+  { name: "Training Resources", category: "Getting Started" },
 ];
 
 export function IntegrationsSection() {
@@ -44,16 +40,16 @@ export function IntegrationsSection() {
         >
           <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
             <span className="w-8 h-px bg-foreground/30" />
-            Integrations
+            Your toolkit
             <span className="w-8 h-px bg-foreground/30" />
           </span>
           <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-6">
-            Works with everything
+            Everything provided
             <br />
-            you already use.
+            for you.
           </h2>
           <p className="text-xl text-muted-foreground">
-            200+ pre-built integrations. Connect your entire stack in minutes.
+            All the tools you need to walk in, pitch, and close. Nothing to buy, nothing to set up.
           </p>
         </div>
 

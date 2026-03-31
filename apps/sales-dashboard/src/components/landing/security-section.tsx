@@ -6,27 +6,27 @@ import { Shield, Lock, Eye, FileCheck } from "lucide-react";
 const securityFeatures = [
   {
     icon: Shield,
-    title: "SOC 2 Type II",
-    description: "Independently audited security controls with continuous monitoring.",
+    title: "Transparent earnings",
+    description: "Real contractor data: £50–£800 range last month. We never inflate numbers.",
   },
   {
     icon: Lock,
-    title: "End-to-end encryption",
-    description: "AES-256 encryption for data at rest and TLS 1.3 in transit.",
+    title: "Weekly payouts",
+    description: "Commission paid every Friday via bank transfer. No delays, no hidden fees.",
   },
   {
     icon: Eye,
-    title: "Zero-trust architecture",
-    description: "Every request is authenticated and authorized. No exceptions.",
+    title: "No lock-in",
+    description: "No contract, no minimum hours. Walk away anytime — outstanding commissions still paid.",
   },
   {
     icon: FileCheck,
-    title: "GDPR & HIPAA",
-    description: "Full compliance with data protection and healthcare regulations.",
+    title: "Your independence",
+    description: "Self-employed contractor status. Set your own hours, choose your areas, work for others too.",
   },
 ];
 
-const certifications = ["SOC 2", "ISO 27001", "HIPAA", "GDPR", "CCPA"];
+const certifications = ["No contract", "No targets", "No shifts", "UK wide", "Self-employed"];
 
 export function SecuritySection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -56,7 +56,7 @@ export function SecuritySection() {
           >
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              Security
+              Trust
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
               Trust is
@@ -64,8 +64,8 @@ export function SecuritySection() {
               non-negotiable.
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
-              Enterprise-grade security isn&apos;t optional. It&apos;s built into every layer 
-              of our platform, from infrastructure to application.
+              Honest about everything. No hidden catches, no misleading promises.
+              Just straightforward commission-only work on your terms.
             </p>
 
             {/* Certifications */}
