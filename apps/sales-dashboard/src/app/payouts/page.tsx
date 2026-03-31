@@ -71,6 +71,25 @@ export default function PayoutsPage() {
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch payout data', err);
+      // Show empty state instead of staying on loading
+      setData({
+        available_balance: 0,
+        projected_monthly: 0,
+        total_earned: 0,
+        close_rate: 0,
+        visit_to_sale_rate: 0,
+        funnel: { assigned: 0, visited: 0, pitched: 0, sold: 0 },
+        weekly_activity: [
+          { day: 'Mon', visits: 0, sales: 0 },
+          { day: 'Tue', visits: 0, sales: 0 },
+          { day: 'Wed', visits: 0, sales: 0 },
+          { day: 'Thu', visits: 0, sales: 0 },
+          { day: 'Fri', visits: 0, sales: 0 },
+          { day: 'Sat', visits: 0, sales: 0 },
+          { day: 'Sun', visits: 0, sales: 0 },
+        ],
+        payment_history: [],
+      });
       setLoading(false);
     }
   };
