@@ -44,7 +44,7 @@ export function Navigation() {
           }`}
         >
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2 group">
+          <a href="/" className="flex items-center gap-2 group">
             <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>SalesFlow</span>
           </a>
 
@@ -64,15 +64,17 @@ export function Navigation() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="#" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
+            <a href="/login" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </a>
-            <Button
-              size="sm"
-              className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
-            >
-              Start earning
-            </Button>
+            <a href="/signup">
+              <Button
+                size="sm"
+                className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              >
+                Start earning
+              </Button>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -128,19 +130,21 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button 
-              variant="outline" 
-              className="flex-1 rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Sign in
-            </Button>
-            <Button 
-              className="flex-1 bg-foreground text-background rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Start earning
-            </Button>
+            <a href="/login" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button
+                variant="outline"
+                className="w-full rounded-full h-14 text-base"
+              >
+                Sign in
+              </Button>
+            </a>
+            <a href="/signup" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button
+                className="w-full bg-foreground text-background rounded-full h-14 text-base"
+              >
+                Start earning
+              </Button>
+            </a>
           </div>
         </div>
       </div>

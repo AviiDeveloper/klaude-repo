@@ -83,20 +83,24 @@ export function HeroSection() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-start gap-4">
-              <Button
-                size="lg"
-                className="bg-foreground hover:bg-foreground/90 text-background px-8 h-14 text-base rounded-full group"
-              >
-                Start earning today
-                <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
-              >
-                Watch how it works
-              </Button>
+              <a href="/signup">
+                <Button
+                  size="lg"
+                  className="bg-foreground hover:bg-foreground/90 text-background px-8 h-14 text-base rounded-full group"
+                >
+                  Start earning today
+                  <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </a>
+              <a href="/login">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
+                >
+                  Sign in to dashboard
+                </Button>
+              </a>
             </div>
           </div>
 
