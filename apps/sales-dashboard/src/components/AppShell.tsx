@@ -16,7 +16,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-black text-[#ededed]">
+    <div className="min-h-screen bg-black text-[#ededed] relative">
+      {/* ── Subtle grid background ── */}
+      <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: '80px 80px',
+        }} />
+      </div>
+
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-[#333] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-[#555] after:to-transparent after:opacity-40">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
@@ -54,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* ── Content ── */}
-      <main className="max-w-[1200px] mx-auto px-6">
+      <main className="relative z-10 max-w-[1200px] mx-auto px-6">
         {children}
       </main>
 
