@@ -2,44 +2,154 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap');
+@layer base {
+  :root {
+    /* Colors stored as RGB triplets for Tailwind alpha support */
+    --background: 250 248 245;       /* #FAF8F5 */
+    --foreground: 26 26 24;          /* #1a1a18 */
 
-* {
-  -webkit-tap-highlight-color: transparent;
+    --primary: 26 26 24;             /* same as foreground */
+    --primary-foreground: 250 248 245; /* same as background */
+
+    --secondary: 243 241 238;        /* #F3F1EE */
+    --secondary-foreground: 26 26 24;
+
+    --muted: 237 233 229;            /* #EDE9E5 */
+    --muted-foreground: 107 101 96;  /* #6B6560 */
+
+    --accent: 232 228 224;           /* #E8E4E0 */
+    --accent-foreground: 26 26 24;
+
+    --card: 255 255 255;
+    --card-foreground: 26 26 24;
+
+    --border: 219 214 208;           /* #DBD6D0 */
+    --ring: 168 160 154;             /* #A8A09A */
+    --input: 219 214 208;            /* same as border */
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: rgb(var(--background));
+    color: rgb(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: contain;
+  }
+
+  ::selection {
+    background: rgb(var(--foreground));
+    color: rgb(var(--background));
+  }
 }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
+/* ── Marquee animations ── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
-body {
-  background: #000;
-  color: #ededed;
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: contain;
-  font-size: 14px;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
 }
 
-::selection {
-  background: #333;
-  color: #fff;
+@layer utilities {
+  .marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  .marquee-reverse {
+    animation: marquee-reverse 30s linear infinite;
+  }
+
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
 }
 
-/* ── Subtle gradient shimmer on stat numbers ── */
+/* ── Noise overlay ── */
+.noise-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Char-in animation ── */
+@keyframes char-in {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) rotate(5deg);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+    filter: blur(0);
+  }
+}
+
+@layer utilities {
+  .animate-char-in {
+    animation: char-in 0.6s ease-out forwards;
+    animation-fill-mode: both;
+  }
+}
+
+/* ── Gradient text ── */
 .gradient-text {
-  background: linear-gradient(135deg, #fff 0%, #999 50%, #fff 100%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #999 50%, #1a1a1a 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ── Border glow on hover ── */
+/* ── Subtle noise texture ── */
+.noise {
+  position: relative;
+}
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ── Page transitions ── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageIn 0.3s ease-out;
+}
+
+/* ── Pulse dot ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Border glow ── */
 .glow-border {
   position: relative;
 }
@@ -49,7 +159,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(135deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0) 100%);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -61,44 +171,7 @@ body {
   opacity: 1;
 }
 
-/* ── Smooth page transitions ── */
-@keyframes pageIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.page-enter {
-  animation: pageIn 0.3s ease-out;
-}
-
-/* ── Row stagger ── */
-@keyframes rowIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ── Pulse dot for live status ── */
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-/* ── Subtle noise texture on dark surfaces ── */
-.noise {
-  position: relative;
-}
-.noise::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  pointer-events: none;
-}
-
+/* ── PWA safe area ── */
 @media (display-mode: standalone) {
   body {
     padding-top: env(safe-area-inset-top);
