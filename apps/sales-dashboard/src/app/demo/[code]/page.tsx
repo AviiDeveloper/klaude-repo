@@ -36,6 +36,17 @@ export default function CustomerDemoPage() {
   }, [phase, demo]);
 
   const fetchDemo = async () => {
+    // Test mode: /demo/test shows a sample demo without DB
+    if (code === 'test') {
+      setDemo({
+        business_name: 'The Corner Café',
+        demo_domain: null,
+        status: 'active',
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/demo-links/${code}`);
       const data = await res.json();
