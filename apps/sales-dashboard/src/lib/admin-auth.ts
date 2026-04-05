@@ -2,6 +2,10 @@ import { createHmac } from 'crypto';
 
 const ADMIN_SECRET = process.env.SD_SECRET || 'sales-dashboard-dev-secret-change-in-production';
 
+export function hashPassword(password: string): string {
+  return createHmac('sha256', ADMIN_SECRET).update(password).digest('hex');
+}
+
 export function validateAdminToken(token: string): boolean {
   const [data, sig] = token.split('.');
   if (!data || !sig) return false;

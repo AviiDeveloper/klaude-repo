@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, createHmac } from 'crypto';
 import { getSupabaseServer } from '@/lib/supabase';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 const SD_SECRET = process.env.SD_SECRET || 'sales-dashboard-dev-secret-change-in-production';
 const TOKEN_EXPIRY_DAYS = 30;
@@ -17,6 +18,14 @@ function createToken(payload: { user_id: string; name: string; exp: number }): s
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'Too many requests, please try again later', code: 'RATE_LIMITED' },
+        { status: 429 },
+      );
+    }
+
     const body = await req.json() as { name?: string; pin?: string };
 
     if (!body.name || !body.pin) {
