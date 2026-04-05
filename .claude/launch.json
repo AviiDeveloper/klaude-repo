@@ -15,9 +15,18 @@
     },
     {
       "name": "sales-dashboard",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "apps/sales-dashboard", "run", "dev"],
-      "port": 4300
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "--port", "4300"],
+      "port": 4300,
+      "autoPort": true,
+      "cwd": "/Users/Avii/Desktop/klaude-repo/apps/sales-dashboard"
+    },
+    {
+      "name": "mobile-api",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "watch", "src/index.ts"],
+      "port": 4350,
+      "cwd": "apps/mobile-api"
     }
   ]
 }

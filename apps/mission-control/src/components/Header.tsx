@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Settings, ChevronLeft, LayoutGrid, Crown, Brain, DollarSign } from 'lucide-react';
+import { Zap, Settings, ChevronLeft, LayoutGrid, Crown, Brain, DollarSign, BookOpen } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { format } from 'date-fns';
 import type { Workspace } from '@/lib/types';
@@ -160,6 +160,18 @@ export function Header({ workspace }: HeaderProps) {
             >
               <DollarSign className="w-4 h-4" />
               Costs
+            </Link>
+            <Link
+              href={`/workspace/${workspace.slug}/vault`}
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded border text-sm font-medium ${
+                pathname?.includes('/vault')
+                  ? 'border-mc-accent-purple text-mc-accent-purple bg-mc-accent-purple/15'
+                  : 'border-mc-border text-mc-text-secondary hover:bg-mc-bg-tertiary'
+              }`}
+              title="Open Vault Viewer"
+            >
+              <BookOpen className="w-4 h-4" />
+              Vault
             </Link>
           </>
         ) : null}

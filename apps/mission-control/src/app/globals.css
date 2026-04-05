@@ -135,3 +135,65 @@ body {
 .online-glow {
   box-shadow: 0 0 10px var(--mc-accent-green), 0 0 20px var(--mc-accent-green);
 }
+
+/* Vault Prose — markdown rendering styles */
+.vault-prose {
+  line-height: 1.7;
+  color: var(--mc-text-secondary);
+}
+
+.vault-prose strong {
+  color: var(--mc-text);
+  font-weight: 600;
+}
+
+.vault-prose em {
+  color: var(--mc-text-secondary);
+}
+
+.vault-prose a {
+  color: var(--mc-accent);
+  text-decoration: none;
+}
+
+.vault-prose a:hover {
+  text-decoration: underline;
+}
+
+/* Highlight.js dark theme overrides */
+.vault-prose .hljs {
+  background: var(--mc-bg-tertiary);
+  color: var(--mc-text);
+}
+
+.vault-prose .hljs-keyword,
+.vault-prose .hljs-selector-tag {
+  color: #ff7b72;
+}
+
+.vault-prose .hljs-string,
+.vault-prose .hljs-attr {
+  color: #a5d6ff;
+}
+
+.vault-prose .hljs-comment {
+  color: var(--mc-text-secondary);
+}
+
+.vault-prose .hljs-function,
+.vault-prose .hljs-title {
+  color: #d2a8ff;
+}
+
+.vault-prose .hljs-number,
+.vault-prose .hljs-literal {
+  color: #79c0ff;
+}
+
+.vault-prose .hljs-built_in {
+  color: #ffa657;
+}
+
+.vault-prose .hljs-type {
+  color: #7ee787;
+}
