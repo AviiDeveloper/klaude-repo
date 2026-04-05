@@ -2,13 +2,15 @@
 
 ## Project Overview
 AI Salesperson Platform — a gig-economy system that recruits salespeople to sell
-AI-generated websites to local small businesses. Three architectures coexist:
-1. **Orchestration System** (`src/`) — OpenClaw multi-agent runtime (TypeScript)
-2. **Sales Dashboard** (`apps/sales-dashboard/`) — Next.js + Supabase + Stripe Connect
-3. **iOS App** (`apps/ios/salesflow/`) — Native SwiftUI salesperson app
+AI-generated websites to local small businesses. Six apps + orchestration runtime:
 
-Also: Mission Control (`apps/mission-control/`), Admin Panel (`apps/admin-panel/`),
-Mobile App (`apps/mobile/`), Mobile API (`apps/mobile-api/`).
+1. **Orchestration Runtime** (`src/`) — 8-agent DAG pipeline, voice/telephony, OpenClaw bridge (TypeScript)
+2. **Sales Dashboard** (`apps/sales-dashboard/`) — Next.js salesperson app + Supabase + Stripe Connect (port 4300)
+3. **Mission Control** (`apps/mission-control/`) — Next.js orchestration dashboard, 50+ SQLite tables (port 3000)
+4. **Mobile API** (`apps/mobile-api/`) — Express.js backend for iOS app (port 4350)
+5. **Admin Panel** (`apps/admin-panel/`) — Next.js role-based admin UI (port 4400)
+6. **iOS App** (`apps/ios/salesflow/`) — Native SwiftUI salesperson app
+7. **Mobile App** (`apps/mobile/`) — React Native/Expo scaffold (not deployed)
 
 ## Source of Truth (read in this order)
 1. `SPEC.md` — master specification

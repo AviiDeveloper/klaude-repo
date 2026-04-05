@@ -32,7 +32,9 @@ Default dev value: `'sales-dashboard-dev-secret-change-in-production'`
 
 ## Token Expiry
 
-30 days. But there's a subtle bug: sales-dashboard uses seconds (`Date.now() / 1000 + 30d`), mobile-api uses milliseconds (`Date.now() + 30d`). Validation in mobile-api checks `Date.now() > payload.exp` (ms), while sales-dashboard checks `payload.exp < Date.now() / 1000` (seconds).
+30 days. Both apps use Unix seconds: `Math.floor(Date.now() / 1000) + 30d`. Validation uses seconds comparison in both implementations.
+
+Previously there was a ms-vs-seconds mismatch between apps — **fixed in Phase 1 (2026-04-05)**.
 
 ## Transport
 

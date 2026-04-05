@@ -1,7 +1,7 @@
 # ADR-0006: Multi-Agent Expansion Track (Post-MVP)
 
 ## Status
-Proposed
+Accepted (implemented via EXP-003 series, ADR-0012)
 
 ## Date
 2026-02-27

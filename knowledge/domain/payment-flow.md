@@ -10,7 +10,7 @@ Revenue comes from businesses purchasing their AI-generated website. Salespeople
 ## Stripe Connect Setup
 
 - Each salesperson onboards to Stripe Connect (express accounts).
-- Onboarding endpoint: `POST /api/payments/connect-onboard` (sales-dashboard) or `POST /payments/connect-onboard` (mobile-api).
+- Onboarding endpoint: `POST /api/payments/connect` (sales-dashboard) or `POST /payments/connect-onboard` (mobile-api).
 - Stripe account ID stored in Supabase `salesperson_metrics.stripe_connect_id`.
 
 ## Checkout Flow

@@ -1,27 +1,27 @@
 # Task Board
 
 ## Active
-- [x] EXP-004: platform webhook adapter hardening + delivery policy enforcement (done: signed webhook policy, idempotency checks, retry/backoff + dead-letter reason codes)
 - [ ] EXP-005: phase-2 content quality tuning (source quality, scoring balance, dedupe depth)
 - [ ] EXP-007: Telegram control bridge (task updates + command relay for Mission Control/OpenClaw)
-- [x] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle) — completed Wave 1 Thread B: deterministic template checks + reference-sheet lifecycle transitions/audit guards
-- [x] EXP-011a: Add estimated cost observability page + agent-level cost breakdown in Mission Control
-- [x] EXP-011b: Add exact OpenClaw request telemetry capture + actual-vs-estimated cost comparison surfaces
-- [x] EXP-010i: Harden learning scorer against keyword stuffing, contradiction, and shallow restatement before trusting learning-driven delegation tuning (done: coverage/reasoning split, confidence gate, trust-state outputs, adversarial tests)
-- [x] EXP-010a: Eval layer schema + migration + typed contracts (agent_eval_specs, agent_eval_runs, agent_performance_profiles)
-- [x] EXP-010b: Charlie eval execution path + fault attribution + eval-informed delegation weighting
-- [x] EXP-010c: Mission Control evaluation UI (Lead eval chips, Task Evaluation tab, Agent Performance tab)
-- [x] EXP-010d: Learning page in Mission Control (diff-based architecture question, answer scoring, concept recommendation)
-- [x] EXP-010e: Eval verification pipeline (scenario gates + latency report + profile aggregation checks)
-- [x] EXP-010f: Charlie learning-signal memory integration + delegation-mode weighting + verification pipeline
-- [x] EXP-010g: Lead Console learning-mode visibility (mode/trend/score/coaching focus) for live orchestration explainability
-- [x] EXP-010h: Lead Console learning bootstrap + learning API response-contract hardening/verification
 
 ## Next
 - [ ] V3-004: Realtime audio bridge for Twilio media frames
 - [ ] EXP-006: native OAuth/API publisher adapters for platform-specific delivery
 
 ## Done
+- [x] EXP-004: platform webhook adapter hardening + delivery policy enforcement (signed webhook policy, idempotency checks, retry/backoff + dead-letter reason codes)
+- [x] EXP-008: Mission Control Agent Factory (template generation + reference sheet lifecycle) — Wave 1 Thread B complete
+- [x] EXP-011a: Add estimated cost observability page + agent-level cost breakdown in Mission Control
+- [x] EXP-011b: Add exact OpenClaw request telemetry capture + actual-vs-estimated cost comparison surfaces
+- [x] EXP-010a: Eval layer schema + migration + typed contracts
+- [x] EXP-010b: Charlie eval execution path + fault attribution + eval-informed delegation weighting
+- [x] EXP-010c: Mission Control evaluation UI
+- [x] EXP-010d: Learning page in Mission Control
+- [x] EXP-010e: Eval verification pipeline
+- [x] EXP-010f: Charlie learning-signal memory integration + delegation-mode weighting
+- [x] EXP-010g: Lead Console learning-mode visibility
+- [x] EXP-010h: Lead Console learning bootstrap + learning API hardening
+- [x] EXP-010i: Harden learning scorer against keyword stuffing and shallow restatement
 - [x] INIT-001: Create runtime scaffold with orchestrator + two agents
 - [x] INIT-002: Add governance-compliant ADR and changelog entry
 - [x] M1-001: Add OpenClaw inbound `message_received` adapter

@@ -8,7 +8,7 @@
 - No microservice sprawl
 
 ## System Limits
-- Max 2 agents in MVP (Code Agent, Ops Agent)
+- Max 2 agents in MVP core (Code Agent, Ops Agent). Expanded to 8-agent DAG topology in EXP-003 (see ADR-0012).
 - Max 1 orchestrator service
 - Max 1 queue implementation
 

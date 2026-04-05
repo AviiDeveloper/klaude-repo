@@ -13,8 +13,8 @@ Express.js backend serving the iOS app and mobile apps.
 Search the `business-brain` MCP tool for context.
 Key knowledge notes: `auth-contract.md`, `entity-lead.md`, `database-architecture.md`.
 
-Auth logic is duplicated from sales-dashboard. Known bug: token expiry uses milliseconds
-here but seconds in sales-dashboard. See `knowledge/contracts/auth-contract.md`.
+Auth logic is duplicated from sales-dashboard. Token expiry bug (ms vs seconds) was
+**fixed in Phase 1 (2026-04-05)** — both now use Unix seconds.
 
 ## Routes
 - `/auth` — login, register, me

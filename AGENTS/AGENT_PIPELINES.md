@@ -1,6 +1,6 @@
-# Agent Pipelines Draft (8-Agent Target)
+# Agent Pipelines (Implemented — 8-Agent Topology)
 
-## Agent roles (draft)
+## Agent Roles
 1. `idea-agent`: ideation and topic generation
 2. `research-agent`: source gathering and evidence extraction
 3. `script-agent`: structured script drafting

@@ -1,7 +1,7 @@
 # ADR-0002: Use Postgres Job Table as Queue (MVP)
 
 ## Status
-Proposed
+Superseded by ADR-0005 (SQLite persistence) and ADR-0012 (DAG pipeline with SQLite-backed queue)
 
 ## Context
 MVP needs a queue for agent dispatch and event logging. Must be inspectable and simple.
