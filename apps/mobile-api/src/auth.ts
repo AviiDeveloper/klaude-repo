@@ -28,7 +28,7 @@ export function validateToken(token: string): AuthPayload | null {
     const expected = createHmac('sha256', SECRET).update(data).digest('base64url');
     if (sig !== expected) return null;
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString()) as AuthPayload;
-    if (payload.exp && Date.now() > payload.exp) return null;
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
     return payload;
   } catch {
     return null;
@@ -68,7 +68,7 @@ export function loginUser(name: string, pin: string): { user: Record<string, unk
   const token = createToken({
     user_id: user.id as string,
     name: user.name as string,
-    exp: Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_DAYS * 24 * 60 * 60,
   });
 
   return { user, token };

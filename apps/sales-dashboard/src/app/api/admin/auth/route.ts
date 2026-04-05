@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
+import { hashPassword } from '@/lib/admin-auth';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const ADMIN_SECRET = process.env.SD_SECRET || 'sales-dashboard-dev-secret-change-in-production';
 
 function createAdminToken(): string {
@@ -14,7 +14,14 @@ function createAdminToken(): string {
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
 
-  if (password !== ADMIN_PASSWORD) {
+  const configuredPassword = process.env.ADMIN_PASSWORD;
+  if (!configuredPassword) {
+    return NextResponse.json({ error: 'Admin auth not configured' }, { status: 503 });
+  }
+
+  const a = Buffer.from(hashPassword(password), 'hex');
+  const b = Buffer.from(hashPassword(configuredPassword), 'hex');
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
 

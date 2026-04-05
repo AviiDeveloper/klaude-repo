@@ -1,12 +1,21 @@
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { v4 as uuid } from 'uuid';
 import { loginUser, hashPin, createToken, requireAuth, getUser } from '../auth.js';
 import { queryOne, run } from '../db.js';
 
 const router = Router();
 
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later', code: 'RATE_LIMITED' },
+});
+
 // POST /auth/login
-router.post('/login', (req, res) => {
+router.post('/login', authLimiter, (req, res) => {
   const { name, pin } = req.body;
   if (!name || !pin) {
     res.status(400).json({ error: 'Name and PIN required' });
@@ -32,7 +41,7 @@ router.post('/login', (req, res) => {
 });
 
 // POST /auth/register
-router.post('/register', (req, res) => {
+router.post('/register', authLimiter, (req, res) => {
   const { name, pin, area_postcode, phone } = req.body;
   if (!name?.trim() || !pin?.trim()) {
     res.status(400).json({ error: 'Name and PIN required' });
@@ -60,7 +69,7 @@ router.post('/register', (req, res) => {
     id, name.trim(), pinHash, area_postcode?.trim() ?? '', phone?.trim() ?? '', deviceType, 0.10, now,
   );
 
-  const token = createToken({ user_id: id, name: name.trim(), exp: Date.now() + 30 * 24 * 60 * 60 * 1000 });
+  const token = createToken({ user_id: id, name: name.trim(), exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 });
   res.status(201).json({
     user: { id, name: name.trim(), area_postcode, phone, commission_rate: 0.10, created_at: now },
     token,
