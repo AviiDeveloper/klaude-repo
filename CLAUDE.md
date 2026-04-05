@@ -85,6 +85,31 @@ the folder directly. Key areas:
 - `knowledge/contracts/` — auth token format, shared enums, API surface, database architecture
 - `knowledge/architecture/` — app overview, cross-app communication, known duplication
 
+## Decision Journal
+After completing a coding task, write a decision journal entry to `~/Desktop/klaude-vault/journal/`.
+Filename: `YYYY-MM-DD_<short-slug>.md`
+
+The journal explains HOW and WHY implementation choices were made — distinct from the
+changelog which records WHAT shipped. Adapt detail to complexity:
+
+**Simple changes** (5-10 lines):
+```
+What + How + Pattern reference
+```
+
+**Complex changes** (20-50 lines):
+```
+What + How-it-works + Why-this-approach + Alternatives-considered + Patterns-used + Connections
+```
+
+Also build up over time:
+- `~/Desktop/klaude-vault/patterns/` — reusable code patterns (e.g., db helpers, auth middleware)
+- `~/Desktop/klaude-vault/concepts/` — technical concepts explained in plain English
+- `~/Desktop/klaude-vault/maps/` — how systems connect across apps
+
+Use `[[wikilinks]]` to cross-reference between entries. Create new pattern/concept notes
+when you notice the user would benefit from understanding something, or when a pattern recurs.
+
 ## Deployment Target
 - Raspberry Pi 400, user `openclaw`, repo at `/home/openclaw/klaude-repo`
 - Tailscale for remote access
