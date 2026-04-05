@@ -8,6 +8,7 @@ import photoRoutes from './routes/photos.js';
 import syncRoutes from './routes/sync.js';
 import pushRoutes from './routes/push.js';
 import trainingRoutes from './routes/training.js';
+import paymentRoutes from './routes/payments.js';
 
 const PORT = Number(process.env.MOBILE_API_PORT ?? 4350);
 const app = express();
@@ -27,6 +28,7 @@ app.use('/photos', photoRoutes);
 app.use('/sync', syncRoutes);
 app.use('/push', pushRoutes);
 app.use('/training', trainingRoutes);
+app.use('/payments', paymentRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -30,9 +30,12 @@ function initSchema() {
     );
     CREATE TABLE IF NOT EXISTS lead_assignments (
       id TEXT PRIMARY KEY, lead_id TEXT NOT NULL, user_id TEXT NOT NULL,
-      assigned_at TEXT, status TEXT DEFAULT 'new',
+      assigned_at TEXT, status TEXT DEFAULT 'new'
+        CHECK (status IN ('new', 'visited', 'pitched', 'sold', 'rejected')),
       visited_at TEXT, pitched_at TEXT, sold_at TEXT, rejected_at TEXT, rejection_reason TEXT,
       notes TEXT, commission_amount REAL, location_lat REAL, location_lng REAL,
+      follow_up_at TEXT, follow_up_note TEXT,
+      contact_name TEXT, contact_role TEXT,
       created_at TEXT, updated_at TEXT
     );
     CREATE TABLE IF NOT EXISTS sales_activity_log (
@@ -44,7 +47,9 @@ function initSchema() {
       id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE,
       assignment_id TEXT NOT NULL, user_id TEXT NOT NULL, lead_id TEXT NOT NULL,
       business_name TEXT NOT NULL, demo_domain TEXT,
-      status TEXT DEFAULT 'active', views INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active'
+        CHECK (status IN ('active', 'viewed', 'interested', 'converted', 'expired')),
+      views INTEGER DEFAULT 0,
       last_viewed_at TEXT, customer_name TEXT, customer_phone TEXT,
       customer_email TEXT, customer_message TEXT, interested_at TEXT,
       converted_at TEXT, expires_at TEXT, created_at TEXT
