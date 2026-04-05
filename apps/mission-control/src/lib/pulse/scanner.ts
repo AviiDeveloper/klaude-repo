@@ -15,7 +15,18 @@ import type {
   RecentActivityData,
 } from './types';
 
-const REPO_ROOT = path.resolve(process.cwd(), '../..');
+// Detect repo root: try git rev-parse, fall back to relative path
+function findRepoRoot(): string {
+  try {
+    const topLevel = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8', timeout: 5000 }).trim();
+    if (topLevel) return topLevel;
+  } catch {
+    // fall through
+  }
+  return path.resolve(process.cwd(), '../..');
+}
+
+const REPO_ROOT = findRepoRoot();
 
 const APP_DIRS: Record<string, string> = {
   'sales-dashboard': 'apps/sales-dashboard',
@@ -63,7 +74,7 @@ export function scanGitWorkingTree(): GitWorkingTreeStatus {
 }
 
 export function scanGitBranches(): GitBranchInfo[] {
-  const raw = git("for-each-ref --sort=-committerdate --format=%(refname:short)|%(committerdate:iso-strict)|%(subject) refs/heads/");
+  const raw = git("for-each-ref --sort=-committerdate '--format=%(refname:short)|%(committerdate:iso-strict)|%(subject)' refs/heads/");
   if (!raw) return [];
 
   const now = new Date();
@@ -284,7 +295,7 @@ export function scanRecentActivity(days: number = 7): RecentActivityData {
   let totalCommits = 0;
 
   for (const [appName, appDir] of Object.entries(APP_DIRS)) {
-    const raw = git(`log --all --since="${days} days ago" --format=%H|%aI|%s|%an -- ${appDir}`);
+    const raw = git(`log --all --since="${days} days ago" '--format=%H|%aI|%s|%an' -- ${appDir}`);
     const commits: GitCommit[] = [];
 
     if (raw) {
