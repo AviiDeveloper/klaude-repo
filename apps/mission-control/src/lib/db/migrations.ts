@@ -763,6 +763,53 @@ const migrations: Migration[] = [
         // Column may already exist
       }
     }
+  },
+  {
+    id: '016',
+    name: 'launch_checklist',
+    up(db: Database.Database) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS launch_checklist (
+          id TEXT PRIMARY KEY,
+          app TEXT NOT NULL,
+          description TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'done', 'blocked')),
+          notes TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_launch_checklist_app
+          ON launch_checklist(app, status);
+      `);
+
+      // Seed default items if table is empty
+      const count = (db.prepare('SELECT count(*) as c FROM launch_checklist').get() as { c: number }).c;
+      if (count === 0) {
+        const insert = db.prepare('INSERT INTO launch_checklist (id, app, description) VALUES (?, ?, ?)');
+        const items: [string, string][] = [
+          ['sales-dashboard', 'Auth hardened (rate limiting, no fallback passwords)'],
+          ['sales-dashboard', 'Stripe Connect integration working'],
+          ['sales-dashboard', 'Landing page complete'],
+          ['sales-dashboard', 'Deployed to Vercel'],
+          ['ios', 'Core user flows working (login, leads, demo, training)'],
+          ['ios', 'TestFlight beta distributed'],
+          ['ios', 'App Store submission prepared'],
+          ['admin-panel', 'Deployed to production'],
+          ['admin-panel', 'Role-based access control working'],
+          ['mobile-api', 'Deployed to Pi'],
+          ['mobile-api', 'Auth working (HMAC tokens, rate limiting)'],
+          ['mobile-api', 'All endpoints tested'],
+          ['runtime', 'Pipeline running on Pi'],
+          ['runtime', 'Agents operational'],
+          ['mission-control', 'All pages functional and deployed'],
+        ];
+        for (const [app, desc] of items) {
+          const id = `lc-${app}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          insert.run(id, app, desc);
+        }
+      }
+    }
   }
 ];
 
