@@ -39,7 +39,7 @@ struct SignUpView: View {
                 // Progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Rectangle().fill(Color(hex: "#F3F4F6")).frame(height: 3)
+                        Rectangle().fill(Theme.surfaceElevated).frame(height: 3)
                         Rectangle().fill(accentBlue)
                             .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(totalSteps), height: 3)
                             .animation(.easeOut(duration: 0.4), value: step)
@@ -53,7 +53,7 @@ struct SignUpView: View {
                         Button(action: { dismiss() }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color(hex: "#9CA3AF"))
+                                .foregroundStyle(Theme.textMuted)
                         }
                     } else if step < totalSteps - 1 {
                         Button(action: {
@@ -65,14 +65,14 @@ struct SignUpView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(Color(hex: "#9CA3AF"))
+                                .foregroundStyle(Theme.textMuted)
                         }
                     }
                     Spacer()
                     if step > 0 && step < totalSteps - 1 {
                         Text("\(step + 1) / \(totalSteps)")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color(hex: "#9CA3AF"))
+                            .foregroundStyle(Theme.textMuted)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -120,14 +120,14 @@ struct SignUpView: View {
                     if step == 0 {
                         Button("Already have an account? Sign in") { dismiss() }
                             .font(.system(size: 13))
-                            .foregroundStyle(Color(hex: "#9CA3AF"))
+                            .foregroundStyle(Theme.textMuted)
                             .padding(.top, 10)
                     }
 
                     HStack(spacing: 4) {
                         ForEach(0..<totalSteps, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 1)
-                                .fill(i == step ? accentBlue : Color(hex: "#E5E7EB"))
+                                .fill(i == step ? accentBlue : Theme.border)
                                 .frame(width: i == step ? 24 : 5, height: 5)
                                 .animation(.easeInOut(duration: 0.3), value: step)
                         }
@@ -179,13 +179,13 @@ struct SignUpView: View {
             Text("Start earning today")
                 .font(.system(size: 32, weight: .bold))
                 .tracking(-1)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
 
             Text("Walk into businesses. Show them their new website. Earn £50 per sale.")
                 .font(.system(size: 16))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
                 .padding(.bottom, 28)
@@ -196,27 +196,45 @@ struct SignUpView: View {
                 benefitCard(icon: "sparkles", color: "#8B5CF6", title: "No experience needed", body: "We give you scripts, demo websites, and full support.")
             }
 
-            // Theme toggle
-            .padding(.bottom, 16)
+            // Theme picker card
+            .padding(.bottom, 12)
 
-            HStack(spacing: 6) {
-                ForEach(AppearanceStore.Preference.allCases, id: \.self) { pref in
-                    Button(action: { appearanceStore.preference = pref }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: pref == .system ? "circle.lefthalf.filled" : pref == .light ? "sun.max" : "moon.fill")
-                                .font(.system(size: 11))
-                            Text(pref.label)
-                                .font(.system(size: 12, weight: .medium))
+            HStack(spacing: 0) {
+                Image(systemName: "paintbrush")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textMuted)
+                    .padding(.trailing, 10)
+
+                Text("Appearance")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+
+                Spacer()
+
+                HStack(spacing: 2) {
+                    ForEach(AppearanceStore.Preference.allCases, id: \.self) { pref in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) { appearanceStore.preference = pref }
+                        }) {
+                            Image(systemName: pref == .system ? "circle.lefthalf.filled" : pref == .light ? "sun.max.fill" : "moon.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(appearanceStore.preference == pref ? Color.white : Theme.textMuted)
+                                .frame(width: 32, height: 32)
+                                .background(appearanceStore.preference == pref ? accentBlue : Color.clear)
+                                .clipShape(Circle())
                         }
-                        .foregroundStyle(appearanceStore.preference == pref ? Color.white : Color(hex: "#6B7280"))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(appearanceStore.preference == pref ? accentBlue : Color(hex: "#F3F4F6"))
-                        .clipShape(Capsule())
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(3)
+                .background(Theme.surfaceElevated)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Theme.border, lineWidth: 0.5))
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
 
@@ -232,17 +250,17 @@ struct SignUpView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#111827"))
+                    .foregroundStyle(Theme.textPrimary)
                 Text(body)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .foregroundStyle(Theme.textSecondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Color(hex: "#F9FAFB"))
+        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
@@ -253,31 +271,31 @@ struct SignUpView: View {
             Text("Real results, no promises")
                 .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
 
             Text("Here's what our contractors have actually earned")
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .padding(.bottom, 20)
 
             // Hero earnings card
             VStack(spacing: 6) {
                 Text("Contractor earnings last month")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                    .foregroundStyle(Theme.textMuted)
                 Text("£50 – £800")
                     .font(.system(size: 42, weight: .bold))
                     .tracking(-2)
-                    .foregroundStyle(Color(hex: "#111827"))
+                    .foregroundStyle(Theme.textPrimary)
                 Text("Results vary by effort, area, and approach")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                    .foregroundStyle(Theme.textMuted)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
-            .background(Color(hex: "#F9FAFB"))
+            .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.bottom, 16)
 
@@ -294,20 +312,20 @@ struct SignUpView: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(Theme.textSecondary)
                 .frame(width: 28, height: 28)
-                .background(Color(hex: "#F3F4F6"))
+                .background(Theme.surfaceElevated)
                 .clipShape(Circle())
 
             Text(text)
                 .font(.system(size: 14))
-                .foregroundStyle(Color(hex: "#4B5563"))
+                .foregroundStyle(Theme.textSecondary)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(hex: "#FAFAFA"))
+        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -318,13 +336,13 @@ struct SignUpView: View {
             Text("How a typical day works")
                 .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
 
             Text("Four simple steps to success")
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .padding(.bottom, 20)
 
             VStack(spacing: 10) {
@@ -354,18 +372,18 @@ struct SignUpView: View {
                         .foregroundStyle(Color(hex: color))
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(hex: "#111827"))
+                        .foregroundStyle(Theme.textPrimary)
                 }
                 Text(desc)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .foregroundStyle(Theme.textSecondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Color(hex: "#F9FAFB"))
+        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
@@ -376,13 +394,13 @@ struct SignUpView: View {
             Text("Everything you need")
                 .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
 
             Text("We provide all the tools to make sales easy")
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .padding(.bottom, 20)
 
             VStack(spacing: 10) {
@@ -406,17 +424,17 @@ struct SignUpView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#111827"))
+                    .foregroundStyle(Theme.textPrimary)
                 Text(desc)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .foregroundStyle(Theme.textSecondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Color(hex: "#F9FAFB"))
+        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
@@ -427,13 +445,13 @@ struct SignUpView: View {
             Text(title)
                 .font(.system(size: 28, weight: .semibold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
 
             Text(subtitle)
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 24)
 
@@ -447,14 +465,14 @@ struct SignUpView: View {
         VStack(spacing: 8) {
             TextField("Your name", text: $name)
                 .font(.system(size: 26, weight: .light))
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .tint(accentBlue)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .padding(.bottom, 12)
                 .overlay(alignment: .bottom) {
-                    Rectangle().fill(name.isEmpty ? Color(hex: "#E5E7EB") : (nameAvailable == false ? Color(hex: "#EF4444") : accentBlue)).frame(height: 2)
+                    Rectangle().fill(name.isEmpty ? Theme.border : (nameAvailable == false ? Color(hex: "#EF4444") : accentBlue)).frame(height: 2)
                 }
                 .onChange(of: name) { _, _ in
                     nameAvailable = nil // reset on edit
@@ -465,7 +483,7 @@ struct SignUpView: View {
                     ProgressView().scaleEffect(0.7)
                     Text("Checking availability...")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
+                        .foregroundStyle(Theme.textMuted)
                 }
             } else if let available = nameAvailable {
                 HStack(spacing: 4) {
@@ -482,13 +500,13 @@ struct SignUpView: View {
     private var phoneInput: some View {
         TextField("07xxx xxx xxx", text: $phone)
             .font(.system(size: 26, weight: .light))
-            .foregroundStyle(Color(hex: "#111827"))
+            .foregroundStyle(Theme.textPrimary)
             .multilineTextAlignment(.center)
             .tint(accentBlue)
             .keyboardType(.phonePad)
             .padding(.bottom, 12)
             .overlay(alignment: .bottom) {
-                Rectangle().fill(phone.isEmpty ? Color(hex: "#E5E7EB") : accentBlue).frame(height: 2)
+                Rectangle().fill(phone.isEmpty ? Theme.border : accentBlue).frame(height: 2)
             }
     }
 
@@ -497,12 +515,12 @@ struct SignUpView: View {
             Text(pinStage == .create ? "Create a PIN" : "Confirm your PIN")
                 .font(.system(size: 28, weight: .semibold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
 
             Text(pinStage == .create ? "4 digits — you'll use this to unlock the app" : "Enter the same PIN again")
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 4)
 
@@ -553,19 +571,19 @@ struct SignUpView: View {
             HStack(spacing: 8) {
                 Image(systemName: "mappin")
                     .font(.system(size: 16))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                    .foregroundStyle(Theme.textMuted)
                 TextField("e.g. Manchester City Centre", text: $area)
                     .font(.system(size: 18, weight: .light))
-                    .foregroundStyle(Color(hex: "#111827"))
+                    .foregroundStyle(Theme.textPrimary)
                     .tint(accentBlue)
                     .textInputAutocapitalization(.words)
             }
             .padding(14)
-            .background(Color(hex: "#F9FAFB"))
+            .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(area.isEmpty ? Color(hex: "#E5E7EB") : accentBlue, lineWidth: 2)
+                    .stroke(area.isEmpty ? Theme.border : accentBlue, lineWidth: 2)
             )
 
             HStack(alignment: .top, spacing: 8) {
@@ -575,7 +593,7 @@ struct SignUpView: View {
                     .padding(.top, 1)
                 Text("This is just your starting area. You're not limited to leads here — you can pick up and sell to businesses anywhere.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .foregroundStyle(Theme.textSecondary)
                     .lineSpacing(2)
             }
             .padding(12)
@@ -591,23 +609,23 @@ struct SignUpView: View {
             Text("One last thing")
                 .font(.system(size: 30, weight: .semibold))
                 .tracking(-0.8)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
 
             Text("Please read and confirm before we create your account")
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 28)
 
             // Disclaimer
             Text("This is **commission-only work**. There are no guaranteed earnings, no minimum hours, and no employment relationship with SalesFlow Ltd. Results depend entirely on your own effort and approach.")
                 .font(.system(size: 13))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(Theme.textSecondary)
                 .lineSpacing(3)
                 .padding(20)
-                .background(Color(hex: "#F9FAFB"))
+                .background(Theme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .padding(.bottom, 18)
 
@@ -616,7 +634,7 @@ struct SignUpView: View {
                 HStack(alignment: .top, spacing: 10) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 4)
-                            .stroke(agreedToTerms ? accentBlue : Color(hex: "#D1D5DB"), lineWidth: 2)
+                            .stroke(agreedToTerms ? accentBlue : Theme.border, lineWidth: 2)
                             .frame(width: 20, height: 20)
                         if agreedToTerms {
                             RoundedRectangle(cornerRadius: 4)
@@ -633,7 +651,7 @@ struct SignUpView: View {
 
                     Text("I understand this is commission-only work. There are no guaranteed earnings, no minimum hours, and no employment relationship with SalesFlow Ltd.")
                         .font(.system(size: 14))
-                        .foregroundStyle(Color(hex: "#4B5563"))
+                        .foregroundStyle(Theme.textSecondary)
                         .lineSpacing(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -666,35 +684,35 @@ struct SignUpView: View {
             Text("You're in!")
                 .font(.system(size: 34, weight: .semibold))
                 .tracking(-1.2)
-                .foregroundStyle(Color(hex: "#111827"))
+                .foregroundStyle(Theme.textPrimary)
                 .padding(.bottom, 6)
 
             Text("Your dashboard is ready")
                 .font(.system(size: 17))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(Theme.textSecondary)
                 .padding(.bottom, 24)
 
             VStack(spacing: 8) {
                 Text("Welcome, \(name)!")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#111827"))
+                    .foregroundStyle(Theme.textPrimary)
 
                 Text("Your dashboard is ready with fresh leads in \(area)")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
 
-                Rectangle().fill(Color(hex: "#E5E7EB")).frame(height: 1).padding(.vertical, 8)
+                Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 8)
 
                 Text("To log back in, use:")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                    .foregroundStyle(Theme.textMuted)
                 Text("Name: \(name) · PIN: ••••")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color(hex: "#4B5563"))
+                    .foregroundStyle(Theme.textSecondary)
             }
             .padding(20)
-            .background(Color(hex: "#F9FAFB"))
+            .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .frame(maxWidth: 280)
         }
@@ -776,19 +794,13 @@ struct SignUpView: View {
 struct SubtleGridBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
-    private var lineColor: Color {
-        colorScheme == .dark
-            ? Color.white.opacity(0.03)
-            : Color.black.opacity(0.03)
-    }
-
     private let spacing: CGFloat = 28
 
     var body: some View {
         Canvas { context, size in
             let color = colorScheme == .dark
-                ? UIColor.white.withAlphaComponent(0.03)
-                : UIColor.black.withAlphaComponent(0.03)
+                ? UIColor.white.withAlphaComponent(0.06)
+                : UIColor.black.withAlphaComponent(0.06)
             let shading = GraphicsContext.Shading.color(Color(color))
 
             // Vertical lines
