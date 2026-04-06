@@ -139,6 +139,19 @@ struct ProfileView: View {
                 Text((user?.name ?? "Contractor").capitalized)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
+                if let contractorNum = user?.contractorNumber {
+                    Button(action: { copyContractorNumber(contractorNum) }) {
+                        HStack(spacing: 4) {
+                            Text(contractorNum)
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(Theme.accent)
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.accent.opacity(0.6))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
                 HStack(spacing: 6) {
                     Text(user?.role?.capitalized ?? "Field Contractor")
                         .font(.system(size: 13))
@@ -193,6 +206,12 @@ struct ProfileView: View {
             .foregroundStyle(Theme.textMuted)
             .tracking(0.5)
             .textCase(.uppercase)
+    }
+
+    private func copyContractorNumber(_ number: String) {
+        UIPasteboard.general.string = number
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
     }
 
     private func openSettings() {

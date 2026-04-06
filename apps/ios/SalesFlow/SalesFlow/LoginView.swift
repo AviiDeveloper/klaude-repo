@@ -7,6 +7,7 @@ struct LoginView: View {
     @State private var pin: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showBiometricPrompt = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, pin }
@@ -166,6 +167,14 @@ struct LoginView: View {
             }
         }
         .onAppear { focusedField = .name }
+        .alert("Enable \(BiometricManager.shared.biometricLabel)?", isPresented: $showBiometricPrompt) {
+            Button("Enable") {
+                authStore.biometricEnabled = true
+            }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text("Unlock SalesFlow quickly with \(BiometricManager.shared.biometricLabel) next time you open the app.")
+        }
     }
 
     private var canSignIn: Bool {
@@ -179,6 +188,10 @@ struct LoginView: View {
         Task {
             do {
                 try await authStore.signIn(name: name.trimmingCharacters(in: .whitespaces), pin: pin)
+                // After successful first login, offer biometrics
+                if BiometricManager.shared.canUseBiometrics && !authStore.biometricEnabled {
+                    showBiometricPrompt = true
+                }
             } catch {
                 withAnimation { errorMessage = error.localizedDescription }
             }

@@ -127,6 +127,12 @@ final class APIClient {
         }
     }
 
+    // MARK: — Leaderboard
+    func fetchLeaderboard(period: String = "alltime") async throws -> [LeaderboardEntry] {
+        let data = try await request(path: "/leaderboard?period=\(period)")
+        return try decoder.decode(LeaderboardResponse.self, from: data).rankings
+    }
+
     // MARK: — Stats
     func fetchStats() async throws -> Stats {
         let data = try await request(path: "/stats")

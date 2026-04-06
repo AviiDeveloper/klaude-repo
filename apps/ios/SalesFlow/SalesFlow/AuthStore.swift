@@ -7,10 +7,13 @@ final class AuthStore: ObservableObject {
     static let shared = AuthStore()
 
     @Published var isAuthenticated: Bool = false
+    @Published var isUnlocked: Bool = false
     @Published var currentUser: User?
 
     private let tokenKey = "salesflow_auth_token"
     private let userKey  = "salesflow_user"
+    private let pinKey   = "salesflow_user_pin"
+    private let biometricKey = "salesflow_biometric_enabled"
 
     // Keychain-backed token property
     var token: String? {
@@ -24,11 +27,30 @@ final class AuthStore: ObservableObject {
         }
     }
 
+    // Stored PIN (keychain) for unlock verification
+    var storedPIN: String? {
+        get { KeychainHelper.read(key: pinKey) }
+        set {
+            if let value = newValue {
+                KeychainHelper.save(key: pinKey, value: value)
+            } else {
+                KeychainHelper.delete(key: pinKey)
+            }
+        }
+    }
+
+    // Biometric preference (UserDefaults — not sensitive)
+    var biometricEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: biometricKey) }
+        set { UserDefaults.standard.set(newValue, forKey: biometricKey) }
+    }
+
     private init() {
         // Restore session if token exists
         if let savedToken = token {
             APIClient.shared.token = savedToken
             isAuthenticated = true
+            isUnlocked = false // Require biometric/PIN unlock
             // Restore user from UserDefaults
             if let data = UserDefaults.standard.data(forKey: userKey),
                let user = try? JSONDecoder().decode(User.self, from: data) {
@@ -41,6 +63,7 @@ final class AuthStore: ObservableObject {
     func signIn(name: String, pin: String) async throws {
         let response = try await APIClient.shared.login(name: name, pin: pin)
         token = response.token
+        storedPIN = pin
         APIClient.shared.token = response.token
         currentUser = response.user
         // Persist user for offline restore
@@ -48,15 +71,32 @@ final class AuthStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: userKey)
         }
         isAuthenticated = true
+        isUnlocked = true
+    }
+
+    @MainActor
+    func unlock() {
+        isUnlocked = true
+    }
+
+    @MainActor
+    func unlockWithPIN(_ pin: String) {
+        if pin == storedPIN {
+            isUnlocked = true
+        }
+        // If wrong, caller should handle (PINKeypadView shake)
     }
 
     @MainActor
     func signOut() {
         token = nil
+        storedPIN = nil
+        biometricEnabled = false
         APIClient.shared.token = nil
         currentUser = nil
         UserDefaults.standard.removeObject(forKey: userKey)
         isAuthenticated = false
+        isUnlocked = false
     }
 }
 

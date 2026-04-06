@@ -236,13 +236,40 @@ struct User: Codable {
     let phone: String?
     let areaPostcode: String?
     let commissionRate: Double?
+    let contractorNumber: String?
     let role: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, email, phone, role
-        case areaPostcode   = "area_postcode"
-        case commissionRate = "commission_rate"
+        case areaPostcode    = "area_postcode"
+        case commissionRate  = "commission_rate"
+        case contractorNumber = "contractor_number"
     }
+}
+
+// MARK: — Leaderboard
+
+struct LeaderboardEntry: Codable, Identifiable {
+    var id: String { userId }
+    let rank: Int
+    let userId: String
+    let name: String
+    let contractorNumber: String?
+    let salesCount: Int
+    let earned: Double
+    let isYou: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case rank, name, earned
+        case userId          = "user_id"
+        case contractorNumber = "contractor_number"
+        case salesCount      = "sales_count"
+        case isYou           = "is_you"
+    }
+}
+
+struct LeaderboardResponse: Codable {
+    let rankings: [LeaderboardEntry]
 }
 
 struct LoginResponse: Codable {
