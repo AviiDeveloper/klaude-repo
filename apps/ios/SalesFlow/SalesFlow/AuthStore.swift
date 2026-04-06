@@ -51,7 +51,8 @@ final class AuthStore: ObservableObject {
         if let savedToken = token {
             APIClient.shared.token = savedToken
             isAuthenticated = true
-            isUnlocked = false // Require biometric/PIN unlock
+            // Only require unlock if a PIN was previously saved
+            isUnlocked = (storedPIN == nil && !biometricEnabled)
             // Restore user from UserDefaults
             if let data = UserDefaults.standard.data(forKey: userKey),
                let user = try? JSONDecoder().decode(User.self, from: data) {
