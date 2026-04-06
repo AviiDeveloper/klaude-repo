@@ -31,6 +31,8 @@ struct SignUpView: View {
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
+            SubtleGridBackground()
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Progress bar
@@ -743,6 +745,49 @@ struct SignUpView: View {
         }
 
         withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+    }
+}
+
+// MARK: — Subtle grid background
+
+struct SubtleGridBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var lineColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.03)
+            : Color.black.opacity(0.03)
+    }
+
+    private let spacing: CGFloat = 28
+
+    var body: some View {
+        Canvas { context, size in
+            let color = colorScheme == .dark
+                ? UIColor.white.withAlphaComponent(0.03)
+                : UIColor.black.withAlphaComponent(0.03)
+            let shading = GraphicsContext.Shading.color(Color(color))
+
+            // Vertical lines
+            var x: CGFloat = 0
+            while x <= size.width {
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(path, with: shading, lineWidth: 0.5)
+                x += spacing
+            }
+
+            // Horizontal lines
+            var y: CGFloat = 0
+            while y <= size.height {
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(path, with: shading, lineWidth: 0.5)
+                y += spacing
+            }
+        }
     }
 }
 
