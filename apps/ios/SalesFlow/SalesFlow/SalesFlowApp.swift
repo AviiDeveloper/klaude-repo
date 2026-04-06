@@ -31,7 +31,7 @@ struct SalesFlowApp: App {
             }
             .environmentObject(authStore)
             .environmentObject(appearanceStore)
-            .preferredColorScheme(appearanceStore.colorScheme)
+            .preferredColorScheme(appearanceStore.preference.colorScheme)
         }
         .modelContainer(sharedModelContainer)
     }

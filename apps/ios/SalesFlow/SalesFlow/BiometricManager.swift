@@ -1,7 +1,7 @@
 import LocalAuthentication
 
 @MainActor
-final class BiometricManager: ObservableObject {
+final class BiometricManager {
     static let shared = BiometricManager()
 
     private let context = LAContext()
