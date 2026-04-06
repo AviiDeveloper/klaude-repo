@@ -89,7 +89,7 @@ struct PINKeypadView: View {
                 }
             }
         }
-        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
     }
 
     private func appendDigit(_ digit: String) {

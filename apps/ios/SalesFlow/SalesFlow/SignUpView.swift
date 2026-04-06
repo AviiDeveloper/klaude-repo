@@ -15,6 +15,7 @@ struct SignUpView: View {
     @State private var pinConfirm = ""
     @State private var pinStage: PINStage = .create
     @State private var pinError: String?
+    @State private var showBiometricSetup = false
 
     private enum PINStage { case create, confirm }
     @State private var area = ""
@@ -135,6 +136,20 @@ struct SignUpView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: step)
         .preferredColorScheme(.light)
+        .alert(
+            "Enable \(BiometricManager.shared.biometricLabel)?",
+            isPresented: $showBiometricSetup
+        ) {
+            Button("Enable") {
+                authStore.biometricEnabled = true
+                withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+            }
+            Button("Skip", role: .cancel) {
+                withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+            }
+        } message: {
+            Text("Unlock SalesFlow quickly with \(BiometricManager.shared.biometricLabel) instead of entering your PIN each time.")
+        }
     }
 
     @ViewBuilder
@@ -487,7 +502,12 @@ struct SignUpView: View {
                     } else {
                         if entered == pin {
                             pinError = nil
-                            withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+                            // If device supports biometrics, offer setup before advancing
+                            if BiometricManager.shared.canUseBiometrics {
+                                showBiometricSetup = true
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+                            }
                             return true
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {
