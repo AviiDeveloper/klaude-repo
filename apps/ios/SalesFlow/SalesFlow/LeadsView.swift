@@ -16,6 +16,7 @@ struct LeadsView: View {
     @State private var searchText = ""
     @State private var showSearch = false
     @State private var showLeaderboard = false
+    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     private let filters = ["all", "new", "visited", "pitched", "rejected"]
 
@@ -98,6 +99,7 @@ struct LeadsView: View {
                 LeaderboardView()
             }
         }
+        .preferredColorScheme(appearanceStore.preference.colorScheme)
         .task { await loadData() }
     }
 

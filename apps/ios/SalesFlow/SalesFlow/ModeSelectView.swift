@@ -6,6 +6,7 @@ import SwiftData
 
 struct ModeSelectView: View {
     @EnvironmentObject private var authStore: AuthStore
+    @EnvironmentObject private var appearanceStore: AppearanceStore
     @State private var showClientPicker = false
     @State private var presentationLead: Lead? = nil
     @State private var logoAppeared = false
@@ -74,7 +75,7 @@ struct ModeSelectView: View {
                 VStack(spacing: 12) {
 
                     // Dashboard
-                    NavigationLink(destination: MainTabView().navigationBarHidden(true)) {
+                    NavigationLink(destination: MainTabView().navigationBarHidden(true).preferredColorScheme(appearanceStore.preference.colorScheme)) {
                         ModeButtonRow(
                             icon: "rectangle.grid.1x2",
                             iconBg: elevBg,

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject private var authStore: AuthStore
+    @EnvironmentObject private var appearanceStore: AppearanceStore
     @State private var selectedTab = 0
 
     var body: some View {
@@ -31,9 +32,9 @@ struct MainTabView: View {
                 .tag(3)
         }
         .tint(Theme.accent)
-        // Force dark, black-background tab bar
         .toolbarBackground(Theme.surface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .preferredColorScheme(appearanceStore.preference.colorScheme)
     }
 }
 
