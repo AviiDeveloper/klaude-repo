@@ -524,23 +524,39 @@ struct SignUpView: View {
     }
 
     private var areaInput: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "mappin")
-                .font(.system(size: 16))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
-            TextField("e.g. Manchester City Centre", text: $area)
-                .font(.system(size: 18, weight: .light))
-                .foregroundStyle(Color(hex: "#111827"))
-                .tint(accentBlue)
-                .textInputAutocapitalization(.words)
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "mappin")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                TextField("e.g. Manchester City Centre", text: $area)
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundStyle(Color(hex: "#111827"))
+                    .tint(accentBlue)
+                    .textInputAutocapitalization(.words)
+            }
+            .padding(14)
+            .background(Color(hex: "#F9FAFB"))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(area.isEmpty ? Color(hex: "#E5E7EB") : accentBlue, lineWidth: 2)
+            )
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(accentBlue.opacity(0.6))
+                    .padding(.top, 1)
+                Text("This is just your starting area. You're not limited to leads here — you can pick up and sell to businesses anywhere.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .lineSpacing(2)
+            }
+            .padding(12)
+            .background(accentBlue.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .padding(14)
-        .background(Color(hex: "#F9FAFB"))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(area.isEmpty ? Color(hex: "#E5E7EB") : accentBlue, lineWidth: 2)
-        )
     }
 
     // MARK: — Step 8: Agreement
