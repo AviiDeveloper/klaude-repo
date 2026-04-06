@@ -9,6 +9,7 @@ final class AuthStore: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var isUnlocked: Bool = false
     @Published var currentUser: User?
+    @Published var pendingBiometricPrompt: Bool = false
 
     private let tokenKey = "salesflow_auth_token"
     private let userKey  = "salesflow_user"
@@ -67,6 +68,20 @@ final class AuthStore: ObservableObject {
         APIClient.shared.token = response.token
         currentUser = response.user
         // Persist user for offline restore
+        if let user = response.user, let data = try? JSONEncoder().encode(user) {
+            UserDefaults.standard.set(data, forKey: userKey)
+        }
+        isAuthenticated = true
+        isUnlocked = true
+    }
+
+    @MainActor
+    func signUp(name: String, pin: String, phone: String, area: String) async throws {
+        let response = try await APIClient.shared.signup(name: name, pin: pin, phone: phone, area: area)
+        token = response.token
+        storedPIN = pin
+        APIClient.shared.token = response.token
+        currentUser = response.user
         if let user = response.user, let data = try? JSONEncoder().encode(user) {
             UserDefaults.standard.set(data, forKey: userKey)
         }
