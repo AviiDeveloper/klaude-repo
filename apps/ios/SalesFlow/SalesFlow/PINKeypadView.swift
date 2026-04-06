@@ -3,13 +3,13 @@ import SwiftUI
 struct PINKeypadView: View {
     let title: String
     let pinLength: Int
-    let onComplete: (String) -> Void
+    let onComplete: (String) -> Bool  // return true = correct, false = wrong
 
     @State private var pin: String = ""
     @State private var shake = false
     @State private var errorMessage: String?
 
-    init(title: String = "Enter PIN", pinLength: Int = 4, onComplete: @escaping (String) -> Void) {
+    init(title: String = "Enter PIN", pinLength: Int = 4, onComplete: @escaping (String) -> Bool) {
         self.title = title
         self.pinLength = pinLength
         self.onComplete = onComplete
@@ -102,9 +102,18 @@ struct PINKeypadView: View {
 
         if pin.count == pinLength {
             let entered = pin
-            // Small delay so the last dot fills visually
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                onComplete(entered)
+                let correct = onComplete(entered)
+                if !correct {
+                    // Wrong PIN — shake and reset
+                    errorMessage = "Wrong PIN"
+                    shake = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        shake = false
+                        pin = ""
+                    }
+                }
             }
         }
     }
@@ -116,19 +125,6 @@ struct PINKeypadView: View {
 
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
-    }
-
-    func triggerShake(message: String? = "Wrong PIN") {
-        errorMessage = message
-        shake = true
-        pin = ""
-
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.error)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            shake = false
-        }
     }
 }
 
@@ -146,7 +142,7 @@ private struct KeypadButtonStyle: ButtonStyle {
     ZStack {
         Theme.background.ignoresSafeArea()
         PINKeypadView { pin in
-            print("PIN entered: \(pin)")
+            return pin == "1234"
         }
     }
 }

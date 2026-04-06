@@ -55,7 +55,6 @@ struct UnlockView: View {
     @EnvironmentObject private var authStore: AuthStore
     @State private var showPINFallback = false
     @State private var biometricFailed = false
-    @State private var wrongPIN = false
 
     var body: some View {
         ZStack {
@@ -87,13 +86,9 @@ struct UnlockView: View {
                         onComplete: { pin in
                             if authStore.storedPIN == pin {
                                 authStore.unlock()
-                            } else {
-                                wrongPIN = true
-                                // Reset after shake
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    wrongPIN = false
-                                }
+                                return true
                             }
+                            return false
                         }
                     )
                     .padding(.top, 32)
