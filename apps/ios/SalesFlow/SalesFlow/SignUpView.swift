@@ -191,9 +191,9 @@ struct SignUpView: View {
                 .padding(.bottom, 28)
 
             VStack(spacing: 10) {
-                benefitCard(icon: "clock", color: "#3B82F6", title: "Flexible hours", body: "Choose your own schedule. No shifts, no boss, no rota.")
-                benefitCard(icon: "sterlingsign.circle", color: "#10B981", title: "Instant earnings", body: "£50 commission per sale. Paid every Friday to your account.")
-                benefitCard(icon: "sparkles", color: "#8B5CF6", title: "No experience needed", body: "We give you scripts, demo websites, and full support.")
+                benefitCard(icon: "clock", color: "#5B7B9D", title: "Flexible hours", body: "Choose your own schedule. No shifts, no boss, no rota.")
+                benefitCard(icon: "sterlingsign.circle", color: "#6B8F7B", title: "Instant earnings", body: "£50 commission per sale. Paid every Friday to your account.")
+                benefitCard(icon: "sparkles", color: "#7B7B9D", title: "No experience needed", body: "We give you scripts, demo websites, and full support.")
             }
 
             // Theme picker card
@@ -346,10 +346,10 @@ struct SignUpView: View {
                 .padding(.bottom, 20)
 
             VStack(spacing: 10) {
-                walkthroughCard("1", "tray.and.arrow.down", "#3B82F6", "Get your leads", "We send you local businesses that don't have websites yet")
-                walkthroughCard("2", "iphone", "#8B5CF6", "Walk in and pitch", "Show them their custom demo site right on your phone")
-                walkthroughCard("3", "text.bubble", "#F59E0B", "Handle objections", "Use our proven scripts and ready-made talking points")
-                walkthroughCard("4", "checkmark.seal", "#10B981", "Close and earn", "£50 lands in your account. They get their website.")
+                walkthroughCard("1", "tray.and.arrow.down", "#5B7B9D", "Get your leads", "We send you local businesses that don't have websites yet")
+                walkthroughCard("2", "iphone", "#7B7B9D", "Walk in and pitch", "Show them their custom demo site right on your phone")
+                walkthroughCard("3", "text.bubble", "#9B8B6B", "Handle objections", "Use our proven scripts and ready-made talking points")
+                walkthroughCard("4", "checkmark.seal", "#6B8F7B", "Close and earn", "£50 lands in your account. They get their website.")
             }
         }
     }
@@ -404,10 +404,10 @@ struct SignUpView: View {
                 .padding(.bottom, 20)
 
             VStack(spacing: 10) {
-                toolCard("wand.and.stars", "#8B5CF6", "AI-generated demos", "Custom website previews built for each business automatically")
-                toolCard("shield.checkered", "#F59E0B", "Objection handlers", "Ready answers for every pushback — pricing, timing, trust")
-                toolCard("mappin.and.ellipse", "#3B82F6", "Local lead pipeline", "Curated list of businesses in your area that need websites")
-                toolCard("chart.bar", "#10B981", "Real-time dashboard", "Track your visits, pitches, sales, and earnings live")
+                toolCard("wand.and.stars", "#7B7B9D", "AI-generated demos", "Custom website previews built for each business automatically")
+                toolCard("shield.checkered", "#9B8B6B", "Objection handlers", "Ready answers for every pushback — pricing, timing, trust")
+                toolCard("mappin.and.ellipse", "#5B7B9D", "Local lead pipeline", "Curated list of businesses in your area that need websites")
+                toolCard("chart.bar", "#6B8F7B", "Real-time dashboard", "Track your visits, pitches, sales, and earnings live")
             }
         }
     }
@@ -472,7 +472,7 @@ struct SignUpView: View {
                 .autocorrectionDisabled()
                 .padding(.bottom, 12)
                 .overlay(alignment: .bottom) {
-                    Rectangle().fill(name.isEmpty ? Theme.border : (nameAvailable == false ? Color(hex: "#EF4444") : accentBlue)).frame(height: 2)
+                    Rectangle().fill(name.isEmpty ? Theme.border : (nameAvailable == false ? Color(hex: "#B06060") : accentBlue)).frame(height: 2)
                 }
                 .onChange(of: name) { _, _ in
                     nameAvailable = nil // reset on edit
@@ -492,7 +492,7 @@ struct SignUpView: View {
                     Text(available ? "Name available" : "Name already taken")
                         .font(.system(size: 12))
                 }
-                .foregroundStyle(Color(hex: available ? "#10B981" : "#EF4444"))
+                .foregroundStyle(Color(hex: available ? "#6B8F7B" : "#B06060"))
             }
         }
     }
@@ -527,7 +527,7 @@ struct SignUpView: View {
             if let error = pinError {
                 Text(error)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color(hex: "#EF4444"))
+                    .foregroundStyle(Color(hex: "#B06060"))
                     .transition(.opacity)
             }
 
@@ -661,7 +661,7 @@ struct SignUpView: View {
             if let error = signupError {
                 Text(error)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#EF4444"))
+                    .foregroundStyle(Color(hex: "#B06060"))
                     .padding(.top, 14)
             }
         }
@@ -673,11 +673,11 @@ struct SignUpView: View {
         VStack(spacing: 0) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#ECFDF5"))
+                    .fill(Color(hex: "#E8F0EC"))
                     .frame(width: 64, height: 64)
                 Image(systemName: "checkmark")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#059669"))
+                    .foregroundStyle(Color(hex: "#5A8A6E"))
             }
             .padding(.bottom, 20)
 
