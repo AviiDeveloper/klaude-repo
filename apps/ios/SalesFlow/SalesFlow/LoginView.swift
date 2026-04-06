@@ -178,7 +178,7 @@ struct LoginView: View {
             }
         }
         .onAppear { focusedField = .name }
-        .sheet(isPresented: $showSignUp) {
+        .fullScreenCover(isPresented: $showSignUp) {
             SignUpView()
                 .environmentObject(authStore)
         }

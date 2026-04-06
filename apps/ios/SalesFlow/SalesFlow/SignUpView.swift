@@ -38,7 +38,13 @@ struct SignUpView: View {
 
                 // Back button
                 HStack {
-                    if step > 0 && step < totalSteps - 1 {
+                    if step == 0 {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color(hex: "#9CA3AF"))
+                        }
+                    } else if step < totalSteps - 1 {
                         Button(action: { withAnimation(.easeInOut(duration: 0.2)) { step -= 1 } }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 16, weight: .medium))
@@ -59,8 +65,6 @@ struct SignUpView: View {
                 // Content
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        Spacer(minLength: 40)
-
                         switch step {
                         case 0: welcomeStep
                         case 1: earningsStep
@@ -74,10 +78,9 @@ struct SignUpView: View {
                         case 9: doneStep
                         default: EmptyView()
                         }
-
-                        Spacer(minLength: 24)
                     }
                     .padding(.horizontal, 24)
+                    .padding(.top, 16)
                 }
 
                 // Continue button
@@ -331,7 +334,7 @@ struct SignUpView: View {
     private func inputStep<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 0) {
             Text(title)
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 28, weight: .semibold))
                 .tracking(-0.8)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
@@ -341,10 +344,11 @@ struct SignUpView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(Color(hex: "#9CA3AF"))
                 .multilineTextAlignment(.center)
-                .padding(.bottom, 36)
+                .padding(.bottom, 24)
 
             content()
-                .frame(maxWidth: 280)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
         }
     }
 
