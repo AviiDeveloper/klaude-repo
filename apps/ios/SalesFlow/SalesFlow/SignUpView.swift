@@ -197,7 +197,7 @@ struct SignUpView: View {
             }
 
             // Theme picker card
-            .padding(.bottom, 12)
+            .padding(.bottom, 24)
 
             HStack(spacing: 0) {
                 Image(systemName: "paintbrush")
