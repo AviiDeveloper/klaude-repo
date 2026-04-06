@@ -84,6 +84,8 @@ struct LeadDetailView: View {
         }
         .navigationTitle(lead.businessName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Theme.surface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showStatusPicker = true } label: {

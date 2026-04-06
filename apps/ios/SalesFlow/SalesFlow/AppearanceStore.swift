@@ -36,7 +36,7 @@ final class AppearanceStore: ObservableObject {
     }
 
     private init() {
-        let raw = UserDefaults.standard.string(forKey: "appearance_preference") ?? "system"
-        preference = Preference(rawValue: raw) ?? .system
+        let raw = UserDefaults.standard.string(forKey: "appearance_preference") ?? "dark"
+        preference = Preference(rawValue: raw) ?? .dark
     }
 }

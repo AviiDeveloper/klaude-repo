@@ -71,6 +71,8 @@ struct LeadsView: View {
             }
             .navigationTitle("Leads")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.surface, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showLeaderboard = true } label: {
