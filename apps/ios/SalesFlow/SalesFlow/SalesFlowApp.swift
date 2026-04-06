@@ -21,7 +21,9 @@ struct SalesFlowApp: App {
             Group {
                 if authStore.isAuthenticated {
                     if authStore.isUnlocked {
-                        ModeSelectView()
+                        NavigationStack {
+                            ModeSelectView()
+                        }
                     } else {
                         UnlockView()
                     }
