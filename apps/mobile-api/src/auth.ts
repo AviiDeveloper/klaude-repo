@@ -60,7 +60,7 @@ export function getUser(req: Request): AuthPayload {
 export function loginUser(name: string, pin: string): { user: Record<string, unknown>; token: string } | null {
   const pinHash = hashPin(pin);
   const user = queryOne<Record<string, unknown>>(
-    'SELECT * FROM sales_users WHERE name = ? AND pin_hash = ? AND active = 1',
+    'SELECT * FROM sales_users WHERE LOWER(name) = LOWER(?) AND pin_hash = ? AND active = 1',
     name, pinHash,
   );
   if (!user) return null;

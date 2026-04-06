@@ -194,7 +194,7 @@ struct LoginView: View {
         focusedField = nil
         Task {
             do {
-                try await authStore.signIn(name: name.trimmingCharacters(in: .whitespaces), pin: pin)
+                try await authStore.signIn(name: name.trimmingCharacters(in: .whitespaces).lowercased(), pin: pin)
                 // Offer biometrics after first successful login
                 if BiometricManager.shared.canUseBiometrics && !authStore.biometricEnabled {
                     authStore.pendingBiometricPrompt = true

@@ -83,6 +83,7 @@ struct UnlockView: View {
                 if showPINFallback {
                     PINKeypadView(
                         title: "Enter your PIN",
+                        pinLength: authStore.storedPIN?.count ?? 4,
                         onComplete: { pin in
                             if authStore.storedPIN == pin {
                                 authStore.unlock()

@@ -16,6 +16,8 @@ struct SignUpView: View {
     @State private var agreedToTerms = false
     @State private var isLoading = false
     @State private var signupError: String?
+    @State private var nameAvailable: Bool? = nil
+    @State private var checkingName = false
 
     private let totalSteps = 10
     private let accentBlue = Color(hex: "#0071E3")
@@ -131,7 +133,7 @@ struct SignUpView: View {
         case 3: toolsStep
         case 4: inputStep(title: "What should we call you?", subtitle: "Just your first name is fine") { nameInput }
         case 5: inputStep(title: "Your phone number", subtitle: "So we can reach you about leads and payouts") { phoneInput }
-        case 6: inputStep(title: "Create a quick PIN", subtitle: "4 digits — use this with your name to log back in") { pinInput }
+        case 6: inputStep(title: "Create a quick PIN", subtitle: "4–6 digits — use this with your name to log back in") { pinInput }
         case 7: inputStep(title: "What area do you cover?", subtitle: "e.g. Manchester City Centre, Birmingham") { areaInput }
         case 8: agreementStep
         case 9: doneStep
@@ -389,17 +391,39 @@ struct SignUpView: View {
     }
 
     private var nameInput: some View {
-        TextField("Your name", text: $name)
-            .font(.system(size: 26, weight: .light))
-            .foregroundStyle(Color(hex: "#111827"))
-            .multilineTextAlignment(.center)
-            .tint(accentBlue)
-            .textInputAutocapitalization(.words)
-            .autocorrectionDisabled()
-            .padding(.bottom, 12)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(name.isEmpty ? Color(hex: "#E5E7EB") : accentBlue).frame(height: 2)
+        VStack(spacing: 8) {
+            TextField("Your name", text: $name)
+                .font(.system(size: 26, weight: .light))
+                .foregroundStyle(Color(hex: "#111827"))
+                .multilineTextAlignment(.center)
+                .tint(accentBlue)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.bottom, 12)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(name.isEmpty ? Color(hex: "#E5E7EB") : (nameAvailable == false ? Color(hex: "#EF4444") : accentBlue)).frame(height: 2)
+                }
+                .onChange(of: name) { _, _ in
+                    nameAvailable = nil // reset on edit
+                }
+
+            if checkingName {
+                HStack(spacing: 6) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Checking availability...")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: "#9CA3AF"))
+                }
+            } else if let available = nameAvailable {
+                HStack(spacing: 4) {
+                    Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 13))
+                    Text(available ? "Name available" : "Name already taken")
+                        .font(.system(size: 12))
+                }
+                .foregroundStyle(Color(hex: available ? "#10B981" : "#EF4444"))
             }
+        }
     }
 
     private var phoneInput: some View {
@@ -416,19 +440,34 @@ struct SignUpView: View {
     }
 
     private var pinInput: some View {
-        SecureField("••••", text: $pin)
-            .font(.system(size: 26, weight: .light))
-            .foregroundStyle(Color(hex: "#111827"))
-            .multilineTextAlignment(.center)
-            .tint(accentBlue)
-            .keyboardType(.numberPad)
-            .padding(.bottom, 12)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(pin.isEmpty ? Color(hex: "#E5E7EB") : accentBlue).frame(height: 2)
+        VStack(spacing: 8) {
+            SecureField("••••••", text: $pin)
+                .font(.system(size: 26, weight: .light))
+                .foregroundStyle(Color(hex: "#111827"))
+                .multilineTextAlignment(.center)
+                .tint(accentBlue)
+                .keyboardType(.numberPad)
+                .padding(.bottom, 12)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(pin.isEmpty ? Color(hex: "#E5E7EB") : accentBlue).frame(height: 2)
+                }
+                .onChange(of: pin) { _, newValue in
+                    // Allow 4-6 digits only
+                    let digits = newValue.filter(\.isNumber)
+                    if digits.count > 6 { pin = String(digits.prefix(6)) }
+                    else if digits != newValue { pin = digits }
+                }
+
+            if !pin.isEmpty && pin.count < 4 {
+                Text("\(4 - pin.count) more digit\(4 - pin.count == 1 ? "" : "s") needed")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: "#9CA3AF"))
+            } else if pin.count >= 4 {
+                Text("\(pin.count) digits")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: "#10B981"))
             }
-            .onChange(of: pin) { _, newValue in
-                if newValue.count > 4 { pin = String(newValue.prefix(4)) }
-            }
+        }
     }
 
     private var areaInput: some View {
@@ -571,9 +610,9 @@ struct SignUpView: View {
 
     private var canContinue: Bool {
         switch step {
-        case 4: return name.count >= 2
+        case 4: return name.count >= 2 && nameAvailable != false && !checkingName
         case 5: return true // phone is optional
-        case 6: return pin.count == 4
+        case 6: return pin.count >= 4 && pin.count <= 6
         case 7: return !area.isEmpty
         case 8: return agreedToTerms
         default: return true
@@ -583,21 +622,42 @@ struct SignUpView: View {
     private func handleNext() {
         signupError = nil
 
+        // Check name availability before advancing past step 4
+        if step == 4 {
+            checkingName = true
+            Task {
+                do {
+                    let available = try await APIClient.shared.checkNameAvailable(
+                        name: name.trimmingCharacters(in: .whitespaces).lowercased()
+                    )
+                    nameAvailable = available
+                    if available {
+                        withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+                    }
+                } catch {
+                    // Network error — let them continue, backend will catch duplicates
+                    withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+                }
+                checkingName = false
+            }
+            return
+        }
+
         if step == 8 {
             // Agreement step — create account
             isLoading = true
             Task {
                 do {
                     try await authStore.signUp(
-                        name: name.trimmingCharacters(in: .whitespaces),
+                        name: name.trimmingCharacters(in: .whitespaces).lowercased(),
                         pin: pin,
                         phone: phone.trimmingCharacters(in: .whitespaces),
                         area: area.trimmingCharacters(in: .whitespaces).uppercased()
                     )
                     withAnimation { step = 9 }
-                    // Enable biometrics automatically
+                    // Offer biometrics via prompt (not auto-enabled)
                     if BiometricManager.shared.canUseBiometrics {
-                        authStore.biometricEnabled = true
+                        authStore.pendingBiometricPrompt = true
                     }
                 } catch {
                     signupError = error.localizedDescription
