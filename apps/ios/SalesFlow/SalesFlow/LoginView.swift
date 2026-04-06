@@ -181,6 +181,7 @@ struct LoginView: View {
         .fullScreenCover(isPresented: $showSignUp) {
             SignUpView()
                 .environmentObject(authStore)
+                .environmentObject(AppearanceStore.shared)
         }
     }
 

@@ -6,6 +6,7 @@ import SwiftUI
 
 struct SignUpView: View {
     @EnvironmentObject private var authStore: AuthStore
+    @EnvironmentObject private var appearanceStore: AppearanceStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var step = 0
@@ -30,7 +31,7 @@ struct SignUpView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Theme.background.ignoresSafeArea()
             SubtleGridBackground()
                 .ignoresSafeArea()
 
@@ -137,7 +138,7 @@ struct SignUpView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: step)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(appearanceStore.preference.colorScheme)
         .alert(
             "Enable \(BiometricManager.shared.biometricLabel)?",
             isPresented: $showBiometricSetup
@@ -193,6 +194,28 @@ struct SignUpView: View {
                 benefitCard(icon: "clock", color: "#3B82F6", title: "Flexible hours", body: "Choose your own schedule. No shifts, no boss, no rota.")
                 benefitCard(icon: "sterlingsign.circle", color: "#10B981", title: "Instant earnings", body: "£50 commission per sale. Paid every Friday to your account.")
                 benefitCard(icon: "sparkles", color: "#8B5CF6", title: "No experience needed", body: "We give you scripts, demo websites, and full support.")
+            }
+
+            // Theme toggle
+            .padding(.bottom, 16)
+
+            HStack(spacing: 6) {
+                ForEach(AppearanceStore.Preference.allCases, id: \.self) { pref in
+                    Button(action: { appearanceStore.preference = pref }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: pref == .system ? "circle.lefthalf.filled" : pref == .light ? "sun.max" : "moon.fill")
+                                .font(.system(size: 11))
+                            Text(pref.label)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(appearanceStore.preference == pref ? Color.white : Color(hex: "#6B7280"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(appearanceStore.preference == pref ? accentBlue : Color(hex: "#F3F4F6"))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
