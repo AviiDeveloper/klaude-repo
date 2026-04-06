@@ -62,7 +62,7 @@ struct SignUpView: View {
                 .padding(.top, 16)
                 .frame(height: 44)
 
-                // Content
+                // Content + button together in scroll
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         switch step {
@@ -78,53 +78,53 @@ struct SignUpView: View {
                         case 9: doneStep
                         default: EmptyView()
                         }
+
+                        // Continue button
+                        Button(action: handleNext) {
+                            ZStack {
+                                if isLoading {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    HStack(spacing: 6) {
+                                        Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
+                                            .font(.system(size: 15, weight: .semibold))
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(height: 50)
+                            .frame(maxWidth: 280)
+                            .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
+                            .clipShape(Capsule())
+                        }
+                        .disabled(!canContinue || isLoading)
+                        .padding(.top, 32)
+
+                        // Login link on welcome step
+                        if step == 0 {
+                            Button("Already have an account? Sign in") { dismiss() }
+                                .font(.system(size: 13))
+                                .foregroundStyle(Color(hex: "#9CA3AF"))
+                                .padding(.top, 12)
+                        }
+
+                        // Step dots
+                        HStack(spacing: 4) {
+                            ForEach(0..<totalSteps, id: \.self) { i in
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(i == step ? accentBlue : Color(hex: "#E5E7EB"))
+                                    .frame(width: i == step ? 24 : 5, height: 5)
+                                    .animation(.easeInOut(duration: 0.3), value: step)
+                            }
+                        }
+                        .padding(.top, 20)
+                        .padding(.bottom, 24)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
                 }
-
-                // Continue button
-                VStack(spacing: 12) {
-                    Button(action: handleNext) {
-                        ZStack {
-                            if isLoading {
-                                ProgressView().tint(.white)
-                            } else {
-                                HStack(spacing: 6) {
-                                    Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
-                                        .font(.system(size: 15, weight: .semibold))
-                                    Image(systemName: "arrow.right")
-                                        .font(.system(size: 13, weight: .semibold))
-                                }
-                                .foregroundStyle(.white)
-                            }
-                        }
-                        .frame(height: 50)
-                        .frame(maxWidth: 280)
-                        .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
-                        .clipShape(Capsule())
-                    }
-                    .disabled(!canContinue || isLoading)
-
-                    // Login link on welcome step
-                    if step == 0 {
-                        Button("Already have an account? Sign in") { dismiss() }
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color(hex: "#9CA3AF"))
-                    }
-                }
-                .padding(.bottom, 24)
-
-                // Step dots
-                HStack(spacing: 4) {
-                    ForEach(0..<totalSteps, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(i == step ? accentBlue : Color(hex: "#E5E7EB"))
-                            .frame(width: i == step ? 24 : 5, height: 5)
-                            .animation(.easeInOut(duration: 0.3), value: step)
-                    }
-                }
-                .padding(.bottom, 20)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: step)
