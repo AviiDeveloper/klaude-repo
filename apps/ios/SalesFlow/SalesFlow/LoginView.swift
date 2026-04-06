@@ -7,6 +7,7 @@ struct LoginView: View {
     @State private var pin: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showSignUp = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, pin }
@@ -155,6 +156,17 @@ struct LoginView: View {
                 .padding(.horizontal, 24)
                 .animation(.easeInOut(duration: 0.2), value: errorMessage)
 
+                // Create account link (NEW — added below the original form)
+                Button(action: { showSignUp = true }) {
+                    Text("Don't have an account? ")
+                        .foregroundStyle(Theme.textMuted) +
+                    Text("Create one")
+                        .foregroundStyle(Theme.accent)
+                        .bold()
+                }
+                .font(.system(size: 13))
+                .padding(.top, 16)
+
                 Spacer()
                 Spacer()
 
@@ -166,6 +178,11 @@ struct LoginView: View {
             }
         }
         .onAppear { focusedField = .name }
+        .fullScreenCover(isPresented: $showSignUp) {
+            SignUpView()
+                .environmentObject(authStore)
+                .environmentObject(AppearanceStore.shared)
+        }
     }
 
     private var canSignIn: Bool {
@@ -178,7 +195,11 @@ struct LoginView: View {
         focusedField = nil
         Task {
             do {
-                try await authStore.signIn(name: name.trimmingCharacters(in: .whitespaces), pin: pin)
+                try await authStore.signIn(name: name.trimmingCharacters(in: .whitespaces).lowercased(), pin: pin)
+                // Offer biometrics after first successful login
+                if BiometricManager.shared.canUseBiometrics && !authStore.biometricEnabled {
+                    authStore.pendingBiometricPrompt = true
+                }
             } catch {
                 withAnimation { errorMessage = error.localizedDescription }
             }

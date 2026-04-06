@@ -33,14 +33,25 @@ router.post('/login', authLimiter, (req, res) => {
   const deviceType = ['web', 'ios', 'android'].includes(rawDevice) ? rawDevice : 'ios';
   try { run('UPDATE sales_users SET device_type = ? WHERE id = ?', deviceType, result.user.id); } catch { /* constraint may not exist */ }
 
-  const { id, name: userName, email, phone, area_postcode, commission_rate, created_at } = result.user;
+  const { id, name: userName, email, phone, area_postcode, commission_rate, contractor_number, created_at } = result.user;
   res.json({
-    user: { id, name: userName, email, phone, area_postcode, commission_rate, created_at },
+    user: { id, name: userName, email, phone, area_postcode, commission_rate, contractor_number, created_at },
     token: result.token,
   });
 });
 
 // POST /auth/register
+// GET /auth/check-name?name=xxx — check if name is available
+router.get('/check-name', (req, res) => {
+  const name = (req.query.name as string)?.trim()?.toLowerCase();
+  if (!name || name.length < 2) {
+    res.json({ available: false, reason: 'Name must be at least 2 characters' });
+    return;
+  }
+  const existing = queryOne('SELECT id FROM sales_users WHERE LOWER(name) = ?', name);
+  res.json({ available: !existing });
+});
+
 router.post('/register', authLimiter, (req, res) => {
   const { name, pin, area_postcode, phone } = req.body;
   if (!name?.trim() || !pin?.trim()) {
@@ -51,8 +62,13 @@ router.post('/register', authLimiter, (req, res) => {
     res.status(400).json({ error: 'PIN must be 4-6 digits' });
     return;
   }
+  if (!/^\d{4,6}$/.test(pin)) {
+    res.status(400).json({ error: 'PIN must contain only digits' });
+    return;
+  }
 
-  const existing = queryOne('SELECT id FROM sales_users WHERE name = ?', name.trim());
+  const cleanName = name.trim().toLowerCase();
+  const existing = queryOne('SELECT id FROM sales_users WHERE LOWER(name) = ?', cleanName);
   if (existing) {
     res.status(409).json({ error: 'Name already taken' });
     return;
@@ -64,14 +80,21 @@ router.post('/register', authLimiter, (req, res) => {
   const rawDevice = (req.headers['x-device-type'] as string) ?? 'ios';
   const deviceType = ['web', 'ios', 'android'].includes(rawDevice) ? rawDevice : 'ios';
 
+  // Generate contractor number: SF-NNNNN using MAX to avoid race condition
+  const maxRow = queryOne<{ max_num: number | null }>(
+    "SELECT MAX(CAST(REPLACE(contractor_number, 'SF-', '') AS INTEGER)) as max_num FROM sales_users WHERE contractor_number IS NOT NULL"
+  );
+  const seq = (maxRow?.max_num ?? 0) + 1;
+  const contractorNumber = `SF-${String(seq).padStart(5, '0')}`;
+
   run(
-    'INSERT INTO sales_users (id, name, pin_hash, area_postcode, phone, device_type, commission_rate, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    id, name.trim(), pinHash, area_postcode?.trim() ?? '', phone?.trim() ?? '', deviceType, 0.10, now,
+    'INSERT INTO sales_users (id, name, pin_hash, area_postcode, phone, device_type, commission_rate, contractor_number, last_active_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, cleanName, pinHash, area_postcode?.trim()?.toUpperCase() ?? '', phone?.trim() ?? '', deviceType, 0.10, contractorNumber, now, now,
   );
 
-  const token = createToken({ user_id: id, name: name.trim(), exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 });
+  const token = createToken({ user_id: id, name: cleanName, exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 });
   res.status(201).json({
-    user: { id, name: name.trim(), area_postcode, phone, commission_rate: 0.10, created_at: now },
+    user: { id, name: cleanName, area_postcode: area_postcode?.trim()?.toUpperCase() ?? '', phone: phone?.trim() ?? '', commission_rate: 0.10, contractor_number: contractorNumber, created_at: now },
     token,
   });
 });
@@ -82,8 +105,8 @@ router.get('/me', requireAuth, (req, res) => {
   const user = queryOne<Record<string, unknown>>('SELECT * FROM sales_users WHERE id = ?', user_id);
   if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
-  const { id, name, email, phone, area_postcode, commission_rate, device_type, last_active_at, created_at } = user;
-  res.json({ id, name, email, phone, area_postcode, commission_rate, device_type, last_active_at, created_at });
+  const { id, name, email, phone, area_postcode, commission_rate, contractor_number, device_type, last_active_at, created_at } = user;
+  res.json({ id, name, email, phone, area_postcode, commission_rate, contractor_number, device_type, last_active_at, created_at });
 });
 
 export default router;

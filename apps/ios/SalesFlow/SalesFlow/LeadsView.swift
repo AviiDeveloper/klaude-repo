@@ -9,12 +9,13 @@ struct LeadsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var leads: [Lead]
 
-    @State private var stats: Stats = .seeded
+    @State private var stats: Stats = .empty
     @State private var selectedFilter: String = "all"
     @State private var isRefreshing = false
     @State private var isOffline = false
     @State private var searchText = ""
     @State private var showSearch = false
+    @State private var showLeaderboard = false
 
     private let filters = ["all", "new", "visited", "pitched", "rejected"]
     private let pageBg = Color(hex: "#F8F7F5")
@@ -71,6 +72,13 @@ struct LeadsView: View {
             .navigationTitle("Leads")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showLeaderboard = true } label: {
+                        Image(systemName: "trophy.fill")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color(hex: "#B8922A"))
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -83,6 +91,9 @@ struct LeadsView: View {
                             .foregroundStyle(Color(hex: "#6B7280"))
                     }
                 }
+            }
+            .sheet(isPresented: $showLeaderboard) {
+                LeaderboardView()
             }
         }
         .task { await loadData() }

@@ -3,7 +3,7 @@ import SwiftData
 
 struct PayoutsView: View {
     @Query private var leads: [Lead]
-    @State private var stats: Stats = .seeded
+    @State private var stats: Stats = .empty
 
     private var soldLeads: [Lead] { leads.filter { $0.status == "sold" } }
     private var pitchedLeads: [Lead] { leads.filter { $0.status == "pitched" } }

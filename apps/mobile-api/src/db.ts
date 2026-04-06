@@ -101,6 +101,11 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_sync_journal_user ON sync_journal(user_id, synced_at);
   `);
 
+  // Add contractor_number column if not present
+  try {
+    d.exec('ALTER TABLE sales_users ADD COLUMN contractor_number TEXT');
+  } catch { /* column already exists */ }
+
   // Training / Academy tables
   d.exec(`
     CREATE TABLE IF NOT EXISTS training_units (

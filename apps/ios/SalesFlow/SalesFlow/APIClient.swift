@@ -47,6 +47,13 @@ final class APIClient {
         return try decoder.decode(LoginResponse.self, from: data)
     }
 
+    func checkNameAvailable(name: String) async throws -> Bool {
+        let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+        let data = try await request(path: "/auth/check-name?name=\(encoded)")
+        struct Response: Decodable { let available: Bool }
+        return try decoder.decode(Response.self, from: data).available
+    }
+
     func signup(name: String, pin: String, phone: String, area: String) async throws -> LoginResponse {
         struct Body: Encodable { let name: String; let pin: String; let phone: String; let area_postcode: String }
         let data = try await request(path: "/auth/register", method: "POST", body: Body(name: name, pin: pin, phone: phone, area_postcode: area))
@@ -125,6 +132,12 @@ final class APIClient {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw SalesFlowError.server("Photo upload failed")
         }
+    }
+
+    // MARK: — Leaderboard
+    func fetchLeaderboard(period: String = "alltime") async throws -> [LeaderboardEntry] {
+        let data = try await request(path: "/leaderboard?period=\(period)")
+        return try decoder.decode(LeaderboardResponse.self, from: data).rankings
     }
 
     // MARK: — Stats
