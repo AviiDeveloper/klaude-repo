@@ -59,7 +59,29 @@ final class AuthStore: ObservableObject {
                 currentUser = user
             }
         }
+        #if DEBUG
+        // Auto-login with a fake user when no server is available
+        if !isAuthenticated {
+            debugAutoLogin()
+        }
+        #endif
     }
+
+    #if DEBUG
+    private func debugAutoLogin() {
+        let fakeUser = User(
+            id: "debug-user", name: "Test", email: "test@salesflow.co.uk",
+            phone: "07123456789", areaPostcode: "EC1", commissionRate: 50,
+            contractorNumber: "SF-001", role: "salesperson"
+        )
+        currentUser = fakeUser
+        if let data = try? JSONEncoder().encode(fakeUser) {
+            UserDefaults.standard.set(data, forKey: userKey)
+        }
+        isAuthenticated = true
+        isUnlocked = true
+    }
+    #endif
 
     @MainActor
     func signIn(name: String, pin: String) async throws {

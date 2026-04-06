@@ -287,6 +287,13 @@ struct LeadsView: View {
             }
         } catch {
             isOffline = true
+            #if DEBUG
+            // Seed test data when API is unreachable so the simulator has leads to display
+            DebugSeeder.seedIfEmpty(context: modelContext)
+            if stats.queue == 0 && stats.visited == 0 {
+                stats = DebugSeeder.mockStats
+            }
+            #endif
         }
     }
 
