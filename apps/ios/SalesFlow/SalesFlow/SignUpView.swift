@@ -502,7 +502,6 @@ struct SignUpView: View {
                     } else {
                         if entered == pin {
                             pinError = nil
-                            // If device supports biometrics, offer setup before advancing
                             if BiometricManager.shared.canUseBiometrics {
                                 showBiometricSetup = true
                             } else {
@@ -520,6 +519,7 @@ struct SignUpView: View {
                     }
                 }
             )
+            .id(pinStage) // Force fresh keypad when switching create → confirm
         }
     }
 
