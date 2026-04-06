@@ -12,6 +12,11 @@ struct SignUpView: View {
     @State private var name = ""
     @State private var phone = ""
     @State private var pin = ""
+    @State private var pinConfirm = ""
+    @State private var pinStage: PINStage = .create
+    @State private var pinError: String?
+
+    private enum PINStage { case create, confirm }
     @State private var area = ""
     @State private var agreedToTerms = false
     @State private var isLoading = false
@@ -47,7 +52,13 @@ struct SignUpView: View {
                                 .foregroundStyle(Color(hex: "#9CA3AF"))
                         }
                     } else if step < totalSteps - 1 {
-                        Button(action: { withAnimation(.easeInOut(duration: 0.2)) { step -= 1 } }) {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                step -= 1
+                                // Reset PIN state if going back to PIN step
+                                if step == 6 { pinStage = .create; pin = ""; pinError = nil }
+                            }
+                        }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(Color(hex: "#9CA3AF"))
@@ -77,28 +88,30 @@ struct SignUpView: View {
                     }
                 }
 
-                // Fixed bottom: button + dots
+                // Fixed bottom: button + dots (hidden on PIN step — keypad handles it)
                 VStack(spacing: 0) {
-                    Button(action: handleNext) {
-                        ZStack {
-                            if isLoading {
-                                ProgressView().tint(.white)
-                            } else {
-                                HStack(spacing: 6) {
-                                    Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
-                                        .font(.system(size: 15, weight: .semibold))
-                                    Image(systemName: "arrow.right")
-                                        .font(.system(size: 13, weight: .semibold))
+                    if step != 6 {
+                        Button(action: handleNext) {
+                            ZStack {
+                                if isLoading {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    HStack(spacing: 6) {
+                                        Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
+                                            .font(.system(size: 15, weight: .semibold))
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .foregroundStyle(.white)
                                 }
-                                .foregroundStyle(.white)
                             }
+                            .frame(height: 50)
+                            .frame(maxWidth: 280)
+                            .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
+                            .clipShape(Capsule())
                         }
-                        .frame(height: 50)
-                        .frame(maxWidth: 280)
-                        .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
-                        .clipShape(Capsule())
+                        .disabled(!canContinue || isLoading)
                     }
-                    .disabled(!canContinue || isLoading)
 
                     if step == 0 {
                         Button("Already have an account? Sign in") { dismiss() }
@@ -133,7 +146,7 @@ struct SignUpView: View {
         case 3: toolsStep
         case 4: inputStep(title: "What should we call you?", subtitle: "Just your first name is fine") { nameInput }
         case 5: inputStep(title: "Your phone number", subtitle: "So we can reach you about leads and payouts") { phoneInput }
-        case 6: inputStep(title: "Create a quick PIN", subtitle: "4–6 digits — use this with your name to log back in") { pinInput }
+        case 6: pinStep
         case 7: inputStep(title: "What area do you cover?", subtitle: "e.g. Manchester City Centre, Birmingham") { areaInput }
         case 8: agreementStep
         case 9: doneStep
@@ -439,34 +452,54 @@ struct SignUpView: View {
             }
     }
 
-    private var pinInput: some View {
+    private var pinStep: some View {
         VStack(spacing: 8) {
-            SecureField("••••••", text: $pin)
-                .font(.system(size: 26, weight: .light))
+            Text(pinStage == .create ? "Create a PIN" : "Confirm your PIN")
+                .font(.system(size: 28, weight: .semibold))
+                .tracking(-0.8)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
-                .tint(accentBlue)
-                .keyboardType(.numberPad)
-                .padding(.bottom, 12)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(pin.isEmpty ? Color(hex: "#E5E7EB") : accentBlue).frame(height: 2)
-                }
-                .onChange(of: pin) { _, newValue in
-                    // Allow 4-6 digits only
-                    let digits = newValue.filter(\.isNumber)
-                    if digits.count > 6 { pin = String(digits.prefix(6)) }
-                    else if digits != newValue { pin = digits }
-                }
 
-            if !pin.isEmpty && pin.count < 4 {
-                Text("\(4 - pin.count) more digit\(4 - pin.count == 1 ? "" : "s") needed")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
-            } else if pin.count >= 4 {
-                Text("\(pin.count) digits")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color(hex: "#10B981"))
+            Text(pinStage == .create ? "4 digits — you'll use this to unlock the app" : "Enter the same PIN again")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 4)
+
+            if let error = pinError {
+                Text(error)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color(hex: "#EF4444"))
+                    .transition(.opacity)
             }
+
+            PINKeypadView(
+                title: "",
+                pinLength: 4,
+                onComplete: { entered in
+                    if pinStage == .create {
+                        pin = entered
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            pinStage = .confirm
+                            pinError = nil
+                        }
+                        return true
+                    } else {
+                        if entered == pin {
+                            pinError = nil
+                            withAnimation(.easeInOut(duration: 0.25)) { step += 1 }
+                            return true
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                pinError = "PINs didn't match — try again"
+                                pinStage = .create
+                                pin = ""
+                            }
+                            return false
+                        }
+                    }
+                }
+            )
         }
     }
 
@@ -612,7 +645,7 @@ struct SignUpView: View {
         switch step {
         case 4: return name.count >= 2 && nameAvailable != false && !checkingName
         case 5: return true // phone is optional
-        case 6: return pin.count >= 4 && pin.count <= 6
+        case 6: return false // PIN step handles its own navigation via keypad
         case 7: return !area.isEmpty
         case 8: return agreedToTerms
         default: return true
