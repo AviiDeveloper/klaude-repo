@@ -20,11 +20,6 @@ struct SignUpView: View {
     private let totalSteps = 10
     private let accentBlue = Color(hex: "#0071E3")
 
-    // Whether this step has enough content to need scrolling
-    private var isScrollableStep: Bool {
-        [0, 1, 2, 3, 8].contains(step)
-    }
-
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
@@ -67,20 +62,16 @@ struct SignUpView: View {
                 .padding(.top, 12)
                 .frame(height: 40)
 
-                // Content area — scrollable for long content, centered for short
-                if isScrollableStep {
+                // Content fills the middle — centers vertically, scrolls if needed
+                GeometryReader { geo in
                     ScrollView(showsIndicators: false) {
-                        stepContent
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
-                            .padding(.bottom, 16)
-                    }
-                } else {
-                    VStack {
-                        Spacer()
-                        stepContent
-                            .padding(.horizontal, 24)
-                        Spacer()
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            stepContent
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 24)
+                        .frame(minHeight: geo.size.height)
                     }
                 }
 
@@ -153,51 +144,51 @@ struct SignUpView: View {
     private var welcomeStep: some View {
         VStack(spacing: 0) {
             Text("Start earning today")
-                .font(.system(size: 34, weight: .semibold))
-                .tracking(-1.2)
+                .font(.system(size: 32, weight: .bold))
+                .tracking(-1)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
 
-            Text("Walk into businesses. Show them their new website.\nEarn £50 per sale.")
-                .font(.system(size: 17))
+            Text("Walk into businesses. Show them their new website. Earn £50 per sale.")
+                .font(.system(size: 16))
                 .foregroundStyle(Color(hex: "#6B7280"))
                 .multilineTextAlignment(.center)
-                .lineSpacing(2)
-                .padding(.bottom, 40)
+                .lineSpacing(3)
+                .padding(.bottom, 28)
 
-            VStack(spacing: 0) {
-                benefitRow(num: "1", title: "Flexible hours", body: "Choose your own schedule, no shifts")
-                benefitRow(num: "2", title: "Instant earnings", body: "£50 commission per sale, paid weekly")
-                benefitRow(num: "3", title: "No experience needed", body: "We give you scripts, demos, and support")
+            VStack(spacing: 10) {
+                benefitCard(icon: "clock", color: "#3B82F6", title: "Flexible hours", body: "Choose your own schedule. No shifts, no boss, no rota.")
+                benefitCard(icon: "sterlingsign.circle", color: "#10B981", title: "Instant earnings", body: "£50 commission per sale. Paid every Friday to your account.")
+                benefitCard(icon: "sparkles", color: "#8B5CF6", title: "No experience needed", body: "We give you scripts, demo websites, and full support.")
             }
-            .padding(.horizontal, 16)
         }
     }
 
-    private func benefitRow(num: String, title: String, body: String) -> some View {
+    private func benefitCard(icon: String, color: String, title: String, body: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Text(num)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
-                .frame(width: 32, height: 32)
-                .background(Color(hex: "#F9FAFB"))
-                .clipShape(Circle())
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Color(hex: color))
+                .frame(width: 40, height: 40)
+                .background(Color(hex: color).opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color(hex: "#111827"))
                 Text(body)
                     .font(.system(size: 13))
                     .foregroundStyle(Color(hex: "#6B7280"))
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 14)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color(hex: "#F3F4F6")).frame(height: 1)
-        }
+        .padding(14)
+        .background(Color(hex: "#F9FAFB"))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: — Step 1: Earnings
@@ -205,7 +196,7 @@ struct SignUpView: View {
     private var earningsStep: some View {
         VStack(spacing: 0) {
             Text("Real results, no promises")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
@@ -214,48 +205,55 @@ struct SignUpView: View {
             Text("Here's what our contractors have actually earned")
                 .font(.system(size: 15))
                 .foregroundStyle(Color(hex: "#9CA3AF"))
-                .padding(.bottom, 28)
+                .padding(.bottom, 20)
 
-            VStack(spacing: 20) {
-                VStack(spacing: 4) {
-                    Text("Contractor earnings last month")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
-                    Text("£50 – £800")
-                        .font(.system(size: 38, weight: .semibold))
-                        .tracking(-1.5)
-                        .foregroundStyle(Color(hex: "#111827"))
-                    Text("Results vary by effort, area, and approach")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
-                }
-                .padding(.bottom, 16)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(Color(hex: "#E5E7EB")).frame(height: 1)
-                }
-
-                VStack(alignment: .leading, spacing: 14) {
-                    earningsBullet("Every closed sale pays **£50 commission**, within 7 days")
-                    earningsBullet("No targets. No minimum hours. No shifts.")
-                    earningsBullet("Some contractors close one sale a week. Some close ten. It's entirely up to you.")
-                }
+            // Hero earnings card
+            VStack(spacing: 6) {
+                Text("Contractor earnings last month")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                Text("£50 – £800")
+                    .font(.system(size: 42, weight: .bold))
+                    .tracking(-2)
+                    .foregroundStyle(Color(hex: "#111827"))
+                Text("Results vary by effort, area, and approach")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: "#9CA3AF"))
             }
-            .padding(24)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
             .background(Color(hex: "#F9FAFB"))
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.bottom, 16)
+
+            // Bullet cards
+            VStack(spacing: 8) {
+                earningsBulletCard("sterlingsign", "Every closed sale pays **£50 commission**, within 7 days")
+                earningsBulletCard("xmark.circle", "No targets. No minimum hours. No shifts.")
+                earningsBulletCard("person.2", "Some close one sale a week. Some close ten. It's entirely up to you.")
+            }
         }
     }
 
-    private func earningsBullet(_ text: LocalizedStringKey) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("—")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color(hex: "#D1D5DB"))
+    private func earningsBulletCard(_ icon: String, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color(hex: "#6B7280"))
+                .frame(width: 28, height: 28)
+                .background(Color(hex: "#F3F4F6"))
+                .clipShape(Circle())
+
             Text(text)
                 .font(.system(size: 14))
                 .foregroundStyle(Color(hex: "#4B5563"))
                 .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#FAFAFA"))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: — Step 2: Walkthrough
@@ -263,7 +261,7 @@ struct SignUpView: View {
     private var walkthroughStep: some View {
         VStack(spacing: 0) {
             Text("How a typical day works")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
@@ -272,39 +270,48 @@ struct SignUpView: View {
             Text("Four simple steps to success")
                 .font(.system(size: 15))
                 .foregroundStyle(Color(hex: "#9CA3AF"))
-                .padding(.bottom, 40)
+                .padding(.bottom, 20)
 
-            VStack(spacing: 28) {
-                walkthroughRow("01", "Get your leads", "We send you local businesses that need websites")
-                walkthroughRow("02", "Walk in and pitch", "Show them their demo site on your phone")
-                walkthroughRow("03", "Handle objections", "Use our proven scripts and talking points")
-                walkthroughRow("04", "Close and earn", "£50 in your account, they get their site")
+            VStack(spacing: 10) {
+                walkthroughCard("1", "tray.and.arrow.down", "#3B82F6", "Get your leads", "We send you local businesses that don't have websites yet")
+                walkthroughCard("2", "iphone", "#8B5CF6", "Walk in and pitch", "Show them their custom demo site right on your phone")
+                walkthroughCard("3", "text.bubble", "#F59E0B", "Handle objections", "Use our proven scripts and ready-made talking points")
+                walkthroughCard("4", "checkmark.seal", "#10B981", "Close and earn", "£50 lands in your account. They get their website.")
             }
-            .padding(.horizontal, 8)
         }
     }
 
-    private func walkthroughRow(_ num: String, _ title: String, _ desc: String) -> some View {
-        HStack(alignment: .top, spacing: 18) {
-            Text(num)
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(Color(hex: "#E5E7EB"))
-                .tracking(-1)
-                .frame(width: 50, alignment: .leading)
+    private func walkthroughCard(_ num: String, _ icon: String, _ color: String, _ title: String, _ desc: String) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(hex: color).opacity(0.1))
+                    .frame(width: 48, height: 48)
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color(hex: color))
+            }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#111827"))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(num)
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(hex: color))
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(hex: "#111827"))
+                }
                 Text(desc)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                     .foregroundStyle(Color(hex: "#6B7280"))
                     .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 4)
-
-            Spacer()
+            Spacer(minLength: 0)
         }
+        .padding(14)
+        .background(Color(hex: "#F9FAFB"))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: — Step 3: Tools
@@ -312,7 +319,7 @@ struct SignUpView: View {
     private var toolsStep: some View {
         VStack(spacing: 0) {
             Text("Everything you need")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 28, weight: .bold))
                 .tracking(-0.8)
                 .foregroundStyle(Color(hex: "#111827"))
                 .multilineTextAlignment(.center)
@@ -321,29 +328,41 @@ struct SignUpView: View {
             Text("We provide all the tools to make sales easy")
                 .font(.system(size: 15))
                 .foregroundStyle(Color(hex: "#9CA3AF"))
-                .padding(.bottom, 36)
+                .padding(.bottom, 20)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 24) {
-                toolCell("AI-generated demos", "Custom previews for each business")
-                toolCell("Objection handlers", "Ready answers for common pushback")
-                toolCell("Local lead pipeline", "Curated list of businesses in your area")
-                toolCell("Real-time dashboard", "Track visits, pitches, and earnings")
+            VStack(spacing: 10) {
+                toolCard("wand.and.stars", "#8B5CF6", "AI-generated demos", "Custom website previews built for each business automatically")
+                toolCard("shield.checkered", "#F59E0B", "Objection handlers", "Ready answers for every pushback — pricing, timing, trust")
+                toolCard("mappin.and.ellipse", "#3B82F6", "Local lead pipeline", "Curated list of businesses in your area that need websites")
+                toolCard("chart.bar", "#10B981", "Real-time dashboard", "Track your visits, pitches, sales, and earnings live")
             }
-            .padding(.horizontal, 8)
         }
     }
 
-    private func toolCell(_ title: String, _ desc: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color(hex: "#111827"))
-            Text(desc)
-                .font(.system(size: 12))
-                .foregroundStyle(Color(hex: "#6B7280"))
-                .lineSpacing(2)
+    private func toolCard(_ icon: String, _ color: String, _ title: String, _ desc: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Color(hex: color))
+                .frame(width: 40, height: 40)
+                .background(Color(hex: color).opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#111827"))
+                Text(desc)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color(hex: "#F9FAFB"))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: — Steps 4-7: Input fields
