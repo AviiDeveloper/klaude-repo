@@ -28,6 +28,7 @@ struct LeadDetailView: View {
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
+            SubtleGridBackground().ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Business header strip
@@ -36,7 +37,7 @@ struct LeadDetailView: View {
                     .padding(.vertical, 12)
                     .background(Theme.surface)
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Theme.border).frame(height: Theme.borderWidth)
+                        Rectangle().fill(Theme.borderSubtle).frame(height: Theme.borderWidth)
                     }
 
                 // Segmented tabs
@@ -61,7 +62,7 @@ struct LeadDetailView: View {
                 }
                 .background(Theme.surface)
                 .overlay(alignment: .bottom) {
-                    Rectangle().fill(Theme.border).frame(height: Theme.borderWidth)
+                    Rectangle().fill(Theme.borderSubtle).frame(height: Theme.borderWidth)
                 }
 
                 // Content
@@ -104,32 +105,28 @@ struct LeadDetailView: View {
     // MARK: — Business header strip
 
     private var businessHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            // Initials avatar
+        HStack(alignment: .center, spacing: 14) {
+            // Initials avatar — slate blue per DESIGN_NOTES
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Theme.surfaceElevated)
+                    .fill(Color(hex: "#5B7B9D").opacity(0.1))
                     .frame(width: 44, height: 44)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Theme.border, lineWidth: Theme.borderWidth)
-                    )
                 Text(lead.businessName.prefix(2).uppercased())
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Theme.textMuted)
+                    .foregroundStyle(Color(hex: "#5B7B9D"))
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(lead.businessType)
                         .font(.system(size: 12))
-                        .foregroundStyle(Theme.textMuted)
+                        .foregroundStyle(Theme.textSecondary)
                     if let rating = lead.googleRating {
                         Text("·").foregroundStyle(Theme.textMuted).font(.system(size: 12))
                         HStack(spacing: 3) {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 9))
-                                .foregroundStyle(Theme.textMuted)
+                                .foregroundStyle(Color(hex: "#9B8B6B"))
                             Text(String(format: "%.1f", rating))
                                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                                 .foregroundStyle(Theme.textSecondary)
@@ -308,14 +305,16 @@ struct LeadDetailView: View {
                 BulletCard(
                     title: "Services Offered",
                     items: lead.servicesArray,
-                    icon: "minus"
+                    icon: "minus",
+                    accentColor: Color(hex: "#7B7B9D")   // muted lavender
                 )
             }
             if !lead.trustBadgesArray.isEmpty {
                 BulletCard(
                     title: "Trust Signals",
                     items: lead.trustBadgesArray,
-                    icon: "checkmark"
+                    icon: "checkmark",
+                    accentColor: Color(hex: "#6B8F7B")    // sage green
                 )
             }
             if !lead.bestReviewsArray.isEmpty {
@@ -325,7 +324,8 @@ struct LeadDetailView: View {
                 BulletCard(
                     title: "Avoid These Topics",
                     items: lead.avoidTopicsArray,
-                    icon: "xmark"
+                    icon: "xmark",
+                    accentColor: Color(hex: "#B06060")    // muted rose
                 )
             }
             if lead.servicesArray.isEmpty && lead.trustBadgesArray.isEmpty && lead.bestReviewsArray.isEmpty {
@@ -345,7 +345,7 @@ struct LeadDetailView: View {
                             ForEach(0..<min(review.rating, 5), id: \.self) { _ in
                                 Image(systemName: "star.fill")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(Theme.textMuted)
+                                    .foregroundStyle(Color(hex: "#9B8B6B"))
                             }
                             Text("— \(review.author)")
                                 .font(.system(size: 10))
@@ -694,6 +694,7 @@ private struct BulletCard: View {
     let title: String
     let items: [String]
     let icon: String
+    var accentColor: Color = Color(hex: "#5B7B9D")
 
     var body: some View {
         DetailCard {
@@ -701,12 +702,13 @@ private struct BulletCard: View {
                 SectionHeader(title: title)
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(items, id: \.self) { item in
-                        HStack(alignment: .top, spacing: 8) {
+                        HStack(alignment: .top, spacing: 10) {
                             Image(systemName: icon)
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.textMuted)
-                                .frame(width: 16)
-                                .padding(.top, 1)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(accentColor)
+                                .frame(width: 20, height: 20)
+                                .background(accentColor.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
                             Text(item)
                                 .font(.system(size: 13))
                                 .foregroundStyle(Theme.textSecondary)
@@ -734,7 +736,7 @@ private struct PriceRow: View {
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: highlight ? .bold : .regular, design: .monospaced))
-                .foregroundStyle(highlight ? Theme.statusSold : Theme.textPrimary)
+                .foregroundStyle(highlight ? Color(hex: "#6B8F7B") : Theme.textPrimary)
         }
     }
 }
@@ -744,13 +746,22 @@ private struct ObjectionRow: View {
     let response: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(objection)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
-            Text(response)
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.textMuted)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.bubble")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(hex: "#9B8B6B"))
+                .frame(width: 22, height: 22)
+                .background(Color(hex: "#9B8B6B").opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(objection)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(response)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
         }
     }
 }

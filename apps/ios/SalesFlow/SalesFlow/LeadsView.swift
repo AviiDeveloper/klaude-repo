@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-// MARK: — LeadsView (Editorial redesign)
-// Typography and whitespace do the work, not chrome.
-// New York serif for business names. Zero borders. Grouped by urgency.
+// MARK: — LeadsView (Redesigned to DESIGN_NOTES.md)
+// Uses Theme tokens throughout. Muted professional palette.
+// SubtleGridBackground. Card pattern from design system.
 
 struct LeadsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -18,7 +18,6 @@ struct LeadsView: View {
     @State private var showLeaderboard = false
 
     private let filters = ["all", "new", "visited", "pitched", "rejected"]
-    private let pageBg = Color(hex: "#F8F7F5")
 
     private var activeleads: [Lead] {
         leads.filter { $0.status.lowercased() != "sold" }
@@ -51,7 +50,8 @@ struct LeadsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                pageBg.ignoresSafeArea()
+                Theme.background.ignoresSafeArea()
+                SubtleGridBackground().ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     statsHeader
@@ -88,7 +88,7 @@ struct LeadsView: View {
                     } label: {
                         Image(systemName: showSearch ? "xmark" : "magnifyingglass")
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Color(hex: "#6B7280"))
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
@@ -103,36 +103,37 @@ struct LeadsView: View {
 
     private var statsHeader: some View {
         HStack(alignment: .bottom) {
-            // Hero earned
+            // Hero earned — sage green (muted, professional)
             VStack(alignment: .leading, spacing: 1) {
                 Text("£\(Int(stats.earned))")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(hex: "#16A34A"))
+                    .foregroundStyle(Color(hex: "#6B8F7B"))
                     .contentTransition(.numericText())
                     .animation(.spring(response: 0.4), value: stats.earned)
                 Text("earned this week")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(hex: "#9CA3AF"))
+                    .foregroundStyle(Theme.textMuted)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color(hex: "#F0FDF4"))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .background(Color(hex: "#6B8F7B").opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton))
 
             Spacer()
 
             // Inline secondary stats
             Text("\(stats.queue) queue \u{00B7} \(stats.visited) visited \u{00B7} \(stats.pitched) pitched \u{00B7} \(stats.sold) sold")
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
         .padding(.bottom, 12)
+        .background(Theme.surface)
         .overlay(alignment: .bottom) {
-            Rectangle().fill(Color(hex: "#EEEDE9")).frame(height: 1)
+            Rectangle().fill(Theme.borderSubtle).frame(height: Theme.borderWidth)
         }
     }
 
@@ -151,10 +152,10 @@ struct LeadsView: View {
                         VStack(spacing: 6) {
                             Text("\(label) \(count)")
                                 .font(.system(size: 13, weight: selectedFilter == filter ? .semibold : .medium))
-                                .foregroundStyle(selectedFilter == filter ? Color(hex: "#111111") : Color(hex: "#9CA3AF"))
+                                .foregroundStyle(selectedFilter == filter ? Theme.textPrimary : Theme.textMuted)
 
                             Rectangle()
-                                .fill(selectedFilter == filter ? Color(hex: "#111111") : .clear)
+                                .fill(selectedFilter == filter ? Theme.accent : .clear)
                                 .frame(height: 2)
                         }
                     }
@@ -164,6 +165,7 @@ struct LeadsView: View {
             .padding(.horizontal, 20)
         }
         .padding(.top, 8)
+        .background(Theme.surface)
     }
 
     // ── Search ───────────────────────────────────────────────────────
@@ -172,24 +174,24 @@ struct LeadsView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
             TextField("Search by name, type, or postcode", text: $searchText)
                 .font(.system(size: 15))
-                .foregroundStyle(Color(hex: "#111111"))
+                .foregroundStyle(Theme.textPrimary)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
             if !searchText.isEmpty {
                 Button { withAnimation { searchText = "" } } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundStyle(Color(hex: "#9CA3AF"))
+                        .foregroundStyle(Theme.textMuted)
                 }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(hex: "#F0EFEB"))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(Theme.surfaceElevated)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton))
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
     }
@@ -225,14 +227,13 @@ struct LeadsView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
-        .background(pageBg)
         .refreshable { await loadData() }
     }
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title.uppercased())
             .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(Color(hex: "#9CA3AF"))
+            .foregroundStyle(Theme.textMuted)
             .tracking(1.0)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 20)
@@ -245,12 +246,16 @@ struct LeadsView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Spacer()
+            Image(systemName: isOffline ? "wifi.slash" : searchText.isEmpty ? "tray" : "magnifyingglass")
+                .font(.system(size: 28))
+                .foregroundStyle(Theme.textMuted)
+                .padding(.bottom, 4)
             Text(isOffline ? "Can't reach server" : searchText.isEmpty ? "No leads" : "No results")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color(hex: "#111111"))
+                .foregroundStyle(Theme.textPrimary)
             Text(isOffline ? "Pull to retry" : searchText.isEmpty ? "Pull down to refresh" : "Try a different search")
                 .font(.system(size: 14))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
+                .foregroundStyle(Theme.textMuted)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -307,47 +312,73 @@ private struct LeadRow: View {
 
     private var isRejected: Bool { lead.status.lowercased() == "rejected" }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Name + status
-            HStack(alignment: .firstTextBaseline) {
-                Text(lead.businessName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#0A0A0A"))
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                statusText
-            }
-
-            // Metadata line
-            metadataLine
+    /// Icon for business type
+    private var businessIcon: String {
+        switch lead.businessType.lowercased() {
+        case let t where t.contains("barber") || t.contains("hair") || t.contains("salon") || t.contains("beauty"):
+            return "scissors"
+        case let t where t.contains("restaurant") || t.contains("kitchen") || t.contains("food"):
+            return "fork.knife"
+        case let t where t.contains("cafe") || t.contains("café") || t.contains("coffee"):
+            return "cup.and.saucer.fill"
+        case let t where t.contains("gym") || t.contains("fitness"):
+            return "figure.run"
+        case let t where t.contains("florist") || t.contains("flower"):
+            return "leaf.fill"
+        case let t where t.contains("print") || t.contains("copy"):
+            return "printer.fill"
+        default:
+            return "building.2"
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Business type icon — muted accent per DESIGN_NOTES card pattern
+            Image(systemName: businessIcon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Color(hex: "#5B7B9D"))
+                .frame(width: 40, height: 40)
+                .background(Color(hex: "#5B7B9D").opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 3) {
+                // Name
+                Text(lead.businessName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+
+                // Metadata line
+                metadataLine
+            }
+            Spacer(minLength: 0)
+
+            // Status badge
+            statusBadge
+        }
+        .padding(14)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Theme.border, lineWidth: Theme.borderWidth)
+        )
         .opacity(isRejected ? 0.5 : 1.0)
         .contentShape(Rectangle())
     }
 
     @ViewBuilder
-    private var statusText: some View {
-        switch lead.status.lowercased() {
-        case "new":
-            Text("NEW")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color(hex: "#16A34A"))
-        case "visited":
-            Text("VISITED")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(hex: "#D97706"))
-        case "pitched":
-            Text("PITCHED")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(hex: "#1D4ED8"))
-        default:
-            EmptyView()
+    private var statusBadge: some View {
+        let status = lead.status.lowercased()
+        if status != "rejected" {
+            Text(Theme.statusLabel(for: status).uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Theme.statusColor(for: status))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Theme.statusColor(for: status).opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
         }
     }
 
@@ -364,7 +395,9 @@ private struct LeadRow: View {
 
             if lead.hasDemoSite {
                 sep
-                Text("Demo")
+                Image(systemName: "globe")
+                    .font(.system(size: 9))
+                Text(" Demo")
                     .font(.system(size: 11, weight: .medium))
             }
 
@@ -372,18 +405,18 @@ private struct LeadRow: View {
                 sep
                 Text(followUpLabel(followUp))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#D97706"))
+                    .foregroundStyle(Color(hex: "#9B8B6B"))
             }
 
             Spacer()
         }
-        .foregroundStyle(Color(hex: "#9CA3AF"))
+        .foregroundStyle(Theme.textSecondary)
     }
 
     private var sep: some View {
         Text(" \u{00B7} ")
             .font(.system(size: 11))
-            .foregroundStyle(Color(hex: "#D1D5DB"))
+            .foregroundStyle(Theme.textMuted)
     }
 
     private func followUpLabel(_ date: Date) -> String {
