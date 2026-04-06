@@ -20,12 +20,17 @@ struct SignUpView: View {
     private let totalSteps = 10
     private let accentBlue = Color(hex: "#0071E3")
 
+    // Whether this step has enough content to need scrolling
+    private var isScrollableStep: Bool {
+        [0, 1, 2, 3, 8].contains(step)
+    }
+
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress bar (top edge)
+                // Progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle().fill(Color(hex: "#F3F4F6")).frame(height: 3)
@@ -36,7 +41,7 @@ struct SignUpView: View {
                 }
                 .frame(height: 3)
 
-                // Back button
+                // Back / step counter
                 HStack {
                     if step == 0 {
                         Button(action: { dismiss() }) {
@@ -59,76 +64,88 @@ struct SignUpView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .frame(height: 44)
+                .padding(.top, 12)
+                .frame(height: 40)
 
-                // Content + button together in scroll
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        switch step {
-                        case 0: welcomeStep
-                        case 1: earningsStep
-                        case 2: walkthroughStep
-                        case 3: toolsStep
-                        case 4: inputStep(title: "What should we call you?", subtitle: "Just your first name is fine") { nameInput }
-                        case 5: inputStep(title: "Your phone number", subtitle: "So we can reach you about leads and payouts") { phoneInput }
-                        case 6: inputStep(title: "Create a quick PIN", subtitle: "4 digits — use this with your name to log back in") { pinInput }
-                        case 7: inputStep(title: "What area do you cover?", subtitle: "e.g. Manchester City Centre, Birmingham") { areaInput }
-                        case 8: agreementStep
-                        case 9: doneStep
-                        default: EmptyView()
-                        }
-
-                        // Continue button
-                        Button(action: handleNext) {
-                            ZStack {
-                                if isLoading {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    HStack(spacing: 6) {
-                                        Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
-                                            .font(.system(size: 15, weight: .semibold))
-                                        Image(systemName: "arrow.right")
-                                            .font(.system(size: 13, weight: .semibold))
-                                    }
-                                    .foregroundStyle(.white)
-                                }
-                            }
-                            .frame(height: 50)
-                            .frame(maxWidth: 280)
-                            .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
-                            .clipShape(Capsule())
-                        }
-                        .disabled(!canContinue || isLoading)
-                        .padding(.top, 32)
-
-                        // Login link on welcome step
-                        if step == 0 {
-                            Button("Already have an account? Sign in") { dismiss() }
-                                .font(.system(size: 13))
-                                .foregroundStyle(Color(hex: "#9CA3AF"))
-                                .padding(.top, 12)
-                        }
-
-                        // Step dots
-                        HStack(spacing: 4) {
-                            ForEach(0..<totalSteps, id: \.self) { i in
-                                RoundedRectangle(cornerRadius: 1)
-                                    .fill(i == step ? accentBlue : Color(hex: "#E5E7EB"))
-                                    .frame(width: i == step ? 24 : 5, height: 5)
-                                    .animation(.easeInOut(duration: 0.3), value: step)
-                            }
-                        }
-                        .padding(.top, 20)
-                        .padding(.bottom, 24)
+                // Content area — scrollable for long content, centered for short
+                if isScrollableStep {
+                    ScrollView(showsIndicators: false) {
+                        stepContent
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                            .padding(.bottom, 16)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                } else {
+                    VStack {
+                        Spacer()
+                        stepContent
+                            .padding(.horizontal, 24)
+                        Spacer()
+                    }
                 }
+
+                // Fixed bottom: button + dots
+                VStack(spacing: 0) {
+                    Button(action: handleNext) {
+                        ZStack {
+                            if isLoading {
+                                ProgressView().tint(.white)
+                            } else {
+                                HStack(spacing: 6) {
+                                    Text(step == totalSteps - 1 ? "Go to Dashboard" : "Continue")
+                                        .font(.system(size: 15, weight: .semibold))
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .foregroundStyle(.white)
+                            }
+                        }
+                        .frame(height: 50)
+                        .frame(maxWidth: 280)
+                        .background(canContinue ? accentBlue : accentBlue.opacity(0.3))
+                        .clipShape(Capsule())
+                    }
+                    .disabled(!canContinue || isLoading)
+
+                    if step == 0 {
+                        Button("Already have an account? Sign in") { dismiss() }
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(hex: "#9CA3AF"))
+                            .padding(.top, 10)
+                    }
+
+                    HStack(spacing: 4) {
+                        ForEach(0..<totalSteps, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(i == step ? accentBlue : Color(hex: "#E5E7EB"))
+                                .frame(width: i == step ? 24 : 5, height: 5)
+                                .animation(.easeInOut(duration: 0.3), value: step)
+                        }
+                    }
+                    .padding(.top, 14)
+                }
+                .padding(.bottom, 20)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: step)
         .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
+        switch step {
+        case 0: welcomeStep
+        case 1: earningsStep
+        case 2: walkthroughStep
+        case 3: toolsStep
+        case 4: inputStep(title: "What should we call you?", subtitle: "Just your first name is fine") { nameInput }
+        case 5: inputStep(title: "Your phone number", subtitle: "So we can reach you about leads and payouts") { phoneInput }
+        case 6: inputStep(title: "Create a quick PIN", subtitle: "4 digits — use this with your name to log back in") { pinInput }
+        case 7: inputStep(title: "What area do you cover?", subtitle: "e.g. Manchester City Centre, Birmingham") { areaInput }
+        case 8: agreementStep
+        case 9: doneStep
+        default: EmptyView()
+        }
     }
 
     // MARK: — Step 0: Welcome
