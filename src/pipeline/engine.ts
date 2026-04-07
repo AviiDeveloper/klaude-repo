@@ -17,59 +17,6 @@ export class PipelineEngine {
     private readonly dispatchAdapters?: Map<string, PostDispatchAdapter>,
   ) {}
 
-  createDefaultDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
-    return this.store.upsertDefinition({
-      id: "content-automation-default",
-      name: "Content Automation Default",
-      enabled: true,
-      schedule_rrule: "FREQ=HOURLY;INTERVAL=1",
-      max_retries: 1,
-      nodes: [
-        { id: "trend-scout", agent_id: "trend-scout-agent", depends_on: [] },
-        {
-          id: "research-verify",
-          agent_id: "research-verifier-agent",
-          depends_on: ["trend-scout"],
-        },
-        {
-          id: "idea-rank",
-          agent_id: "idea-ranker-agent",
-          depends_on: ["research-verify"],
-        },
-        {
-          id: "script-write",
-          agent_id: "script-writer-agent",
-          depends_on: ["idea-rank"],
-        },
-        {
-          id: "media-generate",
-          agent_id: "media-generator-agent",
-          depends_on: ["script-write"],
-          paid_action: true,
-        },
-        {
-          id: "compliance-review",
-          agent_id: "compliance-reviewer-agent",
-          depends_on: ["media-generate"],
-        },
-        {
-          id: "publisher",
-          agent_id: "publisher-agent",
-          depends_on: ["compliance-review"],
-          paid_action: true,
-        },
-        {
-          id: "performance-analyze",
-          agent_id: "performance-analyst-agent",
-          depends_on: ["publisher"],
-        },
-      ],
-      config: {
-        platforms: ["tiktok", "reels", "shorts"],
-      },
-    });
-  }
-
   createLeadGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
     return this.store.upsertDefinition({
       id: "lead-generation-v1",

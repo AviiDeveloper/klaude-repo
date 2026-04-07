@@ -8,7 +8,6 @@ import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
 import { PipelineEngine } from "../pipeline/engine.js";
 import { MultiAgentRuntime } from "../pipeline/agentRuntime.js";
 import { registerOutreachAgents } from "../agents/outreach/index.js";
-import { registerContentAgents } from "../agents/content/index.js";
 
 const tmpDir = mkdtempSync(join(tmpdir(), "outreach-test-"));
 after(() => rmSync(tmpDir, { recursive: true, force: true }));
@@ -17,17 +16,15 @@ describe("outreach pipeline end-to-end", () => {
   it("registers outreach agents in the runtime", () => {
     const runtime = new MultiAgentRuntime();
     registerOutreachAgents(runtime);
-    registerContentAgents(runtime);
 
     assert.ok(runtime.has("lead-scout-agent"), "lead-scout-agent registered");
     assert.ok(runtime.has("lead-profiler-agent"), "lead-profiler-agent registered");
     assert.ok(runtime.has("lead-qualifier-agent"), "lead-qualifier-agent registered");
-
-    // Content agents registered separately
-    assert.ok(runtime.has("trend-scout-agent"), "content agents registered");
+    assert.ok(runtime.has("site-composer-agent"), "site-composer-agent registered");
+    assert.ok(runtime.has("site-qa-agent"), "site-qa-agent registered");
 
     const all = runtime.listRegistered();
-    assert.ok(all.length >= 11, `Expected 11+ agents, got ${all.length}`);
+    assert.ok(all.length >= 8, `Expected 8+ outreach agents, got ${all.length}`);
   });
 
   it("executes the lead-scout-agent with mock data", async () => {

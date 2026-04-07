@@ -18,7 +18,6 @@ import { SQLiteSessionTranscriptStore } from "../transcript/sqliteSessionTranscr
 import { SQLiteNotificationStore } from "../notifications/sqliteNotificationStore.js";
 import { RealtimeSessionBroker } from "../openclaw/realtimeSessionBroker.js";
 import { MultiAgentRuntime } from "../pipeline/agentRuntime.js";
-import { registerContentAgents } from "../agents/content/index.js";
 import { PipelineEngine } from "../pipeline/engine.js";
 import { NoopDispatchAdapter } from "../pipeline/postDispatch.js";
 import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
@@ -254,35 +253,21 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     ["shorts", new NoopDispatchAdapter("shorts")],
   ]);
   const mcRuntime = new MultiAgentRuntime();
-  // Register test-friendly content agents that produce post_payloads without AI
-  mcRuntime.register("trend-scout-agent", async () => ({
-    summary: "test trends", artifacts: { topics: [{ topic: "test", category: "test" }] },
+  // Register test-friendly outreach agents for the lead-generation pipeline
+  mcRuntime.register("lead-scout-agent", async () => ({
+    summary: "Scouted leads", artifacts: { leads: [{ business_name: "Test Plumber", address: "M1 1AA" }], lead_count: 1 },
   }));
-  mcRuntime.register("research-verifier-agent", async () => ({
-    summary: "verified", artifacts: { verified: true },
+  mcRuntime.register("lead-profiler-agent", async () => ({
+    summary: "Profiled 1 lead", artifacts: { profiles: [{ lead_id: "test-1", business_name: "Test Plumber" }] },
   }));
-  mcRuntime.register("idea-ranker-agent", async () => ({
-    summary: "ranked", artifacts: { ranked_ideas: [{ rank: 1, idea: "test", final_score: 0.9 }], winners: [{ rank: 1 }] },
+  mcRuntime.register("brand-analyser-agent", async () => ({
+    summary: "Analysed brand", artifacts: { analyses: [{ lead_id: "test-1", colours: {} }] },
   }));
-  mcRuntime.register("script-writer-agent", async () => ({
-    summary: "scripts", artifacts: { scripts: { tiktok: "Hook + CTA", reels: "Story + CTA", shorts: "Hook + CTA" } },
+  mcRuntime.register("lead-qualifier-agent", async () => ({
+    summary: "Qualified 1 lead", artifacts: { qualified: [{ lead_id: "test-1", qualification_score: 80 }] },
   }));
-  mcRuntime.register("media-generator-agent", async () => ({
-    summary: "media", artifacts: { media_assets: [] }, cost_usd: 0.01,
-  }));
-  mcRuntime.register("compliance-reviewer-agent", async () => ({
-    summary: "passed", artifacts: { compliance_passed: true },
-  }));
-  mcRuntime.register("publisher-agent", async () => ({
-    summary: "queued", artifacts: { queued: true },
-    post_payloads: [
-      { platform: "tiktok" as const, payload: { caption: "Test post", tags: ["test"] } },
-      { platform: "reels" as const, payload: { caption: "Test reel", tags: ["test"] } },
-      { platform: "shorts" as const, payload: { title: "Test short", tags: ["test"] } },
-    ],
-  }));
-  mcRuntime.register("performance-analyst-agent", async () => ({
-    summary: "metrics", artifacts: { metrics_collected: true },
+  mcRuntime.register("lead-assigner-agent", async () => ({
+    summary: "Assigned 1 lead", artifacts: { assignments: [{ lead_id: "test-1", assigned_to: "user-1" }] },
   }));
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
@@ -291,7 +276,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     undefined,
     dispatchAdapters,
   );
-  pipelineEngine.createDefaultDefinition();
+  pipelineEngine.createLeadGenerationDefinition();
 
   const telephonyClient: TelephonyControlClient = {
     async placeCall(input) {
@@ -352,9 +337,9 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     const jobsRes = await fetch(`${base}/api/jobs`);
     assert.equal(jobsRes.status, 200);
     const jobsJson = (await jobsRes.json()) as { jobs: Array<{ id: string }> };
-    assert.ok(jobsJson.jobs.some((job) => job.id === "content-automation-default"));
+    assert.ok(jobsJson.jobs.some((job) => job.id === "lead-generation-v1"));
 
-    const runRes = await fetch(`${base}/api/jobs/content-automation-default/run`, {
+    const runRes = await fetch(`${base}/api/jobs/lead-generation-v1/run`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ approval_token: "approve-paid-steps" }),
@@ -364,7 +349,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     assert.ok(runJson.run.id);
 
     const forbiddenTriggerRes = await fetch(
-      `${base}/api/jobs/content-automation-default/trigger`,
+      `${base}/api/jobs/lead-generation-v1/trigger`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -373,7 +358,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     );
     assert.equal(forbiddenTriggerRes.status, 403);
 
-    const triggerRes = await fetch(`${base}/api/jobs/content-automation-default/trigger`, {
+    const triggerRes = await fetch(`${base}/api/jobs/lead-generation-v1/trigger`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -396,29 +381,11 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     const graphJson = (await graphRes.json()) as {
       graph: Array<{ node_id: string; status: string }>;
     };
-    assert.ok(graphJson.graph.length >= 8);
+    assert.ok(graphJson.graph.length >= 5, `Expected 5+ nodes, got ${graphJson.graph.length}`);
     assert.ok(graphJson.graph.some((node) => node.status === "completed"));
 
     const queueRes = await fetch(`${base}/api/post-queue`);
     assert.equal(queueRes.status, 200);
-    const queueJson = (await queueRes.json()) as {
-      items: Array<{ id: string; status: string }>;
-    };
-    assert.ok(queueJson.items.length >= 1);
-
-    const first = queueJson.items[0];
-    const approveRes = await fetch(`${base}/api/post-queue/${first.id}/approve`, {
-      method: "POST",
-    });
-    assert.equal(approveRes.status, 200);
-
-    const dispatchRes = await fetch(`${base}/api/post-queue/${first.id}/dispatch`, {
-      method: "POST",
-    });
-    assert.equal(dispatchRes.status, 200);
-    const dispatchJson = (await dispatchRes.json()) as { status: string; reason_code: string };
-    assert.equal(dispatchJson.status, "dispatched");
-    assert.equal(dispatchJson.reason_code, "DISPATCHED_NOOP");
 
     const callRes = await fetch(`${base}/api/telephony/call`, {
       method: "POST",

@@ -22,7 +22,6 @@ import { SQLiteSessionTranscriptStore } from "./transcript/sqliteSessionTranscri
 import { SQLiteNotificationStore } from "./notifications/sqliteNotificationStore.js";
 import { MultiAgentRuntime } from "./pipeline/agentRuntime.js";
 import { registerOutreachAgents } from "./agents/outreach/index.js";
-import { registerContentAgents } from "./agents/content/index.js";
 import { DecisionStore } from "./learning/decisionStore.js";
 import { withLearning } from "./learning/learningAgent.js";
 import { PipelineEngine } from "./pipeline/engine.js";
@@ -154,7 +153,6 @@ async function main(): Promise<void> {
   // ── Pipeline engine ──
   const agentRuntime = new MultiAgentRuntime();
   registerOutreachAgents(agentRuntime);
-  registerContentAgents(agentRuntime);
 
   // Wrap all registered agents with self-learning decision logging
   for (const agentId of agentRuntime.listRegistered()) {
@@ -179,10 +177,6 @@ async function main(): Promise<void> {
   );
 
   // Auto-register pipeline definitions
-  if (!pipelineStore.getDefinition("content-automation-default")) {
-    pipelineEngine.createDefaultDefinition();
-    log.info("registered pipeline: content-automation-default");
-  }
   if (!pipelineStore.getDefinition("lead-generation-v1")) {
     pipelineEngine.createLeadGenerationDefinition();
     log.info("registered pipeline: lead-generation-v1");
