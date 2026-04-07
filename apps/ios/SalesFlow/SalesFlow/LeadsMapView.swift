@@ -74,8 +74,11 @@ struct LeadsMapView: View {
                 .ignoresSafeArea(edges: .top)
 
                 // Filter bar overlay
-                filterBar
-                    .padding(.top, 4)
+                VStack(spacing: 0) {
+                    filterBar
+                    Spacer()
+                }
+                .ignoresSafeArea(edges: .horizontal)
 
                 // Bottom overlays
                 VStack(spacing: 0) {
@@ -189,7 +192,9 @@ struct LeadsMapView: View {
             .padding(.horizontal, 16)
         }
         .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
+        .ignoresSafeArea(edges: .horizontal)
     }
 
     // MARK: — Route All Card (default state)
