@@ -24,6 +24,11 @@ struct LeadsMapView: View {
     @State private var multiStopRoutes: [MKRoute] = []
     @State private var isCalculatingRoute = false
 
+    // Route-all default card
+    @State private var allRoutes: [MKRoute] = []
+    @State private var isCalculatingAllRoute = false
+    @State private var showRouteAllCard = true
+
     // Filter
     @State private var selectedFilter = "all"
     private let filters = ["all", "new", "visited", "pitched", "sold", "rejected"]
@@ -76,7 +81,7 @@ struct LeadsMapView: View {
                 VStack(spacing: 0) {
                     Spacer()
 
-                    // Route info bar
+                    // Route info bar (single destination)
                     if let route = activeRoute, let lead = routeLead {
                         routeInfoBar(route: route, lead: lead)
                             .padding(.horizontal, 16)
@@ -84,7 +89,7 @@ struct LeadsMapView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
 
-                    // Multi-stop panel
+                    // Multi-stop panel (manual planning mode)
                     if isRoutePlanning && !routeStops.isEmpty {
                         multiStopPanel
                             .padding(.horizontal, 16)
@@ -102,6 +107,14 @@ struct LeadsMapView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
+                    // Default route-all card (when nothing else is showing)
+                    if showRouteAllCard && selectedLead == nil && !isRoutePlanning && activeRoute == nil {
+                        routeAllCard
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
             }
@@ -177,6 +190,189 @@ struct LeadsMapView: View {
         }
         .padding(.vertical, 8)
         .background(.ultraThinMaterial)
+    }
+
+    // MARK: — Route All Card (default state)
+
+    private var routeAllCard: some View {
+        VStack(spacing: 10) {
+            // Header
+            HStack {
+                Image(systemName: "map.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.accent)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Plan Your Route")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("\(filteredLeads.count) leads on map")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+
+                if isCalculatingAllRoute {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
+
+                Button {
+                    showRouteAllCard = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.textMuted)
+                        .padding(6)
+                        .background(Theme.surfaceElevated)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Lead list preview
+            let visibleLeads = Array(filteredLeads.prefix(6))
+            ForEach(Array(visibleLeads.enumerated()), id: \.element.assignmentId) { index, lead in
+                HStack(spacing: 10) {
+                    Text("\(index + 1)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Theme.statusColor(for: lead.status))
+                        .clipShape(Circle())
+
+                    Image(systemName: lead.businessIcon)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textMuted)
+                        .frame(width: 16)
+
+                    Text(lead.businessName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(lead.postcode)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textMuted)
+                }
+            }
+
+            if filteredLeads.count > 6 {
+                Text("+\(filteredLeads.count - 6) more")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 30)
+            }
+
+            // Route summary (after calculation)
+            if !allRoutes.isEmpty {
+                let totalTime = allRoutes.reduce(0) { $0 + $1.expectedTravelTime }
+                let totalDist = allRoutes.reduce(0) { $0 + $1.distance }
+
+                Divider().overlay(Theme.border)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "car.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.accent)
+                    Text(formatTime(totalTime))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("·")
+                        .foregroundStyle(Theme.textMuted)
+                    Text(formatDistance(totalDist))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("· \(filteredLeads.count) stops")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                }
+            }
+
+            Divider().overlay(Theme.border)
+
+            // Action buttons
+            if allRoutes.isEmpty {
+                // Calculate route button
+                Button {
+                    Task { await calculateRouteToAll() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                            .font(.system(size: 13))
+                        Text("Calculate Fastest Route")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Theme.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton))
+                }
+                .buttonStyle(.plain)
+                .disabled(filteredLeads.isEmpty || isCalculatingAllRoute)
+                .opacity(filteredLeads.isEmpty ? 0.5 : 1)
+            } else {
+                // Open in maps buttons
+                HStack(spacing: 8) {
+                    Button {
+                        openAllInAppleMaps()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 12))
+                            Text("Apple Maps")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Theme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        openAllInGoogleMaps()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 12))
+                            Text("Google Maps")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(hex: "#34A853"))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Recalculate / clear
+                Button {
+                    allRoutes = []
+                    // Remove route overlays from map
+                    multiStopRoutes = []
+                } label: {
+                    Text("Clear Route")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.textMuted)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusCard))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radiusCard)
+                .stroke(Theme.border, lineWidth: Theme.borderWidth)
+        )
     }
 
     // MARK: — Route Info Bar
@@ -541,6 +737,145 @@ struct LeadsMapView: View {
         let daddr = destinations.joined(separator: "+to:")
         if let url = URL(string: "maps://?daddr=\(daddr)&dirflg=d") {
             UIApplication.shared.open(url)
+        }
+    }
+
+    // MARK: — Route All
+
+    private func calculateRouteToAll() async {
+        guard !filteredLeads.isEmpty else { return }
+        isCalculatingAllRoute = true
+        defer { isCalculatingAllRoute = false }
+
+        // Sort leads by nearest-neighbor from user location for fastest route
+        let sorted = sortByNearest(filteredLeads)
+
+        var waypoints: [CLLocationCoordinate2D] = []
+        if let userLoc = locationManager.location?.coordinate {
+            waypoints.append(userLoc)
+        }
+        for lead in sorted {
+            if let coord = coordinate(for: lead) {
+                waypoints.append(coord)
+            }
+        }
+        guard waypoints.count >= 2 else { return }
+
+        var routes: [MKRoute] = []
+        for i in 0..<(waypoints.count - 1) {
+            let request = MKDirections.Request()
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: waypoints[i]))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: waypoints[i + 1]))
+            request.transportType = .automobile
+
+            let directions = MKDirections(request: request)
+            if let response = try? await directions.calculate(),
+               let route = response.routes.first {
+                routes.append(route)
+            }
+        }
+
+        allRoutes = routes
+        multiStopRoutes = routes // show on map
+
+        // Zoom to fit all
+        if !waypoints.isEmpty {
+            var minLat = waypoints[0].latitude, maxLat = waypoints[0].latitude
+            var minLng = waypoints[0].longitude, maxLng = waypoints[0].longitude
+            for wp in waypoints {
+                minLat = min(minLat, wp.latitude)
+                maxLat = max(maxLat, wp.latitude)
+                minLng = min(minLng, wp.longitude)
+                maxLng = max(maxLng, wp.longitude)
+            }
+            let center = CLLocationCoordinate2D(
+                latitude: (minLat + maxLat) / 2,
+                longitude: (minLng + maxLng) / 2
+            )
+            let span = MKCoordinateSpan(
+                latitudeDelta: (maxLat - minLat) * 1.4 + 0.005,
+                longitudeDelta: (maxLng - minLng) * 1.4 + 0.005
+            )
+            cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
+        }
+    }
+
+    /// Nearest-neighbor sort: pick the closest unvisited lead from the current position
+    private func sortByNearest(_ leads: [Lead]) -> [Lead] {
+        guard !leads.isEmpty else { return [] }
+        var remaining = leads
+        var sorted: [Lead] = []
+        var current = locationManager.location?.coordinate
+            ?? CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278) // London fallback
+
+        while !remaining.isEmpty {
+            let nearest = remaining.enumerated().min { a, b in
+                guard let coordA = coordinate(for: a.element),
+                      let coordB = coordinate(for: b.element) else { return false }
+                let distA = distanceBetween(current, coordA)
+                let distB = distanceBetween(current, coordB)
+                return distA < distB
+            }
+            if let nearest, let coord = coordinate(for: nearest.element) {
+                sorted.append(nearest.element)
+                remaining.remove(at: nearest.offset)
+                current = coord
+            } else {
+                break
+            }
+        }
+        return sorted
+    }
+
+    private func distanceBetween(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let loc1 = CLLocation(latitude: a.latitude, longitude: a.longitude)
+        let loc2 = CLLocation(latitude: b.latitude, longitude: b.longitude)
+        return loc1.distance(from: loc2)
+    }
+
+    private func openAllInAppleMaps() {
+        let sorted = sortByNearest(filteredLeads)
+        let destinations = sorted.compactMap { lead -> String? in
+            guard let coord = coordinate(for: lead) else { return nil }
+            return "\(coord.latitude),\(coord.longitude)"
+        }
+        guard !destinations.isEmpty else { return }
+        let daddr = destinations.joined(separator: "+to:")
+        if let url = URL(string: "maps://?daddr=\(daddr)&dirflg=d") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func openAllInGoogleMaps() {
+        let sorted = sortByNearest(filteredLeads)
+        let coords = sorted.compactMap { lead -> CLLocationCoordinate2D? in
+            coordinate(for: lead)
+        }
+        guard !coords.isEmpty else { return }
+
+        // Google Maps URL: destination is last stop, waypoints are intermediate
+        let destination = "\(coords.last!.latitude),\(coords.last!.longitude)"
+        var urlString = "comgooglemaps://?daddr=\(destination)&directionsmode=driving"
+
+        if coords.count > 1 {
+            let waypoints = coords.dropLast().map { "\($0.latitude),\($0.longitude)" }
+            urlString += "&waypoints=\(waypoints.joined(separator: "|"))"
+        }
+
+        // Try Google Maps app first, fall back to web
+        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+        } else {
+            // Fallback to Google Maps web
+            let webDest = "\(coords.last!.latitude),\(coords.last!.longitude)"
+            var webUrl = "https://www.google.com/maps/dir/?api=1&destination=\(webDest)&travelmode=driving"
+            if coords.count > 1 {
+                let waypoints = coords.dropLast().map { "\($0.latitude),\($0.longitude)" }
+                webUrl += "&waypoints=\(waypoints.joined(separator: "|"))"
+            }
+            if let url = URL(string: webUrl) {
+                UIApplication.shared.open(url)
+            }
         }
     }
 
