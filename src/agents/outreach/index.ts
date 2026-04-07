@@ -2,6 +2,7 @@ import { MultiAgentRuntime } from "../../pipeline/agentRuntime.js";
 import { leadScoutAgent } from "./leadScoutAgent.js";
 import { leadProfilerAgent } from "./leadProfilerAgent.js";
 import { brandAnalyserAgent } from "./brandAnalyser.js";
+import { brandIntelligenceAgent } from "./brandIntelligence.js";
 import { leadQualifierAgent } from "./leadQualifierAgent.js";
 import { briefGeneratorAgent } from "./briefGenerator.js";
 import { siteComposerAgent } from "./siteComposerAgent.js";
@@ -11,14 +12,18 @@ import { leadAssignerAgent } from "./leadAssignerAgent.js";
 /**
  * Register all outreach pipeline agents with the runtime.
  * Call this during application startup after creating the MultiAgentRuntime.
+ *
+ * Pipeline: scout → profile → brand-analyse → brand-intelligence (AI) →
+ *           qualify → assign + brief → compose → qa
  */
 export function registerOutreachAgents(runtime: MultiAgentRuntime): void {
-  // Phase 1: Lead generation
+  // Phase 1: Lead generation & analysis
   runtime.register("lead-scout-agent", leadScoutAgent);
   runtime.register("lead-profiler-agent", leadProfilerAgent);
   runtime.register("brand-analyser-agent", brandAnalyserAgent);
+  runtime.register("brand-intelligence-agent", brandIntelligenceAgent);
   runtime.register("lead-qualifier-agent", leadQualifierAgent);
-  // Phase 1.5: Auto-assignment (runs after qualify, parallel to site gen)
+  // Phase 1.5: Auto-assignment
   runtime.register("lead-assigner-agent", leadAssignerAgent);
   // Phase 2: Site generation (brief → compose → qa)
   runtime.register("brief-generator-agent", briefGeneratorAgent);

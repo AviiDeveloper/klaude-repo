@@ -263,6 +263,9 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
   mcRuntime.register("brand-analyser-agent", async () => ({
     summary: "Analysed brand", artifacts: { analyses: [{ lead_id: "test-1", colours: {} }] },
   }));
+  mcRuntime.register("brand-intelligence-agent", async () => ({
+    summary: "Brand intelligence", artifacts: { intelligence: [{ lead_id: "test-1", tone: "professional", market_position: "mid-range" }] },
+  }));
   mcRuntime.register("lead-qualifier-agent", async () => ({
     summary: "Qualified 1 lead", artifacts: { qualified: [{ lead_id: "test-1", qualification_score: 80 }] },
   }));
@@ -381,7 +384,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     const graphJson = (await graphRes.json()) as {
       graph: Array<{ node_id: string; status: string }>;
     };
-    assert.ok(graphJson.graph.length >= 5, `Expected 5+ nodes, got ${graphJson.graph.length}`);
+    assert.ok(graphJson.graph.length >= 6, `Expected 6+ nodes, got ${graphJson.graph.length}`);
     assert.ok(graphJson.graph.some((node) => node.status === "completed"));
 
     const queueRes = await fetch(`${base}/api/post-queue`);

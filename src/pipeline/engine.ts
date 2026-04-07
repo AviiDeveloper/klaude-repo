@@ -37,9 +37,14 @@ export class PipelineEngine {
           depends_on: ["profile"],
         },
         {
+          id: "brand-intelligence",
+          agent_id: "brand-intelligence-agent",
+          depends_on: ["brand-analyse"],
+        },
+        {
           id: "qualify",
           agent_id: "lead-qualifier-agent",
-          depends_on: ["brand-analyse"],
+          depends_on: ["brand-intelligence"],
         },
         {
           id: "assign",
