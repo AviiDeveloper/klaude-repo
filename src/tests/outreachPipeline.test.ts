@@ -8,6 +8,7 @@ import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
 import { PipelineEngine } from "../pipeline/engine.js";
 import { MultiAgentRuntime } from "../pipeline/agentRuntime.js";
 import { registerOutreachAgents } from "../agents/outreach/index.js";
+import { registerContentAgents } from "../agents/content/index.js";
 
 const tmpDir = mkdtempSync(join(tmpdir(), "outreach-test-"));
 after(() => rmSync(tmpDir, { recursive: true, force: true }));
@@ -16,13 +17,14 @@ describe("outreach pipeline end-to-end", () => {
   it("registers outreach agents in the runtime", () => {
     const runtime = new MultiAgentRuntime();
     registerOutreachAgents(runtime);
+    registerContentAgents(runtime);
 
     assert.ok(runtime.has("lead-scout-agent"), "lead-scout-agent registered");
     assert.ok(runtime.has("lead-profiler-agent"), "lead-profiler-agent registered");
     assert.ok(runtime.has("lead-qualifier-agent"), "lead-qualifier-agent registered");
 
-    // Content agents still registered
-    assert.ok(runtime.has("trend-scout-agent"), "default agents still present");
+    // Content agents registered separately
+    assert.ok(runtime.has("trend-scout-agent"), "content agents registered");
 
     const all = runtime.listRegistered();
     assert.ok(all.length >= 11, `Expected 11+ agents, got ${all.length}`);
@@ -141,7 +143,7 @@ describe("outreach pipeline end-to-end", () => {
 
     const def = store.getDefinition("lead-generation-v1");
     assert.ok(def, "Pipeline definition created");
-    assert.equal(def!.nodes.length, 4, "4 nodes in DAG (scout → profile → brand-analyse → qualify)");
+    assert.equal(def!.nodes.length, 5, "5 nodes in DAG (scout → profile → brand-analyse → qualify → assign)");
     assert.equal(def!.nodes[0].agent_id, "lead-scout-agent");
     assert.equal(def!.nodes[1].agent_id, "lead-profiler-agent");
     assert.equal(def!.nodes[2].agent_id, "brand-analyser-agent");
@@ -157,7 +159,7 @@ describe("outreach pipeline end-to-end", () => {
 
     // Check all nodes completed
     const nodes = store.listNodeRuns(run.id);
-    assert.equal(nodes.length, 4, "4 node runs (scout, profile, brand-analyse, qualify)");
+    assert.equal(nodes.length, 5, "5 node runs (scout, profile, brand-analyse, qualify, assign)");
     for (const node of nodes) {
       assert.equal(node.status, "completed", `Node ${node.node_id}: ${node.status}`);
     }

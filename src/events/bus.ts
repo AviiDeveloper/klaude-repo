@@ -14,7 +14,13 @@ export interface Event<T = Record<string, unknown>> {
 
 type Listener<T> = (event: Event<T>) => void | Promise<void>;
 
-export class InMemoryEventBus {
+/** Common interface for all event bus implementations */
+export interface EventBus {
+  subscribe<T>(name: EventName, listener: Listener<T>): void;
+  publish<T>(name: EventName, payload: T): Promise<void>;
+}
+
+export class InMemoryEventBus implements EventBus {
   private listeners = new Map<EventName, Array<Listener<unknown>>>();
 
   subscribe<T>(name: EventName, listener: Listener<T>): void {

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { CodeAgent } from "../agents/codeAgent.js";
 import { OpsAgent } from "../agents/opsAgent.js";
-import { InMemoryEventBus } from "../events/bus.js";
+import { EventBus } from "../events/bus.js";
 import { SideEffectExecutor } from "../sideEffects/executor.js";
 import { TaskStore } from "../storage/taskStore.js";
 import { TraceStore } from "../trace/traceStore.js";
@@ -23,7 +23,7 @@ interface ExecuteTaskOptions {
 export class Orchestrator {
   constructor(
     private readonly taskStore: TaskStore,
-    private readonly bus: InMemoryEventBus,
+    private readonly bus: EventBus,
     private readonly codeAgent: CodeAgent,
     private readonly opsAgent: OpsAgent,
     private readonly traceStore: TraceStore,

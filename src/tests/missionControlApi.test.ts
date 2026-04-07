@@ -18,6 +18,7 @@ import { SQLiteSessionTranscriptStore } from "../transcript/sqliteSessionTranscr
 import { SQLiteNotificationStore } from "../notifications/sqliteNotificationStore.js";
 import { RealtimeSessionBroker } from "../openclaw/realtimeSessionBroker.js";
 import { MultiAgentRuntime } from "../pipeline/agentRuntime.js";
+import { registerContentAgents } from "../agents/content/index.js";
 import { PipelineEngine } from "../pipeline/engine.js";
 import { NoopDispatchAdapter } from "../pipeline/postDispatch.js";
 import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
@@ -252,9 +253,40 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     ["reels", new NoopDispatchAdapter("reels")],
     ["shorts", new NoopDispatchAdapter("shorts")],
   ]);
+  const mcRuntime = new MultiAgentRuntime();
+  // Register test-friendly content agents that produce post_payloads without AI
+  mcRuntime.register("trend-scout-agent", async () => ({
+    summary: "test trends", artifacts: { topics: [{ topic: "test", category: "test" }] },
+  }));
+  mcRuntime.register("research-verifier-agent", async () => ({
+    summary: "verified", artifacts: { verified: true },
+  }));
+  mcRuntime.register("idea-ranker-agent", async () => ({
+    summary: "ranked", artifacts: { ranked_ideas: [{ rank: 1, idea: "test", final_score: 0.9 }], winners: [{ rank: 1 }] },
+  }));
+  mcRuntime.register("script-writer-agent", async () => ({
+    summary: "scripts", artifacts: { scripts: { tiktok: "Hook + CTA", reels: "Story + CTA", shorts: "Hook + CTA" } },
+  }));
+  mcRuntime.register("media-generator-agent", async () => ({
+    summary: "media", artifacts: { media_assets: [] }, cost_usd: 0.01,
+  }));
+  mcRuntime.register("compliance-reviewer-agent", async () => ({
+    summary: "passed", artifacts: { compliance_passed: true },
+  }));
+  mcRuntime.register("publisher-agent", async () => ({
+    summary: "queued", artifacts: { queued: true },
+    post_payloads: [
+      { platform: "tiktok" as const, payload: { caption: "Test post", tags: ["test"] } },
+      { platform: "reels" as const, payload: { caption: "Test reel", tags: ["test"] } },
+      { platform: "shorts" as const, payload: { title: "Test short", tags: ["test"] } },
+    ],
+  }));
+  mcRuntime.register("performance-analyst-agent", async () => ({
+    summary: "metrics", artifacts: { metrics_collected: true },
+  }));
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
-    new MultiAgentRuntime(),
+    mcRuntime,
     notificationStore,
     undefined,
     dispatchAdapters,

@@ -128,6 +128,30 @@ export class PipelineEngine {
     });
   }
 
+  /** Mark any runs left in 'running' state as failed (crash recovery) */
+  recoverStaleRuns(): void {
+    const runs = this.store.listRuns(200);
+    let recovered = 0;
+    for (const run of runs) {
+      if (run.status === "running") {
+        this.store.setRunStatus(run.id, "failed", "interrupted by restart");
+        recovered++;
+      }
+    }
+    if (recovered > 0) {
+      this.notificationStore?.append({
+        event_id: randomUUID(),
+        created_at: new Date().toISOString(),
+        channel: "notify_user",
+        reason: "pipeline_recovery",
+        message: `Recovered ${recovered} stale pipeline run(s) after restart`,
+        severity: "warning",
+        session_id: "system",
+        user_id: "system",
+      });
+    }
+  }
+
   async startRun(input: {
     definitionId: string;
     trigger: PipelineRun["trigger"];
