@@ -119,6 +119,31 @@ struct LeadsMapView: View {
                             .padding(.bottom, 16)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+
+                    // Floating "Plan Route" button when card is dismissed
+                    if !showRouteAllCard && selectedLead == nil && !isRoutePlanning && activeRoute == nil {
+                        Button {
+                            allRoutes = []
+                            multiStopRoutes = []
+                            showRouteAllCard = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                                    .font(.system(size: 14))
+                                Text("Plan Route")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(Theme.accent)
+                            .clipShape(Capsule())
+                            .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 16)
+                        .transition(.scale.combined(with: .opacity))
+                    }
                 }
             }
             .navigationTitle("Map")
