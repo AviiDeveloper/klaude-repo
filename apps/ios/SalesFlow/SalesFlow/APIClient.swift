@@ -4,7 +4,13 @@ import Foundation
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL: String = "http://localhost:4350"
+    // Simulator → localhost, device → Mac via Tailscale (dev), Pi (production)
+    // To switch to production: change device URL to http://100.93.24.14:4350
+    #if targetEnvironment(simulator)
+    private let baseURL = "http://localhost:4350"
+    #else
+    private let baseURL = "http://100.66.206.3:4350"  // Mac Tailscale IP (dev)
+    #endif
 
     var token: String?
 
