@@ -323,30 +323,10 @@ private struct LeadRow: View {
 
     private var isRejected: Bool { lead.status.lowercased() == "rejected" }
 
-    /// Icon for business type
-    private var businessIcon: String {
-        switch lead.businessType.lowercased() {
-        case let t where t.contains("barber") || t.contains("hair") || t.contains("salon") || t.contains("beauty"):
-            return "scissors"
-        case let t where t.contains("restaurant") || t.contains("kitchen") || t.contains("food"):
-            return "fork.knife"
-        case let t where t.contains("cafe") || t.contains("café") || t.contains("coffee"):
-            return "cup.and.saucer.fill"
-        case let t where t.contains("gym") || t.contains("fitness"):
-            return "figure.run"
-        case let t where t.contains("florist") || t.contains("flower"):
-            return "leaf.fill"
-        case let t where t.contains("print") || t.contains("copy"):
-            return "printer.fill"
-        default:
-            return "building.2"
-        }
-    }
-
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             // Business type icon — muted accent per DESIGN_NOTES card pattern
-            Image(systemName: businessIcon)
+            Image(systemName: lead.businessIcon)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(Color(hex: "#5B7B9D"))
                 .frame(width: 40, height: 40)

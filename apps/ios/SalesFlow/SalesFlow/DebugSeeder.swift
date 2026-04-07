@@ -118,7 +118,20 @@ enum DebugSeeder {
             ),
         ]
 
-        for lead in leads {
+        // Real London coordinates for seeded leads
+        let coords: [(Double, Double)] = [
+            (51.5155, -0.0722),  // seed-1 Barber & Co, E1 6RF
+            (51.5265, -0.0878),  // seed-2 Lotus Thai, EC1V 9AN
+            (51.5230, -0.0820),  // seed-3 Rusty Spoon, EC2A 3AB
+            (51.5220, -0.0716),  // seed-4 Pixel Print, E1 6PU
+            (51.5250, -0.0875),  // seed-5 Crunch Gym, EC1Y 1AG
+            (51.5350, -0.1050),  // seed-6 Blooms Florist, N1 8EA
+            (51.5130, -0.1340),  // seed-7 Nova Nails, W1F 8ZT
+            (51.5010, -0.0830),  // seed-8 Ironworks Coffee, SE1 3TQ
+        ]
+        for (i, lead) in leads.enumerated() {
+            lead.cachedLat = coords[i].0
+            lead.cachedLng = coords[i].1
             context.insert(lead)
         }
         try? context.save()

@@ -27,6 +27,10 @@ final class Lead {
     var avoidTopics: String?      // JSON-encoded [String]
     var lastSyncedAt: Date
 
+    // Cached geocoded coordinates
+    var cachedLat: Double?
+    var cachedLng: Double?
+
     // Offline queue
     var pendingStatusUpdate: String?
     var pendingLat: Double?
@@ -78,6 +82,29 @@ final class Lead {
         self.trustBadges = trustBadges
         self.avoidTopics = avoidTopics
         self.lastSyncedAt = lastSyncedAt
+    }
+}
+
+// MARK: — Helpers
+extension Lead {
+    /// SF Symbol name for the business type
+    var businessIcon: String {
+        switch businessType.lowercased() {
+        case let t where t.contains("barber") || t.contains("hair") || t.contains("salon") || t.contains("beauty"):
+            return "scissors"
+        case let t where t.contains("restaurant") || t.contains("kitchen") || t.contains("food"):
+            return "fork.knife"
+        case let t where t.contains("cafe") || t.contains("café") || t.contains("coffee"):
+            return "cup.and.saucer.fill"
+        case let t where t.contains("gym") || t.contains("fitness"):
+            return "figure.run"
+        case let t where t.contains("florist") || t.contains("flower"):
+            return "leaf.fill"
+        case let t where t.contains("print") || t.contains("copy"):
+            return "printer.fill"
+        default:
+            return "building.2"
+        }
     }
 }
 
