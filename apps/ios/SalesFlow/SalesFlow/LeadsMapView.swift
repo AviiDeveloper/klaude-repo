@@ -125,7 +125,18 @@ struct LeadsMapView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(action: toggleRoutePlanning) {
+                    Button {
+                        if isRoutePlanning {
+                            toggleRoutePlanning()
+                        } else if !showRouteAllCard {
+                            // Reopen the route-all card
+                            allRoutes = []
+                            multiStopRoutes = []
+                            showRouteAllCard = true
+                        } else {
+                            toggleRoutePlanning()
+                        }
+                    } label: {
                         HStack(spacing: 4) {
                             Image(systemName: isRoutePlanning ? "xmark" : "point.topleft.down.to.point.bottomright.curvepath.fill")
                                 .font(.system(size: 14))
