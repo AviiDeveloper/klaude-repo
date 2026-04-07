@@ -1,6 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { callAi, parseAiJson } from "./aiCaller.js";
+import { callAi, parseAiJson, flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("script-writer");
 
@@ -16,7 +16,8 @@ interface VideoScript {
 }
 
 export const scriptWriterAgent: AgentHandler = async (input) => {
-  const winners = (input.upstreamArtifacts?.winners as Array<{
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const winners = (upstream.winners as Array<{
     topic: string;
     angle: string;
     hook: string;

@@ -1,6 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { callAi, parseAiJson } from "./aiCaller.js";
+import { callAi, parseAiJson, flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("research-verifier");
 
@@ -13,7 +13,9 @@ interface VerifiedTopic {
 }
 
 export const researchVerifierAgent: AgentHandler = async (input) => {
-  const topics = (input.upstreamArtifacts?.topics as Array<{ topic: string; category: string }>) ?? [];
+  // Upstream artifacts are keyed by node_id from the pipeline engine
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const topics = (upstream.topics as Array<{ topic: string; category: string }>) ?? [];
 
   if (topics.length === 0) {
     return {

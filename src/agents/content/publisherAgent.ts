@@ -1,5 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("publisher");
 
@@ -15,7 +16,8 @@ interface PostPayload {
 }
 
 export const publisherAgent: AgentHandler = async (input) => {
-  const scripts = (input.upstreamArtifacts?.scripts as Array<{
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const scripts = (upstream.scripts as Array<{
     topic: string;
     platform: string;
     hook: string;
@@ -24,7 +26,7 @@ export const publisherAgent: AgentHandler = async (input) => {
     hashtags?: string[];
   }>) ?? [];
 
-  const mediaBriefs = (input.upstreamArtifacts?.media_briefs as Array<{
+  const mediaBriefs = (upstream.media_briefs as Array<{
     type: string;
     platform: string;
     description: string;

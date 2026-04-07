@@ -1,6 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { callAi, parseAiJson } from "./aiCaller.js";
+import { callAi, parseAiJson, flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("media-generator");
 
@@ -14,7 +14,8 @@ interface MediaAsset {
 }
 
 export const mediaGeneratorAgent: AgentHandler = async (input) => {
-  const scripts = (input.upstreamArtifacts?.scripts as Array<{
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const scripts = (upstream.scripts as Array<{
     topic: string;
     platform: string;
     hook: string;

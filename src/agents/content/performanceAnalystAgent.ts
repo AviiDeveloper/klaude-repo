@@ -1,5 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("performance-analyst");
 
@@ -30,13 +31,14 @@ export const performanceAnalystAgent: AgentHandler = async (input) => {
   const runId = input.run_id;
 
   // Collect metrics from all upstream artifacts
-  const topics = (input.upstreamArtifacts?.topics as unknown[]) ?? [];
-  const verifiedTopics = (input.upstreamArtifacts?.verified_topics as unknown[]) ?? [];
-  const rankedIdeas = (input.upstreamArtifacts?.ranked_ideas as unknown[]) ?? [];
-  const scripts = (input.upstreamArtifacts?.scripts as unknown[]) ?? [];
-  const complianceResults = (input.upstreamArtifacts?.results as Array<{ passed: boolean }>) ?? [];
-  const mediaBriefs = (input.upstreamArtifacts?.media_briefs as unknown[]) ?? [];
-  const postCount = (input.upstreamArtifacts?.post_count as number) ?? 0;
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const topics = (upstream.topics as unknown[]) ?? [];
+  const verifiedTopics = (upstream.verified_topics as unknown[]) ?? [];
+  const rankedIdeas = (upstream.ranked_ideas as unknown[]) ?? [];
+  const scripts = (upstream.scripts as unknown[]) ?? [];
+  const complianceResults = (upstream.results as Array<{ passed: boolean }>) ?? [];
+  const mediaBriefs = (upstream.media_briefs as unknown[]) ?? [];
+  const postCount = (upstream.post_count as number) ?? 0;
 
   const passedCompliance = complianceResults.filter((r) => r.passed).length;
 

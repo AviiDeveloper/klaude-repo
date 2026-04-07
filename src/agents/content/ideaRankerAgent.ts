@@ -1,6 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
-import { callAi, parseAiJson } from "./aiCaller.js";
+import { callAi, parseAiJson, flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("idea-ranker");
 
@@ -15,8 +15,9 @@ interface RankedIdea {
 }
 
 export const ideaRankerAgent: AgentHandler = async (input) => {
-  const topics = (input.upstreamArtifacts?.topics as Array<{ topic: string; category?: string }>) ?? [];
-  const verifiedTopics = (input.upstreamArtifacts?.verified_topics as Array<{ topic: string; freshness_score?: number }>) ?? topics;
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const topics = (upstream.topics as Array<{ topic: string; category?: string }>) ?? [];
+  const verifiedTopics = (upstream.verified_topics as Array<{ topic: string; freshness_score?: number }>) ?? topics;
 
   if (verifiedTopics.length === 0) {
     return {

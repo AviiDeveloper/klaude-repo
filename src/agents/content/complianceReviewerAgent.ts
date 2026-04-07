@@ -1,5 +1,6 @@
 import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { flattenUpstream } from "./aiCaller.js";
 
 const log = createLogger("compliance-reviewer");
 
@@ -65,7 +66,8 @@ function getMostCommonIssue(results: ComplianceResult[]): string {
 }
 
 export const complianceReviewerAgent: AgentHandler = async (input) => {
-  const scripts = (input.upstreamArtifacts?.scripts as Array<{
+  const upstream = flattenUpstream(input.upstreamArtifacts);
+  const scripts = (upstream.scripts as Array<{
     topic: string;
     platform: string;
     hook: string;

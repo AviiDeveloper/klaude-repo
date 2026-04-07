@@ -128,6 +128,29 @@ export async function callAi(options: AiCallOptions): Promise<AiCallResult> {
   }
 }
 
+/**
+ * Flatten upstream artifacts from pipeline engine format.
+ * Pipeline engine keys artifacts by node_id: { "trend-scout": { topics: [...] } }
+ * Agents expect flat: { topics: [...] }
+ * This merges all node outputs into a single flat object.
+ */
+export function flattenUpstream(artifacts: Record<string, unknown>): Record<string, unknown> {
+  const flat: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(artifacts)) {
+    if (key.startsWith("_")) {
+      // Pass through internal keys (_learningContext, etc.)
+      flat[key] = value;
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      // This is a node output — merge its contents
+      Object.assign(flat, value);
+    } else {
+      // Direct value
+      flat[key] = value;
+    }
+  }
+  return flat;
+}
+
 /** Parse JSON from AI response, handling markdown code fences */
 export function parseAiJson<T>(content: string): T {
   let cleaned = content.trim();
