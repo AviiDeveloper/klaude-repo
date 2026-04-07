@@ -49,6 +49,21 @@ const PLATFORM_RULES: Record<string, Array<{ check: (text: string) => boolean; m
   ],
 };
 
+function getMostCommonIssue(results: ComplianceResult[]): string {
+  const counts = new Map<string, number>();
+  for (const r of results) {
+    for (const issue of r.issues) {
+      counts.set(issue.category, (counts.get(issue.category) ?? 0) + 1);
+    }
+  }
+  let max = 0;
+  let maxCat = "none";
+  for (const [cat, count] of counts) {
+    if (count > max) { max = count; maxCat = cat; }
+  }
+  return maxCat;
+}
+
 export const complianceReviewerAgent: AgentHandler = async (input) => {
   const scripts = (input.upstreamArtifacts?.scripts as Array<{
     topic: string;
@@ -136,8 +151,13 @@ export const complianceReviewerAgent: AgentHandler = async (input) => {
       passed_count: passedCount,
       failed_count: results.length - passedCount,
       total_issues: totalIssues,
-      // Pass through scripts that passed
       scripts: scripts.filter((_, i) => results[i]?.passed),
+      _decision: {
+        reasoning: `Rule-based compliance check: ${passedCount}/${results.length} passed. ${totalIssues} issues across categories: ${[...new Set(results.flatMap((r) => r.issues.map((i) => i.category)))].join(", ") || "none"}. Most common: ${getMostCommonIssue(results)}.`,
+        alternatives: ["Could add AI-based tone analysis", "Could check against platform-specific TOS"],
+        confidence: 0.9, // Rule-based = high confidence
+        tags: ["compliance", `pass_rate:${(passedCount / Math.max(results.length, 1) * 100).toFixed(0)}pct`],
+      },
     },
   };
 };

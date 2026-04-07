@@ -23,6 +23,8 @@ import { SQLiteNotificationStore } from "./notifications/sqliteNotificationStore
 import { MultiAgentRuntime } from "./pipeline/agentRuntime.js";
 import { registerOutreachAgents } from "./agents/outreach/index.js";
 import { registerContentAgents } from "./agents/content/index.js";
+import { DecisionStore } from "./learning/decisionStore.js";
+import { withLearning } from "./learning/learningAgent.js";
 import { PipelineEngine } from "./pipeline/engine.js";
 import { NoopDispatchAdapter, WebhookDispatchAdapter } from "./pipeline/postDispatch.js";
 import { PipelineScheduler } from "./pipeline/scheduler.js";
@@ -145,11 +147,29 @@ async function main(): Promise<void> {
     ],
   ]);
 
+  // ── Self-learning layer ──
+  const decisionStore = new DecisionStore(dbPath);
+  closeables.push(decisionStore);
+
   // ── Pipeline engine ──
   const agentRuntime = new MultiAgentRuntime();
   registerOutreachAgents(agentRuntime);
   registerContentAgents(agentRuntime);
-  log.info("agents registered", { agents: agentRuntime.listRegistered() });
+
+  // Wrap all registered agents with self-learning decision logging
+  for (const agentId of agentRuntime.listRegistered()) {
+    const original = agentRuntime.getHandler(agentId);
+    if (original) {
+      agentRuntime.register(
+        agentId,
+        withLearning(agentId, original, decisionStore),
+      );
+    }
+  }
+  log.info("agents registered with learning", {
+    agents: agentRuntime.listRegistered(),
+    count: agentRuntime.listRegistered().length,
+  });
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
     agentRuntime,

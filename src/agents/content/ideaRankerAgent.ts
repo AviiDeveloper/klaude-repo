@@ -25,6 +25,8 @@ export const ideaRankerAgent: AgentHandler = async (input) => {
     };
   }
 
+  const learningContext = (input.upstreamArtifacts._learningContext as string) ?? "";
+
   try {
     const result = await callAi({
       system: `You are a content strategy agent specializing in short-form video for small business audiences. For each topic, generate 2-3 unique content angles and rank them.
@@ -44,7 +46,8 @@ Prioritize:
 - Pattern-interrupt hooks that stop the scroll
 - Actionable advice viewers can use immediately
 - Relatable pain points for local business owners
-- "Did you know?" and myth-busting angles`,
+- "Did you know?" and myth-busting angles
+${learningContext ? `\n${learningContext}` : ""}`,
       user: `Generate and rank content ideas from these verified topics:\n${verifiedTopics.map((t, i) => `${i + 1}. ${t.topic}`).join("\n")}`,
       jsonMode: true,
       maxTokens: 3000,
@@ -65,6 +68,12 @@ Prioritize:
       artifacts: {
         ranked_ideas: ideas,
         winners,
+        _decision: {
+          reasoning: `Ranked ${ideas.length} ideas by viral_potential×(1-production_difficulty). Top winner: "${winners[0]?.angle}" (score ${winners[0]?.final_score})`,
+          alternatives: ["Could weight by platform-specific engagement data", "Could factor in posting time optimization"],
+          confidence: ideas.length >= 5 ? 0.8 : 0.5,
+          tags: winners.flatMap((w) => w.target_platforms?.map((p: string) => `platform:${p}`) ?? []),
+        },
       },
       cost_usd: result.costUsd,
     };

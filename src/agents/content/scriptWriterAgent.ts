@@ -33,6 +33,8 @@ export const scriptWriterAgent: AgentHandler = async (input) => {
   const scripts: VideoScript[] = [];
   let totalCost = 0;
 
+  const learningContext = (input.upstreamArtifacts._learningContext as string) ?? "";
+
   for (const idea of winners) {
     const platforms = idea.target_platforms ?? ["tiktok", "reels", "shorts"];
 
@@ -55,7 +57,8 @@ Style guidelines:
 - Use "you" and "your" — speak directly to the viewer
 - Lead with the most surprising or valuable point
 - End with a clear, specific CTA (follow, comment, save, or visit link)
-- Keep language accessible — no jargon`,
+- Keep language accessible — no jargon
+${learningContext ? `\n${learningContext}` : ""}`,
         user: `Write platform-specific scripts for:\nTopic: ${idea.topic}\nAngle: ${idea.angle}\nHook inspiration: ${idea.hook}\nPlatforms: ${platforms.join(", ")}`,
         jsonMode: true,
         maxTokens: 3000,
@@ -87,7 +90,15 @@ Style guidelines:
 
   return {
     summary: `Generated ${scripts.length} scripts across ${winners.length} winning ideas`,
-    artifacts: { scripts },
+    artifacts: {
+      scripts,
+      _decision: {
+        reasoning: `Generated ${scripts.length} platform-specific scripts for ${winners.length} ideas. Platforms covered: ${[...new Set(scripts.map((s) => s.platform))].join(", ")}`,
+        alternatives: ["Could generate longer-form scripts", "Could A/B test multiple hooks per script"],
+        confidence: scripts.length > 0 ? 0.75 : 0.3,
+        tags: scripts.map((s) => `platform:${s.platform}`),
+      },
+    },
     cost_usd: totalCost,
   };
 };

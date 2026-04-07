@@ -28,6 +28,8 @@ export const trendScoutAgent: AgentHandler = async (input) => {
   // Fetch RSS headlines if source URLs configured
   const headlines = await fetchRssHeadlines();
 
+  const learningContext = (input.upstreamArtifacts._learningContext as string) ?? "";
+
   try {
     const result = await callAi({
       system: `You are a trend research agent for a content pipeline targeting small business owners and local service providers. Your job is to identify trending topics that would make good short-form video content (TikTok, Reels, Shorts).
@@ -39,7 +41,8 @@ Return a JSON object with a "topics" array. Each topic should have:
 - reasoning: one sentence on why this is trending now
 
 Focus on: ${verticals.join(", ")}
-Return at most ${maxTopics} topics, sorted by relevance_score descending.`,
+Return at most ${maxTopics} topics, sorted by relevance_score descending.
+${learningContext ? `\n${learningContext}` : ""}`,
       user: headlines.length > 0
         ? `Based on these recent headlines, identify trending topics:\n${headlines.join("\n")}`
         : `Identify ${maxTopics} currently trending topics relevant to small businesses and local services. Focus on actionable, practical content that would perform well as short-form video.`,
@@ -59,6 +62,12 @@ Return at most ${maxTopics} topics, sorted by relevance_score descending.`,
         topics,
         verticals,
         source: headlines.length > 0 ? "rss+ai" : "ai",
+        _decision: {
+          reasoning: `Selected ${topics.length} topics from ${headlines.length} RSS headlines + AI analysis. Prioritized by relevance_score to ${verticals.join("/")} audience.`,
+          alternatives: ["Could use Google Trends API", "Could scrape Reddit/Twitter for trends", "Could weight by recency over relevance"],
+          confidence: topics.length >= 3 ? 0.8 : 0.5,
+          tags: verticals.map((v) => `vertical:${v}`),
+        },
       },
       cost_usd: result.costUsd,
     };

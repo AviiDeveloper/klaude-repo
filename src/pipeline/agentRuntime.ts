@@ -37,6 +37,10 @@ export class MultiAgentRuntime {
     return this.handlers.has(agentId);
   }
 
+  getHandler(agentId: string): AgentHandler | undefined {
+    return this.handlers.get(agentId);
+  }
+
   listRegistered(): string[] {
     return Array.from(this.handlers.keys());
   }

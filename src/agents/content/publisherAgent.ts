@@ -67,6 +67,12 @@ export const publisherAgent: AgentHandler = async (input) => {
       queued: true,
       post_count: postPayloads.length,
       platforms: [...new Set(postPayloads.map((p) => p.platform))],
+      _decision: {
+        reasoning: `Formatted ${postPayloads.length} posts from ${scripts.length} approved scripts. Platforms: ${[...new Set(postPayloads.map((p) => p.platform))].join(", ")}. Caption length: avg ${Math.round(postPayloads.reduce((s, p) => s + p.payload.caption.length, 0) / Math.max(postPayloads.length, 1))} chars.`,
+        alternatives: ["Could optimize posting schedule by platform", "Could A/B test caption variants"],
+        confidence: 0.85,
+        tags: postPayloads.map((p) => `platform:${p.platform}`),
+      },
     },
     post_payloads: postPayloads,
   };

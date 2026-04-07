@@ -22,6 +22,8 @@ export const researchVerifierAgent: AgentHandler = async (input) => {
     };
   }
 
+  const learningContext = (input.upstreamArtifacts._learningContext as string) ?? "";
+
   try {
     const result = await callAi({
       system: `You are a research verification agent. Your job is to assess whether trending topics are:
@@ -37,7 +39,8 @@ Return a JSON object with a "results" array. Each result should have:
 - evidence: array of 1-3 supporting points
 - concerns: array of any issues found (empty if none)
 
-Reject topics that are purely speculative, politically divisive, or potentially harmful to recommend.`,
+Reject topics that are purely speculative, politically divisive, or potentially harmful to recommend.
+${learningContext ? `\n${learningContext}` : ""}`,
       user: `Verify these topics for a small business content pipeline:\n${topics.map((t, i) => `${i + 1}. ${t.topic} [${t.category}]`).join("\n")}`,
       jsonMode: true,
       maxTokens: 2000,
@@ -60,6 +63,12 @@ Reject topics that are purely speculative, politically divisive, or potentially 
           const original = topics.find((t) => t.topic === v.topic);
           return { ...original, ...v };
         }),
+        _decision: {
+          reasoning: `Verified ${verified.length}/${results.length} topics. Rejected ${rejected.length} for: ${rejected.map((r) => r.concerns.join(", ")).join("; ") || "none"}`,
+          alternatives: ["Could use stricter freshness threshold", "Could cross-reference with Google Trends"],
+          confidence: results.length > 0 ? 0.75 : 0.3,
+          tags: ["verification"],
+        },
       },
       cost_usd: result.costUsd,
     };

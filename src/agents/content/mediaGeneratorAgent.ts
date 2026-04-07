@@ -30,6 +30,8 @@ export const mediaGeneratorAgent: AgentHandler = async (input) => {
 
   // Generate detailed media briefs using AI — actual image/video generation
   // would require integration with services like Midjourney, DALL-E, or Runway
+  const learningContext = (input.upstreamArtifacts._learningContext as string) ?? "";
+
   try {
     const result = await callAi({
       system: `You are a media production planner for short-form video content. For each script, create detailed media asset specifications that a designer or AI image generator could use.
@@ -46,7 +48,8 @@ For each script, generate:
 1. A thumbnail image prompt
 2. 1-2 supporting visual assets (background images, b-roll concepts)
 
-Keep the style professional but approachable — suitable for a small business audience.`,
+Keep the style professional but approachable — suitable for a small business audience.
+${learningContext ? `\n${learningContext}` : ""}`,
       user: `Create media briefs for these scripts:\n${scripts.map((s, i) => `${i + 1}. [${s.platform}] ${s.topic}\n   Hook: ${s.hook}\n   Visuals: ${s.visual_notes?.join("; ") ?? "none specified"}`).join("\n\n")}`,
       jsonMode: true,
       maxTokens: 3000,
@@ -62,9 +65,14 @@ Keep the style professional but approachable — suitable for a small business a
       summary: `Created ${mediaBriefs.length} media asset briefs for ${scripts.length} scripts`,
       artifacts: {
         media_briefs: mediaBriefs,
-        scripts, // pass through
+        scripts,
         generation_status: "briefs_only",
-        note: "Media briefs generated. Actual asset generation requires image/video API integration.",
+        _decision: {
+          reasoning: `Generated ${mediaBriefs.length} media briefs covering ${[...new Set(mediaBriefs.map((b) => b.type))].join(", ")} types. Briefs only — no actual image generation yet.`,
+          alternatives: ["Could integrate DALL-E for actual image generation", "Could use Runway for video generation"],
+          confidence: 0.7,
+          tags: mediaBriefs.map((b) => `media:${b.type}`),
+        },
       },
       cost_usd: result.costUsd,
     };

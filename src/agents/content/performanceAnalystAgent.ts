@@ -16,6 +16,16 @@ interface RunMetrics {
   media_briefs_generated: number;
 }
 
+function findBottleneck(rates: Record<string, number>): string {
+  let min = 1;
+  let minKey = "none";
+  for (const [key, val] of Object.entries(rates)) {
+    if (key === "overall") continue;
+    if (val < min) { min = val; minKey = key; }
+  }
+  return `${minKey} (${(min * 100).toFixed(0)}%)`;
+}
+
 export const performanceAnalystAgent: AgentHandler = async (input) => {
   const runId = input.run_id;
 
@@ -81,6 +91,12 @@ export const performanceAnalystAgent: AgentHandler = async (input) => {
       conversion_rates: conversionRates,
       recommendations,
       metrics_collected: true,
+      _decision: {
+        reasoning: `Analyzed pipeline with ${(conversionRates.overall * 100).toFixed(0)}% overall conversion. Bottleneck: ${findBottleneck(conversionRates)}. ${recommendations.length} recommendations generated.`,
+        alternatives: ["Could compare against historical baselines", "Could generate cost-per-post efficiency metrics"],
+        confidence: topics.length >= 3 ? 0.85 : 0.4,
+        tags: ["analytics", `conversion:${(conversionRates.overall * 100).toFixed(0)}pct`],
+      },
     },
   };
 };
