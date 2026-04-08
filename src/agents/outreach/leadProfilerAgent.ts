@@ -95,6 +95,8 @@ export interface ProfileResult {
   opening_hours_json?: string;
   // Reviews for testimonials
   reviews_json?: string;
+  // Instagram data (via Apify)
+  instagram_json?: string;
   // Location
   lat?: number;
   lng?: number;
@@ -1250,6 +1252,130 @@ function rgbToHex(rgb: string): string | null {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
+// ---------------------------------------------------------------------------
+// Instagram scraping via Apify
+// ---------------------------------------------------------------------------
+
+interface InstagramProfile {
+  username: string;
+  fullName?: string;
+  biography?: string;
+  followersCount?: number;
+  postsCount?: number;
+  profilePicUrlHD?: string;
+  externalUrl?: string;
+  isBusinessAccount?: boolean;
+  businessCategoryName?: string;
+  latestPosts: Array<{
+    type?: string;
+    caption?: string;
+    likesCount?: number;
+    commentsCount?: number;
+    displayUrl?: string;
+    hashtags?: string[];
+    timestamp?: string;
+  }>;
+}
+
+async function scrapeInstagramViaApify(
+  instagramUrl: string,
+  leadId: string,
+): Promise<InstagramProfile | null> {
+  const apifyToken = process.env.APIFY_API_TOKEN;
+  if (!apifyToken) return null;
+
+  // Extract username from URL
+  const match = instagramUrl.match(/instagram\.com\/([^/?#]+)/);
+  if (!match) return null;
+  const username = match[1].replace(/\/$/, "");
+  if (!username || username === "p" || username === "explore") return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
+    const response = await fetch(
+      `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${apifyToken}&timeout=30`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [username], resultsLimit: 1 }),
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as InstagramProfile[];
+    if (!data || data.length === 0 || (data[0] as unknown as Record<string, unknown>).error) return null;
+
+    const profile = data[0];
+
+    // Download post images to asset store
+    const postImages: string[] = [];
+    for (let i = 0; i < Math.min(profile.latestPosts?.length ?? 0, 9); i++) {
+      const post = profile.latestPosts[i];
+      if (post.displayUrl) {
+        try {
+          const filename = `instagram_post_${i + 1}.jpg`;
+          const meta = await saveFromUrl(leadId, filename, post.displayUrl, "social");
+          if (meta) postImages.push(filename);
+        } catch { /* non-fatal */ }
+      }
+    }
+
+    // Download profile pic
+    if (profile.profilePicUrlHD) {
+      try {
+        await saveFromUrl(leadId, "instagram_profile.jpg", profile.profilePicUrlHD, "social");
+      } catch { /* non-fatal */ }
+    }
+
+    log.info(`scraped Instagram @${username}`, {
+      followers: profile.followersCount,
+      posts: profile.latestPosts?.length ?? 0,
+      images_saved: postImages.length,
+    });
+
+    return profile;
+  } catch (err) {
+    log.warn(`Instagram scrape failed for @${username}`, { error: String(err) });
+    return null;
+  }
+}
+
+/** Extract Instagram username from a list of social links */
+function findInstagramUrl(socialLinks: string[]): string | undefined {
+  return socialLinks.find((l) => l.includes("instagram.com/"));
+}
+
+/** Get top hashtags from Instagram posts */
+function getTopHashtags(posts: Array<{ hashtags?: string[] }>): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const post of posts) {
+    for (const tag of post.hashtags ?? []) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([tag, count]) => ({ tag, count }));
+}
+
+/** Get average engagement from Instagram posts */
+function getAvgEngagement(posts: Array<{ likesCount?: number; commentsCount?: number }>): { avg_likes: number; avg_comments: number; total_posts: number } {
+  if (posts.length === 0) return { avg_likes: 0, avg_comments: 0, total_posts: 0 };
+  const totalLikes = posts.reduce((sum, p) => sum + (p.likesCount ?? 0), 0);
+  const totalComments = posts.reduce((sum, p) => sum + (p.commentsCount ?? 0), 0);
+  return {
+    avg_likes: Math.round(totalLikes / posts.length),
+    avg_comments: Math.round(totalComments / posts.length),
+    total_posts: posts.length,
+  };
+}
+
 function isFoodVertical(businessType?: string, businessName?: string): boolean {
   const combined = `${businessType ?? ""} ${businessName ?? ""}`.toLowerCase();
   const foodKeywords = ["restaurant", "cafe", "coffee", "pizza", "burger", "food", "kitchen", "bistro", "grill", "takeaway", "bakery", "pub", "bar"];
@@ -1415,6 +1541,39 @@ async function profileSingleLead(
         if (scrapeResult.social_links.length > 0) {
           const socialProfiles = await scrapeSocialProfiles(scrapeResult.social_links, leadId);
           profile.social_profiles_json = JSON.stringify(socialProfiles);
+
+          // Instagram via Apify (much richer than Playwright scraping)
+          const igUrl = findInstagramUrl(scrapeResult.social_links);
+          if (igUrl) {
+            const igData = await scrapeInstagramViaApify(igUrl, leadId);
+            if (igData) {
+              profile.instagram_json = JSON.stringify({
+                username: igData.username,
+                full_name: igData.fullName,
+                bio: igData.biography,
+                followers: igData.followersCount,
+                posts_count: igData.postsCount,
+                profile_pic: igData.profilePicUrlHD,
+                website: igData.externalUrl,
+                is_business: igData.isBusinessAccount,
+                category: igData.businessCategoryName,
+                recent_posts: (igData.latestPosts ?? []).slice(0, 12).map((p) => ({
+                  type: p.type,
+                  caption: p.caption?.slice(0, 300),
+                  likes: p.likesCount,
+                  comments: p.commentsCount,
+                  hashtags: p.hashtags,
+                  image_file: p.displayUrl ? `instagram_post_${(igData.latestPosts ?? []).indexOf(p) + 1}.jpg` : undefined,
+                })),
+                top_hashtags: getTopHashtags(igData.latestPosts ?? []),
+                avg_engagement: getAvgEngagement(igData.latestPosts ?? []),
+              });
+              // Use Instagram bio as description if we don't have one
+              if (igData.biography && !profile.business_description_raw) {
+                profile.business_description_raw = igData.biography;
+              }
+            }
+          }
         }
 
         // Extract menu for food businesses
@@ -1453,6 +1612,43 @@ async function profileSingleLead(
         profile.social_links_json = JSON.stringify(socialLinks);
         const socialProfiles = await scrapeSocialProfiles(socialLinks, leadId);
         profile.social_profiles_json = JSON.stringify(socialProfiles);
+
+        // Instagram via Apify
+        const igUrl = findInstagramUrl(socialLinks);
+        if (igUrl) {
+          const igData = await scrapeInstagramViaApify(igUrl, leadId);
+          if (igData) {
+            profile.instagram_json = JSON.stringify({
+              username: igData.username,
+              full_name: igData.fullName,
+              bio: igData.biography,
+              followers: igData.followersCount,
+              posts_count: igData.postsCount,
+              profile_pic: igData.profilePicUrlHD,
+              website: igData.externalUrl,
+              is_business: igData.isBusinessAccount,
+              category: igData.businessCategoryName,
+              recent_posts: (igData.latestPosts ?? []).slice(0, 12).map((p, idx) => ({
+                type: p.type,
+                caption: p.caption?.slice(0, 300),
+                likes: p.likesCount,
+                comments: p.commentsCount,
+                hashtags: p.hashtags,
+                image_file: p.displayUrl ? `instagram_post_${idx + 1}.jpg` : undefined,
+              })),
+              top_hashtags: getTopHashtags(igData.latestPosts ?? []),
+              avg_engagement: getAvgEngagement(igData.latestPosts ?? []),
+            });
+            // Use Instagram bio as description
+            if (igData.biography && !profile.business_description_raw) {
+              profile.business_description_raw = igData.biography;
+            }
+            // Use profile pic as logo fallback
+            if (!profile.logo_path && igData.profilePicUrlHD) {
+              profile.logo_path = "instagram_profile.jpg";
+            }
+          }
+        }
 
         // Use social bio as business description if we don't have one
         for (const sp of socialProfiles) {

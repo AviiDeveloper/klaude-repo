@@ -284,6 +284,33 @@ function buildPrompt(
     }
   }
 
+  // Instagram data (rich brand signals)
+  const instagram = safeJsonParse<Record<string, unknown> | null>(
+    (profile as unknown as Record<string, string>).instagram_json, null,
+  );
+  if (instagram) {
+    parts.push(`\nINSTAGRAM PROFILE:`);
+    if (instagram.bio) parts.push(`  Bio: "${instagram.bio}"`);
+    if (instagram.followers) parts.push(`  Followers: ${instagram.followers}`);
+    if (instagram.is_business) parts.push(`  Business account: yes`);
+    if (instagram.category) parts.push(`  Category: ${instagram.category}`);
+    const posts = (instagram.recent_posts as Array<{ caption?: string; likes?: number; hashtags?: string[] }>) ?? [];
+    if (posts.length > 0) {
+      parts.push(`  Recent posts (${posts.length}):`);
+      for (const p of posts.slice(0, 6)) {
+        parts.push(`    - "${(p.caption ?? "").slice(0, 150)}" (${p.likes ?? 0} likes)`);
+      }
+    }
+    const topTags = (instagram.top_hashtags as Array<{ tag: string; count: number }>) ?? [];
+    if (topTags.length > 0) {
+      parts.push(`  Top hashtags: ${topTags.map((t) => `#${t.tag}`).join(", ")}`);
+    }
+    const engagement = instagram.avg_engagement as { avg_likes?: number; avg_comments?: number } | undefined;
+    if (engagement) {
+      parts.push(`  Avg engagement: ${engagement.avg_likes} likes, ${engagement.avg_comments} comments per post`);
+    }
+  }
+
   if (profile.website_quality_score !== undefined) {
     parts.push(`\nWEBSITE QUALITY SCORE: ${profile.website_quality_score}/100`);
   }
