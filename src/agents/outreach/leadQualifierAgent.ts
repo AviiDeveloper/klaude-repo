@@ -14,16 +14,22 @@ interface LeadWithProfile {
   business_type?: string;
   vertical_category?: VerticalCategory;
   has_premises?: boolean;
+  is_chain?: boolean;
   has_website: number;
+  website_url?: string | null;
   website_quality_score?: number | null;
   google_rating?: number | null;
   google_review_count?: number | null;
+  google_photos_downloaded?: number;
+  price_level?: number;
+  business_status?: string;
   has_social_links?: number;
   pain_points_json?: string;
-  source?: string;
-  address?: string;
   phone?: string;
   email?: string;
+  address?: string;
+  description?: string;
+  reviews?: Array<{ rating: number; text: string; time?: number }>;
 }
 
 interface QualifiedLead extends LeadWithProfile {
@@ -36,15 +42,15 @@ interface RejectedLead extends LeadWithProfile {
 }
 
 // ---------------------------------------------------------------------------
-// Vertical multipliers — walk-in-friendly businesses score higher
+// Scoring config
 // ---------------------------------------------------------------------------
 
 const VERTICAL_MULTIPLIERS: Record<string, number> = {
-  food: 1.2,        // High walk-in traffic, visible premises
-  beauty: 1.2,      // Appointment-based but has shopfront
-  retail: 1.1,      // Shopfront, visible
-  professional: 1.0, // Office, harder to walk into but possible
-  trades: 0.3,      // Van-based, no premises — soft exclude
+  food: 1.2,
+  beauty: 1.2,
+  retail: 1.1,
+  professional: 1.0,
+  trades: 0.3,
   unknown: 0.8,
 };
 
@@ -55,7 +61,7 @@ const VERTICAL_MULTIPLIERS: Record<string, number> = {
 export const leadQualifierAgent: AgentHandler = async (input) => {
   const upstream = input.upstreamArtifacts as Record<
     string,
-    { leads?: LeadWithProfile[]; profiles?: LeadWithProfile[]; intelligence?: Array<{ lead_id?: string }> }
+    { leads?: LeadWithProfile[]; profiles?: LeadWithProfile[] }
   >;
 
   const allLeads: LeadWithProfile[] = [];
@@ -83,96 +89,27 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
   const rejected: RejectedLead[] = [];
 
   for (const lead of leadsToScore) {
-    let score = 0;
-    const reasons: string[] = [];
+    const { score, reasons } = scoreLead(lead);
     const vertical = lead.vertical_category ?? "unknown";
     const multiplier = VERTICAL_MULTIPLIERS[vertical] ?? 0.8;
-
-    // ── Website opportunity scoring ──
-    if (!lead.has_website || lead.has_website === 0) {
-      score += 40;
-      reasons.push("No website — prime candidate");
-    } else if (lead.website_quality_score != null && lead.website_quality_score < 40) {
-      score += 30;
-      reasons.push(`Poor website quality (score: ${lead.website_quality_score})`);
-    } else if (lead.website_quality_score != null && lead.website_quality_score < 60) {
-      score += 15;
-      reasons.push(`Below-average website (score: ${lead.website_quality_score})`);
-    } else if (lead.website_quality_score != null && lead.website_quality_score >= 70) {
-      score -= 20;
-      reasons.push(`Good existing website (score: ${lead.website_quality_score})`);
-    }
-
-    // ── Google presence ──
-    if (lead.google_review_count != null) {
-      if (lead.google_review_count >= 20) {
-        score += 20;
-        reasons.push(`Active on Google (${lead.google_review_count} reviews)`);
-      } else if (lead.google_review_count >= 5) {
-        score += 10;
-        reasons.push(`Some Google presence (${lead.google_review_count} reviews)`);
-      }
-    }
-
-    if (lead.google_rating != null && lead.google_rating >= 4.0) {
-      score += 10;
-      reasons.push(`Good reputation (${lead.google_rating} stars)`);
-    }
-
-    // ── Social presence ──
-    if (lead.has_social_links) {
-      score += 10;
-      reasons.push("Active on social media");
-    }
-
-    // ── Contact info ──
-    if (lead.phone || lead.email) {
-      score += 10;
-      reasons.push("Contact info available");
-    }
-
-    // ── Has physical premises (from Google types) ──
-    if (lead.has_premises) {
-      score += 15;
-      reasons.push("Has physical premises (walk-in friendly)");
-    }
-
-    // ── Pain points ──
-    if (lead.pain_points_json) {
-      try {
-        const painPoints = JSON.parse(lead.pain_points_json as string) as string[];
-        if (painPoints.length >= 3) {
-          score += 10;
-          reasons.push(`${painPoints.length} identified pain points`);
-        } else if (painPoints.length >= 1) {
-          score += 5;
-        }
-      } catch { /* ignore */ }
-    }
-
-    // ── Apply vertical multiplier ──
-    const rawScore = score;
-    score = Math.round(score * multiplier);
+    const finalScore = Math.round(score * multiplier);
 
     if (multiplier !== 1.0) {
-      reasons.push(`Vertical: ${vertical} (${multiplier}x multiplier)`);
+      reasons.push(`Vertical: ${vertical} (×${multiplier})`);
     }
 
-    // ── Qualification threshold ──
-    if (score >= 30) {
-      qualified.push({
-        ...lead,
-        qualification_score: score,
-        qualification_reasons: reasons,
-      });
+    if (finalScore >= 30) {
+      qualified.push({ ...lead, qualification_score: finalScore, qualification_reasons: reasons });
     } else {
       let reason: string;
       if (vertical === "trades") {
-        reason = `Trades business — no walk-in premises (score ${rawScore} × ${multiplier} = ${score})`;
-      } else if (score <= 0) {
-        reason = "Already has a good website";
+        reason = `Trades business — no walk-in premises (${score} × ${multiplier} = ${finalScore})`;
+      } else if (lead.is_chain) {
+        reason = `Chain/franchise — corporate decisions (${finalScore})`;
+      } else if (finalScore <= 0) {
+        reason = "Established business with good website — not a fit";
       } else {
-        reason = `Score too low (${score}) — ${reasons.join("; ") || "insufficient signals"}`;
+        reason = `Score ${finalScore} below threshold — ${reasons.join("; ") || "insufficient signals"}`;
       }
       rejected.push({ ...lead, rejection_reason: reason });
     }
@@ -181,17 +118,20 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
   qualified.sort((a, b) => b.qualification_score - a.qualification_score);
 
   const tradeCount = leadsToScore.filter((l) => l.vertical_category === "trades").length;
-  const tradeRejected = rejected.filter((l) => l.vertical_category === "trades").length;
+  const chainCount = leadsToScore.filter((l) => l.is_chain).length;
+  const newBusinessCount = qualified.filter((l) => (l.google_review_count ?? 0) < 30).length;
 
   log.info("qualification complete", {
     total: leadsToScore.length,
     qualified: qualified.length,
     rejected: rejected.length,
-    trades_filtered: tradeRejected,
+    trades: tradeCount,
+    chains: chainCount,
+    new_businesses: newBusinessCount,
   });
 
   return {
-    summary: `Qualified ${qualified.length}/${leadsToScore.length} leads. Top score: ${qualified[0]?.qualification_score ?? 0}. Rejected: ${rejected.length} (${tradeRejected} trades).`,
+    summary: `Qualified ${qualified.length}/${leadsToScore.length}. Top: ${qualified[0]?.qualification_score ?? 0}. Rejected: ${rejected.length} (${tradeCount} trades, ${chainCount} chains). ${newBusinessCount} new businesses.`,
     artifacts: {
       qualified,
       rejected,
@@ -201,11 +141,137 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
         ? Math.round(qualified.reduce((sum, l) => sum + l.qualification_score, 0) / qualified.length)
         : 0,
       _decision: {
-        reasoning: `Scored ${leadsToScore.length} leads. ${qualified.length} qualified (threshold ≥30). ${tradeRejected}/${tradeCount} trades soft-excluded (0.3x multiplier). Top verticals: ${[...new Set(qualified.map((q) => q.vertical_category))].join(", ")}`,
-        alternatives: ["Could adjust multipliers based on close rate data", "Could add location-density scoring"],
+        reasoning: `Scored ${leadsToScore.length} leads. ${qualified.length} qualified. ${newBusinessCount} new/small businesses prioritised. ${chainCount} chains deprioritised. Top verticals: ${[...new Set(qualified.map((q) => q.vertical_category))].join(", ")}`,
+        alternatives: ["Could train scoring weights from close-rate data", "Could add foot-traffic estimates"],
         confidence: qualified.length > 0 ? 0.8 : 0.4,
-        tags: [`qualified:${qualified.length}`, `rejected:${rejected.length}`],
+        tags: [`qualified:${qualified.length}`, `new:${newBusinessCount}`],
       },
     },
   };
 };
+
+// ---------------------------------------------------------------------------
+// Scoring model
+// ---------------------------------------------------------------------------
+
+function scoreLead(lead: LeadWithProfile): { score: number; reasons: string[] } {
+  let score = 0;
+  const reasons: string[] = [];
+  const reviews = lead.google_review_count ?? 0;
+
+  // ── WEBSITE OPPORTUNITY ──
+  if (!lead.has_website || lead.has_website === 0) {
+    score += 40;
+    reasons.push("No website — prime candidate");
+  } else if (lead.website_quality_score != null && lead.website_quality_score < 40) {
+    score += 30;
+    reasons.push(`Poor website (quality ${lead.website_quality_score}/100)`);
+  } else if (lead.website_quality_score != null && lead.website_quality_score < 60) {
+    score += 15;
+    reasons.push(`Below-average website (${lead.website_quality_score}/100)`);
+  } else if (lead.website_quality_score != null && lead.website_quality_score >= 70) {
+    score -= 20;
+    reasons.push(`Good existing website (${lead.website_quality_score}/100)`);
+  }
+
+  // ── NEW BUSINESS SIGNALS (high priority) ──
+  if (reviews > 0 && reviews < 10) {
+    score += 20;
+    reasons.push(`Just opened — only ${reviews} reviews`);
+  } else if (reviews >= 10 && reviews < 30 && (lead.google_rating ?? 0) >= 3.5) {
+    score += 25;
+    reasons.push(`New & growing — ${reviews} reviews, ${lead.google_rating}★`);
+  } else if (reviews >= 30 && reviews < 100) {
+    score += 10;
+    reasons.push(`Established local (${reviews} reviews)`);
+  } else if (reviews >= 100 && reviews < 500) {
+    score += 5;
+    reasons.push(`Well-known (${reviews} reviews)`);
+  } else if (reviews >= 500) {
+    score -= 20;
+    reasons.push(`Very established (${reviews} reviews) — less likely to need us`);
+  }
+
+  // ── RATING ──
+  if (lead.google_rating != null && lead.google_rating >= 4.0) {
+    score += 5;
+    reasons.push(`Good reputation (${lead.google_rating}★)`);
+  }
+
+  // ── PREMISES ──
+  if (lead.has_premises) {
+    score += 15;
+    reasons.push("Physical premises — walk-in friendly");
+  }
+
+  // ── PRICE LEVEL ──
+  if (lead.price_level !== undefined) {
+    if (lead.price_level <= 2) {
+      score += 10;
+      reasons.push(`Budget/mid-range (level ${lead.price_level}) — price-sensitive, sees value`);
+    } else if (lead.price_level === 3) {
+      score += 5;
+      reasons.push("Upper mid-range");
+    } else if (lead.price_level >= 4) {
+      score -= 10;
+      reasons.push("Luxury — corporate decisions, harder sell");
+    }
+  }
+
+  // ── CONTACT ──
+  if (lead.phone) {
+    score += 10;
+    reasons.push("Phone number available");
+  }
+
+  // ── CHAIN DETECTION ──
+  if (lead.is_chain) {
+    score -= 15;
+    reasons.push("Chain/franchise — not independent");
+  }
+
+  // ── SOCIAL PRESENCE ──
+  if (lead.has_social_links) {
+    score += 5;
+    reasons.push("Social media present — marketing-aware");
+  }
+
+  // ── GOOGLE PHOTOS ──
+  if ((lead.google_photos_downloaded ?? 0) === 0) {
+    score += 10;
+    reasons.push("No Google photos — not investing in online presence");
+  }
+
+  // ── NO WEBSITE + FEW REVIEWS COMBO ──
+  if ((!lead.has_website || lead.has_website === 0) && reviews < 50 && reviews > 0) {
+    score += 15;
+    reasons.push("No website + low reviews = not getting discovered online");
+  }
+
+  // ── BUSINESS STATUS ──
+  if (lead.business_status === "OPERATIONAL") {
+    score += 5;
+    reasons.push("Confirmed operational");
+  } else if (lead.business_status === "CLOSED_TEMPORARILY") {
+    score -= 30;
+    reasons.push("Temporarily closed");
+  } else if (lead.business_status === "CLOSED_PERMANENTLY") {
+    score -= 100;
+    reasons.push("Permanently closed");
+  }
+
+  // ── PAIN POINTS ──
+  if (lead.pain_points_json) {
+    try {
+      const painPoints = JSON.parse(lead.pain_points_json as string) as string[];
+      if (painPoints.length >= 3) {
+        score += 10;
+        reasons.push(`${painPoints.length} pain points identified`);
+      } else if (painPoints.length >= 1) {
+        score += 5;
+      }
+    } catch { /* ignore */ }
+  }
+
+  return { score, reasons };
+}
