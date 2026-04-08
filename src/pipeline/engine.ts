@@ -25,7 +25,11 @@ export class PipelineEngine {
       schedule_rrule: "FREQ=DAILY;INTERVAL=1",
       max_retries: 1,
       nodes: [
-        { id: "scout", agent_id: "lead-scout-agent", depends_on: [] },
+        { id: "scout", agent_id: "lead-scout-agent", depends_on: [], config: {
+          verticals: ["restaurant", "cafe", "barber", "salon", "bakery", "pub"],
+          location: "Manchester",
+          max_results_per_vertical: 5,
+        } },
         {
           id: "profile",
           agent_id: "lead-profiler-agent",

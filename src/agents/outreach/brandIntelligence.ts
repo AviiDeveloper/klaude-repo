@@ -245,8 +245,11 @@ function buildPrompt(
 ): string {
   const parts: string[] = [];
 
+  const verticalCategory = (profile as unknown as Record<string, unknown>).vertical_category as string | undefined;
+
   parts.push(`BUSINESS: ${profile.business_name}`);
   parts.push(`TYPE: ${profile.business_type ?? "local business"}`);
+  if (verticalCategory) parts.push(`VERTICAL CATEGORY: ${verticalCategory} (${getVerticalContext(verticalCategory)})`);
   if (profile.address) parts.push(`LOCATION: ${profile.address}`);
   if (profile.google_rating) parts.push(`GOOGLE RATING: ${profile.google_rating}/5 (${profile.google_review_count ?? 0} reviews)`);
 
@@ -328,6 +331,17 @@ function validatePosition(
     return pos as typeof valid[number];
   }
   return "mid-range";
+}
+
+function getVerticalContext(category: string): string {
+  switch (category) {
+    case "food": return "restaurant/cafe/takeaway — focus on food quality, atmosphere, hygiene rating, online ordering";
+    case "beauty": return "salon/barber/spa — focus on expertise, client transformations, hygiene, licensed professionals";
+    case "retail": return "shop/boutique/store — focus on product range, unique offerings, customer experience";
+    case "professional": return "office-based service — focus on qualifications, experience, client outcomes";
+    case "trades": return "trade/contractor — focus on certifications, before/after work, reliability";
+    default: return "local business — focus on what makes them unique in their community";
+  }
 }
 
 function safeJsonParse<T>(json: string | undefined | null, fallback: T): T {

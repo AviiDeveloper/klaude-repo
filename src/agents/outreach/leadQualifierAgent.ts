@@ -1,8 +1,19 @@
+import { createLogger } from "../../lib/logger.js";
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import type { VerticalCategory } from "./leadScoutAgent.js";
+
+const log = createLogger("lead-qualifier");
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface LeadWithProfile {
   lead_id?: string;
   business_name: string;
+  business_type?: string;
+  vertical_category?: VerticalCategory;
+  has_premises?: boolean;
   has_website: number;
   website_quality_score?: number | null;
   google_rating?: number | null;
@@ -24,15 +35,31 @@ interface RejectedLead extends LeadWithProfile {
   rejection_reason: string;
 }
 
+// ---------------------------------------------------------------------------
+// Vertical multipliers — walk-in-friendly businesses score higher
+// ---------------------------------------------------------------------------
+
+const VERTICAL_MULTIPLIERS: Record<string, number> = {
+  food: 1.2,        // High walk-in traffic, visible premises
+  beauty: 1.2,      // Appointment-based but has shopfront
+  retail: 1.1,      // Shopfront, visible
+  professional: 1.0, // Office, harder to walk into but possible
+  trades: 0.3,      // Van-based, no premises — soft exclude
+  unknown: 0.8,
+};
+
+// ---------------------------------------------------------------------------
+// Agent
+// ---------------------------------------------------------------------------
+
 export const leadQualifierAgent: AgentHandler = async (input) => {
   const upstream = input.upstreamArtifacts as Record<
     string,
-    { leads?: LeadWithProfile[]; profiles?: LeadWithProfile[] }
+    { leads?: LeadWithProfile[]; profiles?: LeadWithProfile[]; intelligence?: Array<{ lead_id?: string }> }
   >;
 
-  // Merge leads and profiles from upstream
   const allLeads: LeadWithProfile[] = [];
-  const allProfiles: Map<string, LeadWithProfile> = new Map();
+  const allProfiles = new Map<string, LeadWithProfile>();
 
   for (const nodeOutput of Object.values(upstream)) {
     if (nodeOutput?.leads) allLeads.push(...nodeOutput.leads);
@@ -45,13 +72,11 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
     }
   }
 
-  // Merge profile data into leads
   const mergedLeads = allLeads.map((lead) => {
     const profile = allProfiles.get(lead.lead_id ?? lead.business_name);
     return profile ? { ...lead, ...profile } : lead;
   });
 
-  // If no leads from upstream, check profiles directly
   const leadsToScore = mergedLeads.length > 0 ? mergedLeads : Array.from(allProfiles.values());
 
   const qualified: QualifiedLead[] = [];
@@ -60,8 +85,10 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
   for (const lead of leadsToScore) {
     let score = 0;
     const reasons: string[] = [];
+    const vertical = lead.vertical_category ?? "unknown";
+    const multiplier = VERTICAL_MULTIPLIERS[vertical] ?? 0.8;
 
-    // No website = highest opportunity (40 pts)
+    // ── Website opportunity scoring ──
     if (!lead.has_website || lead.has_website === 0) {
       score += 40;
       reasons.push("No website — prime candidate");
@@ -72,12 +99,11 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
       score += 15;
       reasons.push(`Below-average website (score: ${lead.website_quality_score})`);
     } else if (lead.website_quality_score != null && lead.website_quality_score >= 70) {
-      // Good website — probably not a good target
       score -= 20;
       reasons.push(`Good existing website (score: ${lead.website_quality_score})`);
     }
 
-    // Google reviews signal an active business (up to 20 pts)
+    // ── Google presence ──
     if (lead.google_review_count != null) {
       if (lead.google_review_count >= 20) {
         score += 20;
@@ -88,25 +114,30 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
       }
     }
 
-    // Good Google rating means established business (up to 10 pts)
     if (lead.google_rating != null && lead.google_rating >= 4.0) {
       score += 10;
       reasons.push(`Good reputation (${lead.google_rating} stars)`);
     }
 
-    // Has social presence means they care about marketing (10 pts)
+    // ── Social presence ──
     if (lead.has_social_links) {
       score += 10;
-      reasons.push("Active on social media — marketing-aware");
+      reasons.push("Active on social media");
     }
 
-    // Has contact info (10 pts)
+    // ── Contact info ──
     if (lead.phone || lead.email) {
       score += 10;
       reasons.push("Contact info available");
     }
 
-    // Multiple pain points increase opportunity (up to 10 pts)
+    // ── Has physical premises (from Google types) ──
+    if (lead.has_premises) {
+      score += 15;
+      reasons.push("Has physical premises (walk-in friendly)");
+    }
+
+    // ── Pain points ──
     if (lead.pain_points_json) {
       try {
         const painPoints = JSON.parse(lead.pain_points_json as string) as string[];
@@ -116,12 +147,18 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
         } else if (painPoints.length >= 1) {
           score += 5;
         }
-      } catch {
-        // ignore parse errors
-      }
+      } catch { /* ignore */ }
     }
 
-    // Qualification threshold
+    // ── Apply vertical multiplier ──
+    const rawScore = score;
+    score = Math.round(score * multiplier);
+
+    if (multiplier !== 1.0) {
+      reasons.push(`Vertical: ${vertical} (${multiplier}x multiplier)`);
+    }
+
+    // ── Qualification threshold ──
     if (score >= 30) {
       qualified.push({
         ...lead,
@@ -129,21 +166,32 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
         qualification_reasons: reasons,
       });
     } else {
-      rejected.push({
-        ...lead,
-        rejection_reason:
-          score <= 0
-            ? "Already has a good website"
-            : `Score too low (${score}) — ${reasons.join("; ") || "insufficient signals"}`,
-      });
+      let reason: string;
+      if (vertical === "trades") {
+        reason = `Trades business — no walk-in premises (score ${rawScore} × ${multiplier} = ${score})`;
+      } else if (score <= 0) {
+        reason = "Already has a good website";
+      } else {
+        reason = `Score too low (${score}) — ${reasons.join("; ") || "insufficient signals"}`;
+      }
+      rejected.push({ ...lead, rejection_reason: reason });
     }
   }
 
-  // Sort qualified leads by score descending
   qualified.sort((a, b) => b.qualification_score - a.qualification_score);
 
+  const tradeCount = leadsToScore.filter((l) => l.vertical_category === "trades").length;
+  const tradeRejected = rejected.filter((l) => l.vertical_category === "trades").length;
+
+  log.info("qualification complete", {
+    total: leadsToScore.length,
+    qualified: qualified.length,
+    rejected: rejected.length,
+    trades_filtered: tradeRejected,
+  });
+
   return {
-    summary: `Qualified ${qualified.length}/${leadsToScore.length} leads. Top score: ${qualified[0]?.qualification_score ?? 0}. Rejected: ${rejected.length}.`,
+    summary: `Qualified ${qualified.length}/${leadsToScore.length} leads. Top score: ${qualified[0]?.qualification_score ?? 0}. Rejected: ${rejected.length} (${tradeRejected} trades).`,
     artifacts: {
       qualified,
       rejected,
@@ -152,6 +200,12 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
       avg_score: qualified.length > 0
         ? Math.round(qualified.reduce((sum, l) => sum + l.qualification_score, 0) / qualified.length)
         : 0,
+      _decision: {
+        reasoning: `Scored ${leadsToScore.length} leads. ${qualified.length} qualified (threshold ≥30). ${tradeRejected}/${tradeCount} trades soft-excluded (0.3x multiplier). Top verticals: ${[...new Set(qualified.map((q) => q.vertical_category))].join(", ")}`,
+        alternatives: ["Could adjust multipliers based on close rate data", "Could add location-density scoring"],
+        confidence: qualified.length > 0 ? 0.8 : 0.4,
+        tags: [`qualified:${qualified.length}`, `rejected:${rejected.length}`],
+      },
     },
   };
 };
