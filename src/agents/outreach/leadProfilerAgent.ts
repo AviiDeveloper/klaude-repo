@@ -1,4 +1,6 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { createLogger } from "../../lib/logger.js";
+import { pLimit } from "../../lib/concurrency.js";
 import {
   ensureLeadDir,
   saveBuffer,
@@ -7,6 +9,9 @@ import {
   getManifest,
   type AssetMetadata,
 } from "../../lib/assetStore.js";
+
+const log = createLogger("lead-profiler");
+const PROFILER_CONCURRENCY = Number(process.env.PROFILER_CONCURRENCY ?? "2");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1271,8 +1276,58 @@ export const leadProfilerAgent: AgentHandler = async (input) => {
   }
 
   const profiles: ProfileResult[] = [];
+  const run = pLimit(PROFILER_CONCURRENCY);
 
-  for (const lead of leads) {
+  log.info("starting lead profiling", { lead_count: leads.length, concurrency: PROFILER_CONCURRENCY });
+
+  const results = await Promise.allSettled(
+    leads.map((lead) =>
+      run(async () => {
+        const start = Date.now();
+        const profile = await profileSingleLead(lead);
+        log.info(`profiled ${lead.business_name}`, { ms: Date.now() - start });
+        return profile;
+      }),
+    ),
+  );
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      profiles.push(result.value);
+    } else {
+      log.warn("lead profiling failed", { error: String(result.reason) });
+    }
+  }
+
+  // Build summary
+  const noWebsite = profiles.filter((p) => p.website_quality_score === 0).length;
+  const withLogos = profiles.filter((p) => p.logo_path).length;
+  const withGoogle = profiles.filter((p) => p.google_business_json !== "{}").length;
+  const withSocial = profiles.filter((p) => p.social_profiles_json !== "[]").length;
+
+  return {
+    summary: `Profiled ${profiles.length} leads. ${noWebsite} have no/poor website. ${withGoogle} Google profiles scraped. ${withSocial} social profiles scraped. ${withLogos} logos found.`,
+    artifacts: {
+      profiles,
+      profiled_count: profiles.length,
+      high_opportunity_count: noWebsite,
+      _decision: {
+        reasoning: `Profiled ${profiles.length}/${leads.length} leads (${PROFILER_CONCURRENCY} concurrent). ${noWebsite} high-opportunity (no website). ${withGoogle} with Google Business data. ${withLogos} logos found.`,
+        alternatives: ["Could increase concurrency on more powerful hardware", "Could skip social scraping for faster results"],
+        confidence: profiles.length === leads.length ? 0.85 : 0.6,
+        tags: [`leads:${profiles.length}`, `opportunity:${noWebsite}`],
+      },
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Single lead profiler (extracted from the old sequential loop)
+// ---------------------------------------------------------------------------
+
+async function profileSingleLead(
+  lead: LeadToProfile,
+): Promise<ProfileResult> {
     const leadId = lead.lead_id ?? `lead-${Date.now()}`;
     ensureLeadDir(leadId);
 
@@ -1409,21 +1464,5 @@ export const leadProfilerAgent: AgentHandler = async (input) => {
     }
 
     profile.profiled_at = new Date().toISOString();
-    profiles.push(profile);
-  }
-
-  // Build summary
-  const noWebsite = profiles.filter((p) => p.website_quality_score === 0).length;
-  const withLogos = profiles.filter((p) => p.logo_path).length;
-  const withGoogle = profiles.filter((p) => p.google_business_json !== "{}").length;
-  const withSocial = profiles.filter((p) => p.social_profiles_json !== "[]").length;
-
-  return {
-    summary: `Profiled ${profiles.length} leads. ${noWebsite} have no/poor website. ${withGoogle} Google profiles scraped. ${withSocial} social profiles scraped. ${withLogos} logos found.`,
-    artifacts: {
-      profiles,
-      profiled_count: profiles.length,
-      high_opportunity_count: noWebsite,
-    },
-  };
-};
+    return profile;
+}
