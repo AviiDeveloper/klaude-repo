@@ -21,8 +21,10 @@ export interface LeadToProfile {
   lead_id?: string;
   business_name: string;
   business_type?: string;
+  vertical_category?: string;
   website_url?: string | null;
   google_maps_url?: string | null;
+  google_place_id?: string;
   google_rating?: number;
   google_review_count?: number;
   address?: string;
@@ -30,6 +32,18 @@ export interface LeadToProfile {
   email?: string;
   facebook_url?: string | null;
   instagram_url?: string | null;
+  // Enriched data from scout (Place Details API)
+  description?: string;
+  price_level?: number;
+  business_status?: string;
+  opening_hours?: string[];
+  reviews?: Array<{ author: string; rating: number; text: string; time?: number; relative_time?: string }>;
+  google_photos_downloaded?: number;
+  google_photo_filenames?: string[];
+  has_premises?: boolean;
+  is_chain?: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export interface SocialProfile {
@@ -1428,17 +1442,19 @@ export const leadProfilerAgent: AgentHandler = async (input) => {
   // Build summary
   const noWebsite = profiles.filter((p) => p.website_quality_score === 0).length;
   const withLogos = profiles.filter((p) => p.logo_path).length;
-  const withGoogle = profiles.filter((p) => p.google_business_json !== "{}").length;
+  const withReviews = profiles.filter((p) => p.reviews_json && p.reviews_json !== "[]").length;
+  const withInstagram = profiles.filter((p) => p.instagram_json).length;
   const withSocial = profiles.filter((p) => p.social_profiles_json !== "[]").length;
+  const withHours = profiles.filter((p) => p.opening_hours_json).length;
 
   return {
-    summary: `Profiled ${profiles.length} leads. ${noWebsite} have no/poor website. ${withGoogle} Google profiles scraped. ${withSocial} social profiles scraped. ${withLogos} logos found.`,
+    summary: `Profiled ${profiles.length} leads. ${noWebsite} no website. ${withLogos} logos. ${withReviews} with reviews. ${withInstagram} Instagram. ${withHours} with hours.`,
     artifacts: {
       profiles,
       profiled_count: profiles.length,
       high_opportunity_count: noWebsite,
       _decision: {
-        reasoning: `Profiled ${profiles.length}/${leads.length} leads (${PROFILER_CONCURRENCY} concurrent). ${noWebsite} high-opportunity (no website). ${withGoogle} with Google Business data. ${withLogos} logos found.`,
+        reasoning: `Profiled ${profiles.length}/${leads.length} leads (${PROFILER_CONCURRENCY} concurrent). ${noWebsite} no website. ${withReviews} with reviews. ${withInstagram} Instagram scraped. ${withLogos} logos found.`,
         alternatives: ["Could increase concurrency on more powerful hardware", "Could skip social scraping for faster results"],
         confidence: profiles.length === leads.length ? 0.85 : 0.6,
         tags: [`leads:${profiles.length}`, `opportunity:${noWebsite}`],
@@ -1456,6 +1472,12 @@ async function profileSingleLead(
 ): Promise<ProfileResult> {
     const leadId = lead.lead_id ?? `lead-${Date.now()}`;
     ensureLeadDir(leadId);
+
+    // ---------------------------------------------------------------
+    // 0. Start with scout's enriched data (Place Details API)
+    // ---------------------------------------------------------------
+    const hasScoutReviews = (lead.reviews?.length ?? 0) > 0;
+    const hasScoutPhotos = (lead.google_photos_downloaded ?? 0) > 0;
 
     const profile: ProfileResult = {
       lead_id: leadId,
@@ -1480,28 +1502,53 @@ async function profileSingleLead(
       social_profiles_json: "[]",
       services_extracted_json: "[]",
       google_business_json: "{}",
+      // Pre-populate from scout's Place Details data
+      business_description_raw: lead.description,
+      reviews_json: lead.reviews ? JSON.stringify(lead.reviews) : undefined,
+      opening_hours_json: lead.opening_hours ? JSON.stringify(lead.opening_hours) : undefined,
+      lat: lead.lat as number | undefined,
+      lng: lead.lng as number | undefined,
+      maps_embed_url: lead.lat && lead.lng
+        ? `https://maps.google.com/maps?q=${lead.lat},${lead.lng}&output=embed`
+        : undefined,
     };
 
-    // ---------------------------------------------------------------
-    // 1. Google Business Profile (ALWAYS try — primary data source)
-    // ---------------------------------------------------------------
-    const googleData = await scrapeGoogleBusiness(
-      lead.business_name,
-      lead.address,
-      leadId,
-    );
+    // Build initial asset inventory from scout's downloaded photos
+    if (hasScoutPhotos && lead.google_photo_filenames) {
+      const photoAssets = lead.google_photo_filenames.map((f: string) => f);
+      profile.brand_assets_json = JSON.stringify({
+        google_photos: photoAssets,
+      });
+    }
 
-    if (googleData) {
-      profile.google_business_json = JSON.stringify(googleData);
-      profile.reviews_json = JSON.stringify(googleData.reviews);
-      profile.opening_hours_json = googleData.opening_hours ? JSON.stringify(googleData.opening_hours) : undefined;
-      profile.lat = googleData.lat;
-      profile.lng = googleData.lng;
-      profile.maps_embed_url = googleData.maps_embed_url;
+    // ---------------------------------------------------------------
+    // 1. Google Business Profile — SKIP Playwright if scout has data
+    // ---------------------------------------------------------------
+    if (!hasScoutReviews) {
+      // Scout didn't get reviews, try Playwright scraping as fallback
+      const googleData = await scrapeGoogleBusiness(
+        lead.business_name,
+        lead.address,
+        leadId,
+      );
 
-      if (googleData.address_formatted) {
-        profile.address = googleData.address_formatted;
+      if (googleData) {
+        profile.google_business_json = JSON.stringify(googleData);
+        if (!profile.reviews_json) {
+          profile.reviews_json = JSON.stringify(googleData.reviews);
+        }
+        if (!profile.opening_hours_json && googleData.opening_hours) {
+          profile.opening_hours_json = JSON.stringify(googleData.opening_hours);
+        }
+        if (!profile.lat) profile.lat = googleData.lat;
+        if (!profile.lng) profile.lng = googleData.lng;
+        if (!profile.maps_embed_url) profile.maps_embed_url = googleData.maps_embed_url;
+        if (googleData.address_formatted) {
+          profile.address = googleData.address_formatted;
+        }
       }
+    } else {
+      log.debug(`skipping Google scrape for ${lead.business_name} — scout has ${lead.reviews?.length} reviews`);
     }
 
     // ---------------------------------------------------------------
@@ -1529,7 +1576,10 @@ async function profileSingleLead(
           profile.opening_hours_json = JSON.stringify(scrapeResult.opening_hours);
         }
 
+        // Merge website assets with scout's Google photos
+        const existingAssets = JSON.parse(profile.brand_assets_json ?? "{}");
         profile.brand_assets_json = JSON.stringify({
+          ...existingAssets,
           screenshot: scrapeResult.screenshot_path,
           logo: scrapeResult.logo_path,
           hero_images: scrapeResult.hero_images,
