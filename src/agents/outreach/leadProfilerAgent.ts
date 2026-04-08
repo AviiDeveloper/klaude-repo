@@ -85,6 +85,7 @@ export interface ProfileResult {
   address?: string;
   phone?: string;
   email?: string;
+  has_website: 0 | 1;
   has_ssl: 0 | 1;
   is_mobile_friendly: 0 | 1;
   has_social_links: 0 | 1;
@@ -111,6 +112,12 @@ export interface ProfileResult {
   reviews_json?: string;
   // Instagram data (via Apify)
   instagram_json?: string;
+  // Scout enrichment pass-through (for qualifier)
+  vertical_category?: string;
+  has_premises?: boolean;
+  is_chain?: boolean;
+  price_level?: number;
+  google_photos_downloaded?: number;
   // Location
   lat?: number;
   lng?: number;
@@ -1160,6 +1167,7 @@ async function profileWithFetch(lead: LeadToProfile): Promise<Partial<ProfileRes
 
   if (!lead.website_url) {
     return {
+      has_website: 0,
       has_ssl: 0,
       is_mobile_friendly: 0,
       website_quality_score: 0,
@@ -1488,6 +1496,7 @@ async function profileSingleLead(
       address: lead.address,
       phone: lead.phone,
       email: lead.email,
+      has_website: lead.website_url ? 1 : 0,
       has_ssl: 0,
       is_mobile_friendly: 0,
       has_social_links: 0,
@@ -1511,6 +1520,12 @@ async function profileSingleLead(
       maps_embed_url: lead.lat && lead.lng
         ? `https://maps.google.com/maps?q=${lead.lat},${lead.lng}&output=embed`
         : undefined,
+      // Pass through scout enrichment for downstream agents
+      vertical_category: lead.vertical_category,
+      has_premises: lead.has_premises,
+      is_chain: lead.is_chain,
+      price_level: lead.price_level,
+      google_photos_downloaded: lead.google_photos_downloaded,
     };
 
     // Build initial asset inventory from scout's downloaded photos
