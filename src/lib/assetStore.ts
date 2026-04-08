@@ -302,6 +302,125 @@ export interface DominantColours {
   source: "logo_analysis";
 }
 
+export interface BrandColourPalette {
+  /** Top colours across ALL photos, ranked by frequency */
+  colours: Array<{
+    hex: string;
+    frequency: number; // 0.0-1.0 (proportion of total pixels)
+    sources: string[]; // which files contributed this colour
+  }>;
+  /** Suggested primary, secondary, accent based on cross-image analysis */
+  suggested: { primary: string; secondary: string; accent: string };
+  /** Total photos analysed */
+  photos_analysed: number;
+  source: "photo_analysis";
+}
+
+/**
+ * Extract dominant colours from ALL photos for a lead.
+ * Analyses Google photos, Instagram posts, website gallery, hero images.
+ * Builds a frequency-weighted palette that represents the brand's visual identity.
+ */
+export async function extractBrandPalette(
+  leadId: string,
+  maxPhotos = 15,
+): Promise<BrandColourPalette | null> {
+  const sharp = await getSharp();
+  if (!sharp) return null;
+
+  const assets = listAssets(leadId);
+  // Only analyse actual photos, not screenshots or menus
+  const photos = assets.filter((a) =>
+    a.category === "gallery" || a.category === "hero" || a.category === "social" || a.category === "logo" || a.category === "product",
+  ).slice(0, maxPhotos);
+
+  if (photos.length === 0) return null;
+
+  // Global colour frequency counts across all images
+  const globalCounts = new Map<string, { count: number; sources: Set<string> }>();
+  let totalPixels = 0;
+  let analysed = 0;
+
+  for (const photo of photos) {
+    const p = getAssetPath(leadId, photo.filename);
+    if (!existsSync(p)) continue;
+
+    try {
+      const { data } = await sharp(readFileSync(p))
+        .resize(40, 40, { fit: "cover" })
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      const pixelsInImage = data.length / 3;
+      totalPixels += pixelsInImage;
+      analysed++;
+
+      for (let i = 0; i < data.length; i += 3) {
+        // Quantise to 24-step buckets (finer than logo analysis)
+        const r = Math.min(255, Math.round(data[i] / 24) * 24);
+        const g = Math.min(255, Math.round(data[i + 1] / 24) * 24);
+        const b = Math.min(255, Math.round(data[i + 2] / 24) * 24);
+
+        const brightness = (r + g + b) / 3;
+        // Skip very light and very dark (backgrounds, shadows)
+        if (brightness > 220 || brightness < 30) continue;
+        // Skip very low saturation (greys)
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        if (max - min < 20 && brightness > 60 && brightness < 200) continue;
+
+        const key = `${r},${g},${b}`;
+        const existing = globalCounts.get(key);
+        if (existing) {
+          existing.count++;
+          existing.sources.add(photo.filename);
+        } else {
+          globalCounts.set(key, { count: 1, sources: new Set([photo.filename]) });
+        }
+      }
+    } catch {
+      // Skip unreadable images
+    }
+  }
+
+  if (globalCounts.size === 0 || totalPixels === 0) return null;
+
+  const toHex = (rgb: string): string => {
+    const [r, g, b] = rgb.split(",").map(Number);
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  };
+
+  // Sort by frequency, prefer colours that appear in multiple photos
+  const sorted = [...globalCounts.entries()]
+    .map(([key, val]) => ({
+      key,
+      count: val.count,
+      sources: [...val.sources],
+      multiSource: val.sources.size,
+    }))
+    // Weight: frequency × number of different photos it appears in
+    .sort((a, b) => (b.count * b.multiSource) - (a.count * a.multiSource));
+
+  const topColours = sorted.slice(0, 12).map((c) => ({
+    hex: toHex(c.key),
+    frequency: c.count / totalPixels,
+    sources: c.sources,
+  }));
+
+  // Pick suggested colours — prefer ones that appear in many photos
+  const primary = topColours[0]?.hex ?? "#333333";
+  const secondary = topColours.length > 1 ? topColours[1].hex : primary;
+  const accent = topColours.length > 2 ? topColours[2].hex : secondary;
+
+  return {
+    colours: topColours,
+    suggested: { primary, secondary, accent },
+    photos_analysed: analysed,
+    source: "photo_analysis",
+  };
+}
+
 /**
  * Extract dominant colours from a logo image.
  * Resizes to 50x50, samples raw pixels, clusters by frequency.
