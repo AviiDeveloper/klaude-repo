@@ -22,6 +22,9 @@ import {
 } from "../pipeline/types.js";
 import { AgentCapabilityRegistry } from "./agent-registry.js";
 import { InMemoryWorkingMemory, WorkingMemory } from "./working-memory.js";
+import type { CriticInput, CriticModel } from "../evaluation/critic-model.js";
+import { ReflectionLoop, ReflectionOutput } from "../evaluation/reflection-loop.js";
+import type { EpisodicStore, CriticScoreRecord } from "../memory/episodic-store.js";
 
 const log = createLogger("unified-engine");
 
@@ -82,6 +85,8 @@ export type StrategyProvider = (
 
 export class UnifiedPipelineEngine {
   private readonly workingMemories = new Map<string, InMemoryWorkingMemory>();
+  private reflectionLoop?: ReflectionLoop;
+  private readonly criticScores = new Map<string, CriticScoreRecord[]>();
 
   constructor(
     private readonly store: SQLitePipelineStore,
@@ -95,7 +100,24 @@ export class UnifiedPipelineEngine {
     private readonly dispatchAdapters?: Map<string, PostDispatchAdapter>,
     private reflectionHook?: ReflectionHook,
     private strategyProvider?: StrategyProvider,
-  ) {}
+    private criticModel?: CriticModel,
+    private episodicStore?: EpisodicStore,
+  ) {
+    if (this.criticModel) {
+      this.reflectionLoop = new ReflectionLoop(this.criticModel);
+    }
+  }
+
+  /** Inject a critic model for AI evaluation of agent outputs. */
+  setCriticModel(critic: CriticModel): void {
+    this.criticModel = critic;
+    this.reflectionLoop = new ReflectionLoop(critic);
+  }
+
+  /** Inject an episodic memory store for full run recording. */
+  setEpisodicStore(store: EpisodicStore): void {
+    this.episodicStore = store;
+  }
 
   // ── Pipeline definition helpers (kept from old PipelineEngine) ──
 
@@ -187,6 +209,19 @@ export class UnifiedPipelineEngine {
         wm.set("_strategyContext", strategies);
       }
     }
+
+    // Create episode for full run recording
+    if (this.episodicStore) {
+      const defConfig = definition.config as Record<string, unknown> | undefined;
+      this.episodicStore.createEpisode({
+        id: `ep-${run.id}`,
+        pipeline_run_id: run.id,
+        pipeline_definition_id: input.definitionId,
+        vertical: defConfig?.vertical as string | undefined,
+        region: defConfig?.region as string | undefined,
+      });
+    }
+    this.criticScores.set(run.id, []);
 
     await this.bus.publish("pipeline.run.started", {
       run_id: run.id,
@@ -443,30 +478,93 @@ export class UnifiedPipelineEngine {
       });
 
       try {
-        const settled = await this.registry.execute({
-          run_id: runId,
-          node_id: node.node_id,
-          agent_id: node.agent_id,
-          config: node.config,
-          upstreamArtifacts: enrichedArtifacts,
-        });
+        let settled: { summary: string; artifacts: Record<string, unknown>; cost_usd?: number; post_payloads?: Array<{ platform: "tiktok" | "reels" | "shorts"; payload: Record<string, unknown> }> };
+        let reflectionResult: ReflectionOutput | undefined;
 
-        // Reflection hook — evaluate output quality if agent has reflection_enabled
-        if (this.reflectionHook && capability?.reflection_enabled) {
-          const evaluation = await this.reflectionHook(runId, node.node_id, settled.artifacts);
-          if (evaluation) {
+        // Route through ReflectionLoop for agents with reflection_enabled
+        if (this.reflectionLoop && capability?.reflection_enabled) {
+          const handler = this.registry.getHandler(node.agent_id)!;
+          reflectionResult = await this.reflectionLoop.executeWithReflection({
+            agentInput: {
+              run_id: runId,
+              node_id: node.node_id,
+              agent_id: node.agent_id,
+              config: node.config,
+              upstreamArtifacts: enrichedArtifacts,
+            },
+            handler,
+            businessContext: this.extractBusinessContext(wm),
+            workingMemorySnapshot: wm?.snapshot(),
+          });
+
+          settled = reflectionResult.finalOutput;
+
+          // Record critic scores for episodic memory
+          const runScores = this.criticScores.get(runId) ?? [];
+          for (const iter of reflectionResult.iterations) {
+            runScores.push({
+              agent_id: node.agent_id,
+              node_id: node.node_id,
+              iteration: iter.iteration,
+              score: iter.evaluation.score,
+              prediction: iter.evaluation.prediction,
+              model_version: iter.evaluation.model_version,
+              strengths: iter.evaluation.critique.strengths,
+              weaknesses: iter.evaluation.critique.weaknesses,
+              suggestions: iter.evaluation.critique.specific_suggestions,
+            });
+
             await this.bus.publish("reflection.iteration", {
               run_id: runId, node_id: node.node_id,
-              score: evaluation.score,
-              prediction: evaluation.prediction,
-              iteration: attempt,
+              agent_id: node.agent_id,
+              score: iter.evaluation.score,
+              prediction: iter.evaluation.prediction,
+              iteration: iter.iteration,
+              accepted: iter.accepted,
             }, correlationId);
+          }
+          this.criticScores.set(runId, runScores);
 
-            // Store evaluation in working memory for downstream agents
-            wm?.setForAgent(node.agent_id, "critic_score", evaluation.score);
-            wm?.setForAgent(node.agent_id, "critic_prediction", evaluation.prediction);
+          // Store evaluation results in working memory
+          wm?.setForAgent(node.agent_id, "critic_score", reflectionResult.finalScore);
+          wm?.setForAgent(node.agent_id, "critic_accepted", reflectionResult.accepted);
+          wm?.setForAgent(node.agent_id, "reflection_iterations", reflectionResult.iterations.length);
+          if (reflectionResult.needsHumanReview) {
+            wm?.addNote(`${node.agent_id} output force-accepted after ${reflectionResult.iterations.length} iterations (score: ${reflectionResult.finalScore.toFixed(2)}) — needs human review`, "reflection-loop");
+          }
+
+          log.info("reflection complete", {
+            run_id: runId, node_id: node.node_id, agent_id: node.agent_id,
+            final_score: reflectionResult.finalScore,
+            iterations: reflectionResult.iterations.length,
+            accepted: reflectionResult.accepted,
+            force_accepted: reflectionResult.forceAccepted,
+            total_cost_usd: reflectionResult.totalCostUsd,
+          });
+        } else {
+          // Direct execution (no reflection)
+          settled = await this.registry.execute({
+            run_id: runId,
+            node_id: node.node_id,
+            agent_id: node.agent_id,
+            config: node.config,
+            upstreamArtifacts: enrichedArtifacts,
+          });
+
+          // Legacy reflection hook (simple callback)
+          if (this.reflectionHook && capability?.reflection_enabled) {
+            const evaluation = await this.reflectionHook(runId, node.node_id, settled.artifacts);
+            if (evaluation) {
+              wm?.setForAgent(node.agent_id, "critic_score", evaluation.score);
+              wm?.setForAgent(node.agent_id, "critic_prediction", evaluation.prediction);
+            }
           }
         }
+
+        // Calculate total cost including reflection
+        const totalNodeCost = reflectionResult
+          ? reflectionResult.totalCostUsd
+          : (settled.cost_usd ?? 0);
 
         this.store.appendAgentTask({
           run_id: runId, node_id: node.node_id, agent_id: node.agent_id,
@@ -483,8 +581,8 @@ export class UnifiedPipelineEngine {
         });
 
         // Budget enforcement
-        if (settled.cost_usd && settled.cost_usd > 0) {
-          if (!this.withinBudget(runId, settled.cost_usd)) {
+        if (totalNodeCost > 0) {
+          if (!this.withinBudget(runId, totalNodeCost)) {
             this.store.setNodeStatus({
               runId, nodeId: node.node_id, status: "failed",
               error: "budget cap exceeded", ended: true,
@@ -500,7 +598,7 @@ export class UnifiedPipelineEngine {
           this.store.appendSpendLedger({
             timestamp: new Date().toISOString(),
             scope: "task", reference_id: runId,
-            provider: "higgsfield", amount_usd: settled.cost_usd,
+            provider: "higgsfield", amount_usd: totalNodeCost,
           });
         }
 
@@ -565,13 +663,32 @@ export class UnifiedPipelineEngine {
     const hasBlocked = nodes.some((n) => n.status === "blocked" || n.status === "awaiting_approval");
     const allCompleted = nodes.length > 0 && nodes.every((n) => n.status === "completed");
 
-    // Flush working memory snapshot
+    // Flush working memory + episodic memory
     const wm = this.workingMemories.get(runId);
+    const wmSnapshot = wm?.snapshot() ?? {};
     if (wm) {
       this.bus.publish("working_memory.flushed", {
-        run_id: runId, snapshot: wm.snapshot(),
+        run_id: runId, snapshot: wmSnapshot,
       }, correlationId).catch(() => undefined);
       this.workingMemories.delete(runId);
+    }
+
+    // Record episode completion
+    if (this.episodicStore) {
+      const criticScoresForRun = this.criticScores.get(runId) ?? [];
+      const totalReflections = criticScoresForRun.length;
+      try {
+        this.episodicStore.updateEpisode(`ep-${runId}`, {
+          status: allCompleted ? "completed" : hasFailed ? "failed" : "blocked",
+          ended_at: new Date().toISOString(),
+          reflection_iterations: totalReflections,
+          critic_scores: criticScoresForRun,
+          working_memory_snapshot: wmSnapshot,
+        });
+      } catch {
+        // Episode may not exist if engine was constructed without episodic store initially
+      }
+      this.criticScores.delete(runId);
     }
 
     if (allCompleted) {
@@ -597,6 +714,29 @@ export class UnifiedPipelineEngine {
     const merged: Record<string, unknown> = {};
     for (const a of artifacts) merged[a.node_id] = a.value_json;
     return merged;
+  }
+
+  /** Extract business context from working memory for the Critic. */
+  private extractBusinessContext(wm: InMemoryWorkingMemory | undefined): CriticInput["businessContext"] | undefined {
+    if (!wm) return undefined;
+    const ctx: NonNullable<CriticInput["businessContext"]> = {};
+    const vertical = wm.get<string>("vertical");
+    if (vertical) ctx.vertical = vertical;
+    const businessName = wm.get<string>("business_name");
+    if (businessName) ctx.business_name = businessName;
+    const brandColours = wm.get<string[]>("brand_colours");
+    if (brandColours) ctx.brand_colours = brandColours;
+    const reviewCount = wm.get<number>("review_count");
+    if (reviewCount !== undefined) ctx.review_count = reviewCount;
+    const reviewRating = wm.get<number>("review_rating");
+    if (reviewRating !== undefined) ctx.review_rating = reviewRating;
+    const instagramFollowers = wm.get<number>("instagram_followers");
+    if (instagramFollowers !== undefined) ctx.instagram_followers = instagramFollowers;
+    const hasWebsite = wm.get<boolean>("has_website");
+    if (hasWebsite !== undefined) ctx.has_website = hasWebsite;
+    const region = wm.get<string>("region");
+    if (region) ctx.region = region;
+    return Object.keys(ctx).length > 0 ? ctx : undefined;
   }
 
   private withinBudget(runId: string, nextCostUsd: number): boolean {

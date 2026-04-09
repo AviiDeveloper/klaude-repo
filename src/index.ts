@@ -30,6 +30,8 @@ import { PipelineScheduler } from "./pipeline/scheduler.js";
 import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
 import { AgentCapabilityRegistry } from "./runtime/agent-registry.js";
 import { UnifiedPipelineEngine } from "./runtime/pipeline-engine.js";
+import { createCritic } from "./evaluation/critic-model.js";
+import { EpisodicStore } from "./memory/episodic-store.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
 
@@ -170,6 +172,11 @@ async function main(): Promise<void> {
     })),
   });
 
+  // ── Evaluation layer (SL-MAS) ──
+  const criticModel = createCritic();
+  const episodicStore = new EpisodicStore(dbPath);
+  closeables.push(episodicStore);
+
   // ── Unified Pipeline Engine (SL-MAS Foundation) ──
   const unifiedEngine = new UnifiedPipelineEngine(
     pipelineStore,
@@ -178,6 +185,10 @@ async function main(): Promise<void> {
     notificationStore,
     undefined,
     dispatchAdapters,
+    undefined, // reflectionHook (legacy, replaced by criticModel)
+    undefined, // strategyProvider (Strategy layer, later)
+    criticModel,
+    episodicStore,
   );
 
   // Auto-register pipeline definitions
