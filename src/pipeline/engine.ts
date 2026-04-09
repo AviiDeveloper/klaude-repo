@@ -17,10 +17,13 @@ export class PipelineEngine {
     private readonly dispatchAdapters?: Map<string, PostDispatchAdapter>,
   ) {}
 
+  /**
+   * @deprecated Use UnifiedPipelineEngine.createLeadGenerationDefinition() instead.
+   */
   createLeadGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
     return this.store.upsertDefinition({
       id: "lead-generation-v1",
-      name: "Lead Generation Pipeline",
+      name: "Lead Outreach Pipeline",
       enabled: true,
       schedule_rrule: "FREQ=DAILY;INTERVAL=1",
       max_retries: 1,
@@ -30,55 +33,14 @@ export class PipelineEngine {
           location: "Manchester",
           max_results_per_vertical: 5,
         } },
-        {
-          id: "profile",
-          agent_id: "lead-profiler-agent",
-          depends_on: ["scout"],
-        },
-        {
-          id: "brand-analyse",
-          agent_id: "brand-analyser-agent",
-          depends_on: ["profile"],
-        },
-        {
-          id: "brand-intelligence",
-          agent_id: "brand-intelligence-agent",
-          depends_on: ["brand-analyse"],
-        },
-        {
-          id: "qualify",
-          agent_id: "lead-qualifier-agent",
-          depends_on: ["brand-intelligence"],
-        },
-        {
-          id: "assign",
-          agent_id: "lead-assigner-agent",
-          depends_on: ["qualify"],
-        },
-      ],
-      config: {},
-    });
-  }
-
-  createSiteGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
-    return this.store.upsertDefinition({
-      id: "site-generation-v1",
-      name: "Site Generation Pipeline",
-      enabled: true,
-      schedule_rrule: "",
-      max_retries: 1,
-      nodes: [
-        { id: "brief", agent_id: "brief-generator-agent", depends_on: [] },
-        {
-          id: "compose",
-          agent_id: "site-composer-agent",
-          depends_on: ["brief"],
-        },
-        {
-          id: "qa",
-          agent_id: "site-qa-agent",
-          depends_on: ["compose"],
-        },
+        { id: "profile", agent_id: "lead-profiler-agent", depends_on: ["scout"] },
+        { id: "brand-analyse", agent_id: "brand-analyser-agent", depends_on: ["profile"] },
+        { id: "brand-intelligence", agent_id: "brand-intelligence-agent", depends_on: ["brand-analyse"] },
+        { id: "qualify", agent_id: "lead-qualifier-agent", depends_on: ["brand-intelligence"] },
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify"] },
+        { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
+        { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
+        { id: "assign", agent_id: "lead-assigner-agent", depends_on: ["qa"] },
       ],
       config: {},
     });

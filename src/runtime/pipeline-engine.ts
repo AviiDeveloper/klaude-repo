@@ -121,14 +121,22 @@ export class UnifiedPipelineEngine {
 
   // ── Pipeline definition helpers (kept from old PipelineEngine) ──
 
+  /**
+   * Full outreach pipeline: discover → enrich → analyse → qualify →
+   * generate demo site → QA → assign to salesperson WITH ready demo.
+   *
+   * Every lead gets a demo site before a salesperson sees it.
+   * The demo IS the pitch.
+   */
   createLeadGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
     return this.store.upsertDefinition({
       id: "lead-generation-v1",
-      name: "Lead Generation Pipeline",
+      name: "Lead Outreach Pipeline",
       enabled: true,
       schedule_rrule: "FREQ=DAILY;INTERVAL=1",
       max_retries: 1,
       nodes: [
+        // Phase 1: Discovery & enrichment
         { id: "scout", agent_id: "lead-scout-agent", depends_on: [], config: {
           verticals: ["restaurant", "cafe", "barber", "salon", "bakery", "pub"],
           location: "Manchester",
@@ -137,24 +145,14 @@ export class UnifiedPipelineEngine {
         { id: "profile", agent_id: "lead-profiler-agent", depends_on: ["scout"] },
         { id: "brand-analyse", agent_id: "brand-analyser-agent", depends_on: ["profile"] },
         { id: "brand-intelligence", agent_id: "brand-intelligence-agent", depends_on: ["brand-analyse"] },
+        // Phase 2: Qualification
         { id: "qualify", agent_id: "lead-qualifier-agent", depends_on: ["brand-intelligence"] },
-        { id: "assign", agent_id: "lead-assigner-agent", depends_on: ["qualify"] },
-      ],
-      config: {},
-    });
-  }
-
-  createSiteGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
-    return this.store.upsertDefinition({
-      id: "site-generation-v1",
-      name: "Site Generation Pipeline",
-      enabled: true,
-      schedule_rrule: "",
-      max_retries: 1,
-      nodes: [
-        { id: "brief", agent_id: "brief-generator-agent", depends_on: [] },
+        // Phase 3: Demo site generation (shown to business owner as the pitch)
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify"] },
         { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
         { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
+        // Phase 4: Assignment — salesperson receives lead WITH ready demo
+        { id: "assign", agent_id: "lead-assigner-agent", depends_on: ["qa"] },
       ],
       config: {},
     });

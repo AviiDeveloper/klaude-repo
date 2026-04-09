@@ -191,14 +191,10 @@ async function main(): Promise<void> {
     episodicStore,
   );
 
-  // Auto-register pipeline definitions
+  // Auto-register pipeline definition (single continuous pipeline)
   if (!pipelineStore.getDefinition("lead-generation-v1")) {
     unifiedEngine.createLeadGenerationDefinition();
-    log.info("registered pipeline: lead-generation-v1");
-  }
-  if (!pipelineStore.getDefinition("site-generation-v1")) {
-    unifiedEngine.createSiteGenerationDefinition();
-    log.info("registered pipeline: site-generation-v1");
+    log.info("registered pipeline: lead-generation-v1 (full outreach + demo)");
   }
 
   // Recover stale runs from previous crash

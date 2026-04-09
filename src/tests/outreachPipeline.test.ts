@@ -140,12 +140,16 @@ describe("outreach pipeline end-to-end", () => {
 
     const def = store.getDefinition("lead-generation-v1");
     assert.ok(def, "Pipeline definition created");
-    assert.equal(def!.nodes.length, 6, "6 nodes in DAG (scout → profile → brand-analyse → brand-intelligence → qualify → assign)");
+    assert.equal(def!.nodes.length, 9, "9 nodes in DAG (scout → profile → brand-analyse → brand-intelligence → qualify → brief → compose → qa → assign)");
     assert.equal(def!.nodes[0].agent_id, "lead-scout-agent");
     assert.equal(def!.nodes[1].agent_id, "lead-profiler-agent");
     assert.equal(def!.nodes[2].agent_id, "brand-analyser-agent");
     assert.equal(def!.nodes[3].agent_id, "brand-intelligence-agent");
     assert.equal(def!.nodes[4].agent_id, "lead-qualifier-agent");
+    assert.equal(def!.nodes[5].agent_id, "brief-generator-agent");
+    assert.equal(def!.nodes[6].agent_id, "site-composer-agent");
+    assert.equal(def!.nodes[7].agent_id, "site-qa-agent");
+    assert.equal(def!.nodes[8].agent_id, "lead-assigner-agent");
 
     // Execute the full pipeline
     const run = await engine.startRun({
@@ -157,7 +161,7 @@ describe("outreach pipeline end-to-end", () => {
 
     // Check all nodes completed
     const nodes = store.listNodeRuns(run.id);
-    assert.equal(nodes.length, 6, "6 node runs (scout → profile → brand-analyse → brand-intelligence → qualify → assign)");
+    assert.equal(nodes.length, 9, "9 node runs (scout → profile → brand-analyse → brand-intelligence → qualify → brief → compose → qa → assign)");
     for (const node of nodes) {
       assert.equal(node.status, "completed", `Node ${node.node_id}: ${node.status}`);
     }
@@ -279,34 +283,42 @@ describe("site generation pipeline", () => {
     console.log(`  QA result: ${results[0].passed ? "PASS" : "FAIL"} (score: ${results[0].score}, warnings: ${results[0].warning_count})`);
   });
 
-  it("runs the full site-generation-v1 pipeline DAG", async () => {
+  it("runs brief → compose → qa as part of the full outreach pipeline", async () => {
     const dbPath = join(tmpDir, `site-pipeline-${randomUUID()}.db`);
     const store = new SQLitePipelineStore(dbPath);
     const runtime = new MultiAgentRuntime();
     registerOutreachAgents(runtime);
     const engine = new PipelineEngine(store, runtime);
 
-    engine.createSiteGenerationDefinition();
-
-    // Simulate: inject qualified leads as the starting input via the brief node config
-    // In production, the brief node receives leads from a prior pipeline run or API call
-    const def = store.getDefinition("site-generation-v1")!;
-    def.nodes[0].config = {
-      _upstream_inject: {
-        profiles: [{
-          lead_id: "test-lead",
-          business_name: "Manchester Plumbers Ltd",
-          business_type: "plumber",
-          phone: "0161 000 1234",
-          google_rating: 4.5,
-          google_review_count: 30,
-        }],
-      },
-    };
-    store.upsertDefinition(def);
+    // Demo site generation is now part of the lead pipeline.
+    // Test the brief→compose→qa segment in isolation via a minimal definition.
+    store.upsertDefinition({
+      id: "demo-site-test",
+      name: "Demo Site Segment Test",
+      enabled: true,
+      schedule_rrule: "",
+      max_retries: 1,
+      nodes: [
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: [], config: {
+          _upstream_inject: {
+            profiles: [{
+              lead_id: "test-lead",
+              business_name: "Manchester Plumbers Ltd",
+              business_type: "plumber",
+              phone: "0161 000 1234",
+              google_rating: 4.5,
+              google_review_count: 30,
+            }],
+          },
+        } },
+        { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
+        { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
+      ],
+      config: {},
+    });
 
     const run = await engine.startRun({
-      definitionId: "site-generation-v1",
+      definitionId: "demo-site-test",
       trigger: "manual",
     });
 
@@ -322,7 +334,7 @@ describe("site generation pipeline", () => {
     const qaArtifact = artifacts.find((a) => a.node_id === "qa");
     assert.ok(qaArtifact, "QA artifact produced");
 
-    console.log(`\n  Site pipeline completed!`);
+    console.log(`\n  Demo site pipeline completed!`);
     console.log(`  Nodes: ${nodes.map((n) => `${n.node_id}:${n.status}`).join(" → ")}`);
   });
 });
