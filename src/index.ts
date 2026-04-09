@@ -21,13 +21,15 @@ import { SQLiteTraceStore } from "./trace/sqliteTraceStore.js";
 import { SQLiteSessionTranscriptStore } from "./transcript/sqliteSessionTranscriptStore.js";
 import { SQLiteNotificationStore } from "./notifications/sqliteNotificationStore.js";
 import { MultiAgentRuntime } from "./pipeline/agentRuntime.js";
-import { registerOutreachAgents } from "./agents/outreach/index.js";
+import { registerOutreachAgents, registerOutreachAgentsWithRegistry } from "./agents/outreach/index.js";
 import { DecisionStore } from "./learning/decisionStore.js";
 import { withLearning } from "./learning/learningAgent.js";
 import { PipelineEngine } from "./pipeline/engine.js";
 import { NoopDispatchAdapter, WebhookDispatchAdapter } from "./pipeline/postDispatch.js";
 import { PipelineScheduler } from "./pipeline/scheduler.js";
 import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
+import { AgentCapabilityRegistry } from "./runtime/agent-registry.js";
+import { UnifiedPipelineEngine } from "./runtime/pipeline-engine.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
 
@@ -150,27 +152,29 @@ async function main(): Promise<void> {
   const decisionStore = new DecisionStore(dbPath);
   closeables.push(decisionStore);
 
-  // ── Pipeline engine ──
-  const agentRuntime = new MultiAgentRuntime();
-  registerOutreachAgents(agentRuntime);
+  // ── Agent Capability Registry (SL-MAS Foundation) ──
+  const agentRegistry = new AgentCapabilityRegistry();
+  registerOutreachAgentsWithRegistry(agentRegistry);
 
   // Wrap all registered agents with self-learning decision logging
-  for (const agentId of agentRuntime.listRegistered()) {
-    const original = agentRuntime.getHandler(agentId);
-    if (original) {
-      agentRuntime.register(
-        agentId,
-        withLearning(agentId, original, decisionStore),
-      );
-    }
+  for (const agentId of agentRegistry.listRegistered()) {
+    const cap = agentRegistry.getCapability(agentId)!;
+    const original = agentRegistry.getHandler(agentId)!;
+    agentRegistry.register(cap, withLearning(agentId, original, decisionStore));
   }
-  log.info("agents registered with learning", {
-    agents: agentRuntime.listRegistered(),
-    count: agentRuntime.listRegistered().length,
+  log.info("agents registered with capability registry + learning", {
+    agents: agentRegistry.listRegistered(),
+    count: agentRegistry.listRegistered().length,
+    capabilities: agentRegistry.listCapabilities().map((c) => ({
+      id: c.id, caps: c.capabilities, reflection: c.reflection_enabled,
+    })),
   });
-  const pipelineEngine = new PipelineEngine(
+
+  // ── Unified Pipeline Engine (SL-MAS Foundation) ──
+  const unifiedEngine = new UnifiedPipelineEngine(
     pipelineStore,
-    agentRuntime,
+    agentRegistry,
+    bus,
     notificationStore,
     undefined,
     dispatchAdapters,
@@ -178,15 +182,33 @@ async function main(): Promise<void> {
 
   // Auto-register pipeline definitions
   if (!pipelineStore.getDefinition("lead-generation-v1")) {
-    pipelineEngine.createLeadGenerationDefinition();
+    unifiedEngine.createLeadGenerationDefinition();
     log.info("registered pipeline: lead-generation-v1");
   }
   if (!pipelineStore.getDefinition("site-generation-v1")) {
-    pipelineEngine.createSiteGenerationDefinition();
+    unifiedEngine.createSiteGenerationDefinition();
     log.info("registered pipeline: site-generation-v1");
   }
 
   // Recover stale runs from previous crash
+  unifiedEngine.recoverStaleRuns();
+
+  // ── Legacy pipeline engine (for backward compat with PipelineScheduler) ──
+  const agentRuntime = new MultiAgentRuntime();
+  registerOutreachAgents(agentRuntime);
+  for (const agentId of agentRuntime.listRegistered()) {
+    const original = agentRuntime.getHandler(agentId);
+    if (original) {
+      agentRuntime.register(agentId, withLearning(agentId, original, decisionStore));
+    }
+  }
+  const pipelineEngine = new PipelineEngine(
+    pipelineStore,
+    agentRuntime,
+    notificationStore,
+    undefined,
+    dispatchAdapters,
+  );
   pipelineEngine.recoverStaleRuns();
 
   const pipelineScheduler = new PipelineScheduler(pipelineStore, pipelineEngine);

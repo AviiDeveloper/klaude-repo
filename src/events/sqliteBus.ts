@@ -26,19 +26,20 @@ export class SQLiteEventBus implements EventBus {
     this.listeners.set(name, [...existing, listener as Listener<unknown>]);
   }
 
-  async publish<T>(name: EventName, payload: T): Promise<void> {
-    const event: Event<T> = { name, payload, at: new Date().toISOString() };
+  async publish<T>(name: EventName, payload: T, correlationId?: string): Promise<void> {
+    const event: Event<T> = { name, payload, at: new Date().toISOString(), correlation_id: correlationId };
 
     // Persist first
     this.db
       .prepare(
-        "INSERT INTO events (id, name, payload_json, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO events (id, name, payload_json, created_at, correlation_id) VALUES (?, ?, ?, ?, ?)",
       )
       .run(
         `${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name,
         JSON.stringify(payload),
         event.at,
+        correlationId ?? null,
       );
 
     // Then dispatch to in-memory listeners
@@ -127,11 +128,15 @@ export class SQLiteEventBus implements EventBus {
         name TEXT NOT NULL,
         payload_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        processed_at TEXT
+        processed_at TEXT,
+        correlation_id TEXT
       );
 
       CREATE INDEX IF NOT EXISTS idx_events_unprocessed
       ON events(created_at ASC) WHERE processed_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_events_correlation
+      ON events(correlation_id) WHERE correlation_id IS NOT NULL;
     `);
   }
 }
