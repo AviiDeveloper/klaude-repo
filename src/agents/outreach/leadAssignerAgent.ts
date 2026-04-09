@@ -29,6 +29,32 @@ interface QualifiedLead {
   google_rating?: number;
   google_review_count?: number;
   qualification_score?: number;
+  // Enriched fields from upstream pipeline agents
+  has_website?: boolean;
+  website_url?: string;
+  description?: string;
+  opening_hours?: string[];
+  services?: string[];
+  best_reviews?: Array<{ author?: string; rating?: number; text?: string }>;
+  brand_colours?: string[];
+  logo_filename?: string;
+  gallery_filenames?: string[];
+  trust_badges?: string[];
+  avoid_topics?: string[];
+  hero_headline?: string;
+  cta_text?: string;
+  pain_points?: string[];
+  // Brand intelligence
+  brand_tone?: string;
+  brand_personality?: string;
+  usps?: string[];
+  // Demo site
+  demo_site_html?: string;
+  demo_site_domain?: string;
+  demo_site_qa_score?: number;
+  // Instagram
+  instagram_handle?: string;
+  instagram_followers?: number;
 }
 
 interface SalesCandidate {
@@ -133,18 +159,51 @@ function scoreCandidate(
 // ---------------------------------------------------------------------------
 
 export const leadAssignerAgent: AgentHandler = async (input) => {
-  const upstream = input.upstreamArtifacts as Record<string, {
-    qualified?: QualifiedLead[];
-    leads?: QualifiedLead[];
-    profiles?: QualifiedLead[];
-  }>;
+  const upstream = input.upstreamArtifacts as Record<string, Record<string, unknown>>;
 
-  // Collect qualified leads from upstream
+  // Collect qualified leads from upstream nodes
+  // The assigner runs last in the pipeline so it has access to all upstream data
   const leads: QualifiedLead[] = [];
   for (const nodeOutput of Object.values(upstream)) {
-    if (nodeOutput?.qualified) leads.push(...nodeOutput.qualified);
-    if (nodeOutput?.leads) leads.push(...nodeOutput.leads);
-    if (nodeOutput?.profiles) leads.push(...nodeOutput.profiles);
+    if (!nodeOutput || typeof nodeOutput !== "object") continue;
+    // Skip internal fields
+    if (nodeOutput._workingMemory || nodeOutput._strategyContext || nodeOutput._criticFeedback) continue;
+    const arr = (nodeOutput.qualified ?? nodeOutput.leads ?? nodeOutput.profiles) as QualifiedLead[] | undefined;
+    if (Array.isArray(arr)) leads.push(...arr);
+  }
+
+  // Enrich leads with data from upstream pipeline nodes
+  // Each upstream node stores its output keyed by node_id
+  const enrichmentSources = upstream as Record<string, Record<string, unknown>>;
+  for (const lead of leads) {
+    for (const [_nodeId, nodeData] of Object.entries(enrichmentSources)) {
+      if (!nodeData || typeof nodeData !== "object") continue;
+      // Brand analyser output
+      if (nodeData.brand_colours && !lead.brand_colours) lead.brand_colours = nodeData.brand_colours as string[];
+      if (nodeData.logo_filename && !lead.logo_filename) lead.logo_filename = nodeData.logo_filename as string;
+      if (nodeData.gallery_filenames && !lead.gallery_filenames) lead.gallery_filenames = nodeData.gallery_filenames as string[];
+      // Brand intelligence output
+      if (nodeData.brand_tone && !lead.brand_tone) lead.brand_tone = nodeData.brand_tone as string;
+      if (nodeData.brand_personality && !lead.brand_personality) lead.brand_personality = nodeData.brand_personality as string;
+      if (nodeData.usps && !lead.usps) lead.usps = nodeData.usps as string[];
+      if (nodeData.hero_headline && !lead.hero_headline) lead.hero_headline = nodeData.hero_headline as string;
+      if (nodeData.cta_text && !lead.cta_text) lead.cta_text = nodeData.cta_text as string;
+      // Profiler output
+      if (nodeData.opening_hours && !lead.opening_hours) lead.opening_hours = nodeData.opening_hours as string[];
+      if (nodeData.services && !lead.services) lead.services = nodeData.services as string[];
+      if (nodeData.best_reviews && !lead.best_reviews) lead.best_reviews = nodeData.best_reviews as Array<{ author?: string; rating?: number; text?: string }>;
+      if (nodeData.trust_badges && !lead.trust_badges) lead.trust_badges = nodeData.trust_badges as string[];
+      if (nodeData.avoid_topics && !lead.avoid_topics) lead.avoid_topics = nodeData.avoid_topics as string[];
+      if (nodeData.pain_points && !lead.pain_points) lead.pain_points = nodeData.pain_points as string[];
+      if (nodeData.instagram_handle && !lead.instagram_handle) lead.instagram_handle = nodeData.instagram_handle as string;
+      if (nodeData.instagram_followers && !lead.instagram_followers) lead.instagram_followers = nodeData.instagram_followers as number;
+      // Site composer output
+      if (nodeData.html && !lead.demo_site_html) lead.demo_site_html = nodeData.html as string;
+      if (nodeData.demo_site_domain && !lead.demo_site_domain) lead.demo_site_domain = nodeData.demo_site_domain as string;
+      // QA output
+      if (nodeData.score !== undefined && !lead.demo_site_qa_score) lead.demo_site_qa_score = nodeData.score as number;
+      if (nodeData.qa_score !== undefined && !lead.demo_site_qa_score) lead.demo_site_qa_score = nodeData.qa_score as number;
+    }
   }
 
   if (leads.length === 0) {
@@ -258,13 +317,45 @@ export const leadAssignerAgent: AgentHandler = async (input) => {
       const activityId = randomUUID();
 
       const notesJson = JSON.stringify({
+        // Core business info
         business_name: lead.business_name,
         business_type: lead.business_type,
         postcode: lead.postcode ?? extractOutwardCode(lead.address),
         phone: lead.phone,
+        email: lead.email,
         address: lead.address,
+        has_website: lead.has_website,
+        website_url: lead.website_url,
+        description: lead.description,
+        // Google data
         google_rating: lead.google_rating,
         google_review_count: lead.google_review_count,
+        best_reviews: lead.best_reviews,
+        // Business details
+        opening_hours: lead.opening_hours,
+        services: lead.services,
+        pain_points: lead.pain_points,
+        // Brand data
+        brand_colours: lead.brand_colours,
+        logo_filename: lead.logo_filename,
+        gallery_filenames: lead.gallery_filenames,
+        // Brand intelligence
+        brand_tone: lead.brand_tone,
+        brand_personality: lead.brand_personality,
+        usps: lead.usps,
+        hero_headline: lead.hero_headline,
+        cta_text: lead.cta_text,
+        // Pitch helpers
+        trust_badges: lead.trust_badges,
+        avoid_topics: lead.avoid_topics,
+        // Demo site
+        demo_site_html: lead.demo_site_html,
+        demo_site_domain: lead.demo_site_domain,
+        demo_site_qa_score: lead.demo_site_qa_score,
+        // Social
+        instagram_handle: lead.instagram_handle,
+        instagram_followers: lead.instagram_followers,
+        // Qualification
         qualification_score: lead.qualification_score,
       });
 
