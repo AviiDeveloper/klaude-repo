@@ -15,6 +15,9 @@ import { UnifiedPipelineEngine, StrategyEntry } from "../runtime/pipeline-engine
 import { SQLitePipelineStore } from "../pipeline/sqlitePipelineStore.js";
 import { SQLiteEventBus } from "../events/sqliteBus.js";
 import { InMemoryEventBus, Event } from "../events/bus.js";
+import { HeuristicCritic, LLMCritic, createCritic } from "../evaluation/critic-model.js";
+import { ReflectionLoop } from "../evaluation/reflection-loop.js";
+import { EpisodicStore } from "../memory/episodic-store.js";
 import Database from "better-sqlite3";
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -511,5 +514,430 @@ describe("Integration: Unified Engine Pipeline Execution", () => {
 
     assert.equal(run.status, "completed", "should complete via fallback");
     store.close();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// D5: Self-Evaluation
+// ══════════════════════════════════════════════════════════════
+
+describe("D5 Self-Evaluation", () => {
+  // D5.1: Critic model produces structured evaluation
+  it("D5.1: critic evaluates agent output with score, prediction, and critique", async () => {
+    const critic = new HeuristicCritic();
+    const evaluation = await critic.evaluate({
+      agentOutput: {
+        html: "<html><body><h1>Welcome to Freshcuts Barber</h1><p>4.8 star reviews</p></body></html>",
+        summary: "Generated site for Freshcuts Barber",
+      },
+      agentId: "site-composer-agent",
+      nodeId: "compose",
+      runId: "run-test-1",
+      businessContext: {
+        vertical: "barber",
+        business_name: "Freshcuts Barber",
+        brand_colours: ["#1a5276"],
+        review_count: 85,
+        review_rating: 4.8,
+        instagram_followers: 2300,
+      },
+    });
+
+    // Structure checks
+    assert.equal(typeof evaluation.score, "number");
+    assert.ok(evaluation.score >= 0 && evaluation.score <= 1, "score should be 0-1");
+    assert.ok(
+      ["likely_close", "unlikely_close", "uncertain"].includes(evaluation.prediction),
+      "prediction should be valid enum",
+    );
+    assert.ok(Array.isArray(evaluation.critique.strengths));
+    assert.ok(Array.isArray(evaluation.critique.weaknesses));
+    assert.ok(Array.isArray(evaluation.critique.specific_suggestions));
+    assert.equal(typeof evaluation.confidence, "number");
+    assert.equal(typeof evaluation.model_version, "string");
+    assert.equal(typeof evaluation.cost_usd, "number");
+
+    // Content checks — heuristic should detect business name and reviews
+    assert.ok(evaluation.critique.strengths.length > 0, "should find strengths");
+    assert.ok(
+      evaluation.critique.strengths.some((s) => s.includes("business name")),
+      "should recognise business name usage",
+    );
+  });
+
+  // D5.1: Critic factory creates correct implementation
+  it("D5.1: critic factory creates LLM or heuristic based on config", () => {
+    const heuristic = createCritic("heuristic");
+    assert.ok(heuristic instanceof HeuristicCritic);
+
+    const llm = createCritic("llm");
+    assert.ok(llm instanceof LLMCritic);
+    assert.ok(llm.getActiveModelVersion().startsWith("llm-critic:"));
+  });
+
+  // D5.2: Reflection loop retries with critique feedback
+  it("D5.2: reflection loop retries agent with critic feedback", async () => {
+    let callCount = 0;
+
+    // Agent that improves on second attempt
+    const improvingAgent = async (input: { upstreamArtifacts: Record<string, unknown> } & Record<string, unknown>) => {
+      callCount++;
+      const hasFeedback = !!input.upstreamArtifacts._criticFeedback;
+      return {
+        summary: `attempt ${callCount}`,
+        artifacts: {
+          html: hasFeedback
+            ? "<h1>Freshcuts Barber — The Freshest Cuts in Didsbury</h1><section class='reviews'>85 reviews, 4.8 stars</section>"
+            : "<h1>Welcome to our business</h1><p>We offer services</p>",
+          improved: hasFeedback,
+          business_name: "Freshcuts Barber",
+        },
+      };
+    };
+
+    // Critic that scores higher when business name and reviews are present
+    const critic = new HeuristicCritic();
+    const loop = new ReflectionLoop(critic, {
+      threshold: 0.5,
+      maxIterations: 3,
+      forceAcceptBest: true,
+    });
+
+    const result = await loop.executeWithReflection({
+      agentInput: {
+        run_id: "r1",
+        node_id: "compose",
+        agent_id: "site-composer-agent",
+        upstreamArtifacts: {},
+      },
+      handler: improvingAgent as any,
+      businessContext: {
+        business_name: "Freshcuts Barber",
+        vertical: "barber",
+        review_count: 85,
+        review_rating: 4.8,
+      },
+    });
+
+    assert.ok(result.iterations.length >= 1, "should have at least 1 iteration");
+    assert.equal(typeof result.finalScore, "number");
+    assert.equal(typeof result.accepted, "boolean");
+    assert.equal(typeof result.totalCostUsd, "number");
+    assert.ok(result.finalOutput.artifacts, "should have final output");
+
+    // Each iteration should have evaluation
+    for (const iter of result.iterations) {
+      assert.equal(typeof iter.evaluation.score, "number");
+      assert.equal(typeof iter.iteration, "number");
+      assert.ok(iter.evaluation.critique.strengths !== undefined);
+    }
+  });
+
+  // D5.2: Reflection injects critique into agent input
+  it("D5.2: critique feedback is injected into agent input on retry", async () => {
+    let receivedFeedback: string | undefined;
+
+    const agent = async (input: { upstreamArtifacts: Record<string, unknown> } & Record<string, unknown>) => {
+      receivedFeedback = input.upstreamArtifacts._criticFeedback as string | undefined;
+      return { summary: "ok", artifacts: { result: "minimal" } };
+    };
+
+    const critic = new HeuristicCritic();
+    const loop = new ReflectionLoop(critic, {
+      threshold: 0.99, // Impossibly high — forces retry
+      maxIterations: 2,
+      forceAcceptBest: true,
+    });
+
+    await loop.executeWithReflection({
+      agentInput: {
+        run_id: "r2", node_id: "n1", agent_id: "test-agent",
+        upstreamArtifacts: {},
+      },
+      handler: agent as any,
+    });
+
+    // On second call, agent should receive critique feedback
+    assert.ok(receivedFeedback, "agent should receive _criticFeedback on retry");
+    assert.ok(receivedFeedback!.includes("Critic Feedback"), "feedback should contain header");
+  });
+
+  // D5.3: Force-accept with human review flag
+  it("D5.3: exhausted reflection loop force-accepts with human review flag", async () => {
+    const agent = async () => ({
+      summary: "ok", artifacts: { minimal: true },
+    });
+
+    const critic = new HeuristicCritic();
+    const loop = new ReflectionLoop(critic, {
+      threshold: 0.99,
+      maxIterations: 2,
+      forceAcceptBest: true,
+    });
+
+    const result = await loop.executeWithReflection({
+      agentInput: { run_id: "r3", node_id: "n1", agent_id: "a1", upstreamArtifacts: {} },
+      handler: agent as any,
+    });
+
+    assert.equal(result.forceAccepted, true, "should be force-accepted");
+    assert.equal(result.needsHumanReview, true, "should flag for human review");
+    assert.equal(result.accepted, false, "should not be accepted by critic");
+    assert.equal(result.iterations.length, 2, "should exhaust max iterations");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// D6: Learning
+// ══════════════════════════════════════════════════════════════
+
+describe("D6 Learning", () => {
+  // D6.1: Episodic memory records full pipeline run
+  it("D6.1: episode stores complete run context", () => {
+    const dbPath = freshDbPath();
+    const store = new EpisodicStore(dbPath);
+
+    const episode = store.createEpisode({
+      id: "ep-001",
+      pipeline_run_id: "run-001",
+      pipeline_definition_id: "lead-generation-v1",
+      business_name: "Freshcuts Barber",
+      vertical: "barber",
+      region: "manchester",
+    });
+
+    assert.equal(episode.id, "ep-001");
+    assert.equal(episode.status, "running");
+    assert.equal(episode.vertical, "barber");
+
+    // Update with agent outputs and critic scores
+    store.updateEpisode("ep-001", {
+      status: "completed",
+      ended_at: new Date().toISOString(),
+      total_cost_usd: 0.32,
+      reflection_iterations: 4,
+      agent_outputs: {
+        "lead-scout-agent": { leads_found: 15 },
+        "site-composer-agent": { html: "<html>...</html>" },
+      },
+      critic_scores: [
+        {
+          agent_id: "site-composer-agent",
+          node_id: "compose",
+          iteration: 1,
+          score: 0.45,
+          prediction: "unlikely_close",
+          model_version: "llm-critic:claude-sonnet-4",
+          strengths: ["Uses brand colours"],
+          weaknesses: ["Generic headline"],
+          suggestions: ["Use business tagline"],
+        },
+        {
+          agent_id: "site-composer-agent",
+          node_id: "compose",
+          iteration: 2,
+          score: 0.78,
+          prediction: "likely_close",
+          model_version: "llm-critic:claude-sonnet-4",
+          strengths: ["Uses brand colours", "Custom headline"],
+          weaknesses: [],
+          suggestions: [],
+        },
+      ],
+      working_memory_snapshot: {
+        shared: { instagram_followers: 2300 },
+        notes: [{ note: "strong food photography", author: "lead-profiler" }],
+      },
+    });
+
+    const loaded = store.getEpisode("ep-001")!;
+    assert.equal(loaded.status, "completed");
+    assert.equal(loaded.total_cost_usd, 0.32);
+    assert.equal(loaded.reflection_iterations, 4);
+    assert.equal(loaded.critic_scores.length, 2);
+    assert.equal(loaded.critic_scores[0].score, 0.45);
+    assert.equal(loaded.critic_scores[1].score, 0.78);
+    assert.equal((loaded.working_memory_snapshot.shared as Record<string, unknown>).instagram_followers, 2300);
+
+    store.close();
+  });
+
+  // D6.2: Outcome attachment (the learning signal)
+  it("D6.2: pitch outcome attaches to episode for learning", () => {
+    const dbPath = freshDbPath();
+    const store = new EpisodicStore(dbPath);
+
+    store.createEpisode({
+      id: "ep-002",
+      pipeline_run_id: "run-002",
+      pipeline_definition_id: "lead-generation-v1",
+      vertical: "restaurant",
+    });
+
+    store.updateEpisode("ep-002", { status: "completed" });
+
+    // Salesperson reports back: closed the deal
+    store.recordOutcome("ep-002", {
+      pitch_outcome: "closed",
+      close_amount_gbp: 2400,
+      salesperson_id: "sp-mike",
+      days_to_outcome: 3.5,
+    });
+
+    const ep = store.getEpisode("ep-002")!;
+    assert.equal(ep.pitch_outcome, "closed");
+    assert.equal(ep.close_amount_gbp, 2400);
+    assert.equal(ep.salesperson_id, "sp-mike");
+    assert.equal(ep.days_to_outcome, 3.5);
+    assert.ok(ep.outcome_received_at, "should record when outcome was received");
+
+    store.close();
+  });
+
+  // D6.3: Querying episodes by vertical and outcome
+  it("D6.3: episodes queryable by vertical and outcome for strategy analysis", () => {
+    const dbPath = freshDbPath();
+    const store = new EpisodicStore(dbPath);
+
+    // Create episodes across verticals with outcomes
+    for (const [id, vertical, outcome] of [
+      ["ep-a", "barber", "closed"],
+      ["ep-b", "barber", "rejected"],
+      ["ep-c", "restaurant", "closed"],
+      ["ep-d", "barber", "closed"],
+      ["ep-e", "cafe", "no_show"],
+    ] as const) {
+      store.createEpisode({
+        id,
+        pipeline_run_id: `run-${id}`,
+        pipeline_definition_id: "lead-gen-v1",
+        vertical,
+      });
+      store.updateEpisode(id, { status: "completed" });
+      store.recordOutcome(id, { pitch_outcome: outcome });
+    }
+
+    // Query by vertical
+    const barberEpisodes = store.listEpisodes({ vertical: "barber" });
+    assert.equal(barberEpisodes.length, 3);
+
+    // Query by outcome
+    const closedEpisodes = store.listEpisodes({ pitch_outcome: "closed" });
+    assert.equal(closedEpisodes.length, 3);
+
+    // Episodes with outcomes (for strategy analysis)
+    const withOutcomes = store.listWithOutcomes({ vertical: "barber" });
+    assert.equal(withOutcomes.length, 3);
+
+    const totalWithOutcomes = store.countWithOutcomes();
+    assert.equal(totalWithOutcomes, 5);
+
+    store.close();
+  });
+
+  // D6.4: Episode survives restart
+  it("D6.4: episodic memory persists across restart", () => {
+    const dbPath = freshDbPath();
+
+    const store1 = new EpisodicStore(dbPath);
+    store1.createEpisode({
+      id: "ep-persist",
+      pipeline_run_id: "run-persist",
+      pipeline_definition_id: "test",
+      vertical: "salon",
+    });
+    store1.updateEpisode("ep-persist", {
+      status: "completed",
+      critic_scores: [{
+        agent_id: "a1", node_id: "n1", iteration: 1, score: 0.82,
+        prediction: "likely_close", model_version: "v1",
+        strengths: ["good"], weaknesses: [], suggestions: [],
+      }],
+    });
+    store1.close();
+
+    const store2 = new EpisodicStore(dbPath);
+    const reloaded = store2.getEpisode("ep-persist");
+    assert.ok(reloaded, "episode should survive restart");
+    assert.equal(reloaded!.vertical, "salon");
+    assert.equal(reloaded!.critic_scores.length, 1);
+    assert.equal(reloaded!.critic_scores[0].score, 0.82);
+    store2.close();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Integration: Reflection through Unified Engine
+// ══════════════════════════════════════════════════════════════
+
+describe("Integration: Reflection + Episodic Memory through Engine", () => {
+  it("runs pipeline with reflection-enabled agent and records episode", async () => {
+    const dbPath = freshDbPath();
+    const store = new SQLitePipelineStore(dbPath);
+    const episodicStore = new EpisodicStore(dbPath);
+    const registry = new AgentCapabilityRegistry();
+    const bus = new InMemoryEventBus();
+    const reflectionEvents: Event<unknown>[] = [];
+
+    bus.subscribe("reflection.iteration", (e) => { reflectionEvents.push(e); });
+
+    // Register agent with reflection_enabled
+    let agentCallCount = 0;
+    registry.register(
+      makeTestCapability({
+        id: "reflective-agent",
+        capabilities: ["html_generation"],
+        reflection_enabled: true,
+      }),
+      async (input) => {
+        agentCallCount++;
+        return {
+          summary: `attempt ${agentCallCount}`,
+          artifacts: {
+            html: `<h1>Generated Site</h1><p>Attempt ${agentCallCount}</p>`,
+            business_name: "Test Business",
+          },
+          cost_usd: 0.05,
+        };
+      },
+    );
+
+    store.upsertDefinition({
+      id: "reflection-pipeline",
+      name: "Reflection Pipeline",
+      enabled: true,
+      schedule_rrule: "",
+      max_retries: 0,
+      nodes: [{ id: "compose", agent_id: "reflective-agent", depends_on: [] }],
+      config: {},
+    });
+
+    const critic = new HeuristicCritic();
+    const engine = new UnifiedPipelineEngine(
+      store, registry, bus, undefined, undefined, undefined,
+      undefined, undefined, critic, episodicStore,
+    );
+
+    const run = await engine.startRun({
+      definitionId: "reflection-pipeline",
+      trigger: "manual",
+    });
+
+    // Run should complete (force-accept if needed)
+    assert.ok(
+      run.status === "completed" || run.status === "failed",
+      "run should finalise",
+    );
+
+    // Reflection events should have fired
+    assert.ok(reflectionEvents.length > 0, "should emit reflection.iteration events");
+
+    // Episode should be recorded
+    const episode = episodicStore.getByRunId(run.id);
+    assert.ok(episode, "episode should be recorded for this run");
+    assert.ok(episode!.critic_scores.length > 0, "episode should contain critic scores");
+
+    store.close();
+    episodicStore.close();
   });
 });
