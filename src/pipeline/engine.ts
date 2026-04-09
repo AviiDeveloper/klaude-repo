@@ -17,59 +17,6 @@ export class PipelineEngine {
     private readonly dispatchAdapters?: Map<string, PostDispatchAdapter>,
   ) {}
 
-  createDefaultDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
-    return this.store.upsertDefinition({
-      id: "content-automation-default",
-      name: "Content Automation Default",
-      enabled: true,
-      schedule_rrule: "FREQ=HOURLY;INTERVAL=1",
-      max_retries: 1,
-      nodes: [
-        { id: "trend-scout", agent_id: "trend-scout-agent", depends_on: [] },
-        {
-          id: "research-verify",
-          agent_id: "research-verifier-agent",
-          depends_on: ["trend-scout"],
-        },
-        {
-          id: "idea-rank",
-          agent_id: "idea-ranker-agent",
-          depends_on: ["research-verify"],
-        },
-        {
-          id: "script-write",
-          agent_id: "script-writer-agent",
-          depends_on: ["idea-rank"],
-        },
-        {
-          id: "media-generate",
-          agent_id: "media-generator-agent",
-          depends_on: ["script-write"],
-          paid_action: true,
-        },
-        {
-          id: "compliance-review",
-          agent_id: "compliance-reviewer-agent",
-          depends_on: ["media-generate"],
-        },
-        {
-          id: "publisher",
-          agent_id: "publisher-agent",
-          depends_on: ["compliance-review"],
-          paid_action: true,
-        },
-        {
-          id: "performance-analyze",
-          agent_id: "performance-analyst-agent",
-          depends_on: ["publisher"],
-        },
-      ],
-      config: {
-        platforms: ["tiktok", "reels", "shorts"],
-      },
-    });
-  }
-
   createLeadGenerationDefinition(): ReturnType<SQLitePipelineStore["upsertDefinition"]> {
     return this.store.upsertDefinition({
       id: "lead-generation-v1",
@@ -78,7 +25,11 @@ export class PipelineEngine {
       schedule_rrule: "FREQ=DAILY;INTERVAL=1",
       max_retries: 1,
       nodes: [
-        { id: "scout", agent_id: "lead-scout-agent", depends_on: [] },
+        { id: "scout", agent_id: "lead-scout-agent", depends_on: [], config: {
+          verticals: ["restaurant", "cafe", "barber", "salon", "bakery", "pub"],
+          location: "Manchester",
+          max_results_per_vertical: 5,
+        } },
         {
           id: "profile",
           agent_id: "lead-profiler-agent",
@@ -90,9 +41,14 @@ export class PipelineEngine {
           depends_on: ["profile"],
         },
         {
+          id: "brand-intelligence",
+          agent_id: "brand-intelligence-agent",
+          depends_on: ["brand-analyse"],
+        },
+        {
           id: "qualify",
           agent_id: "lead-qualifier-agent",
-          depends_on: ["brand-analyse"],
+          depends_on: ["brand-intelligence"],
         },
         {
           id: "assign",
@@ -126,6 +82,30 @@ export class PipelineEngine {
       ],
       config: {},
     });
+  }
+
+  /** Mark any runs left in 'running' state as failed (crash recovery) */
+  recoverStaleRuns(): void {
+    const runs = this.store.listRuns(200);
+    let recovered = 0;
+    for (const run of runs) {
+      if (run.status === "running") {
+        this.store.setRunStatus(run.id, "failed", "interrupted by restart");
+        recovered++;
+      }
+    }
+    if (recovered > 0) {
+      this.notificationStore?.append({
+        event_id: randomUUID(),
+        created_at: new Date().toISOString(),
+        channel: "notify_user",
+        reason: "pipeline_recovery",
+        message: `Recovered ${recovered} stale pipeline run(s) after restart`,
+        severity: "warning",
+        session_id: "system",
+        user_id: "system",
+      });
+    }
   }
 
   async startRun(input: {

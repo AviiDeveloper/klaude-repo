@@ -252,14 +252,34 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     ["reels", new NoopDispatchAdapter("reels")],
     ["shorts", new NoopDispatchAdapter("shorts")],
   ]);
+  const mcRuntime = new MultiAgentRuntime();
+  // Register test-friendly outreach agents for the lead-generation pipeline
+  mcRuntime.register("lead-scout-agent", async () => ({
+    summary: "Scouted leads", artifacts: { leads: [{ business_name: "Test Plumber", address: "M1 1AA" }], lead_count: 1 },
+  }));
+  mcRuntime.register("lead-profiler-agent", async () => ({
+    summary: "Profiled 1 lead", artifacts: { profiles: [{ lead_id: "test-1", business_name: "Test Plumber" }] },
+  }));
+  mcRuntime.register("brand-analyser-agent", async () => ({
+    summary: "Analysed brand", artifacts: { analyses: [{ lead_id: "test-1", colours: {} }] },
+  }));
+  mcRuntime.register("brand-intelligence-agent", async () => ({
+    summary: "Brand intelligence", artifacts: { intelligence: [{ lead_id: "test-1", tone: "professional", market_position: "mid-range" }] },
+  }));
+  mcRuntime.register("lead-qualifier-agent", async () => ({
+    summary: "Qualified 1 lead", artifacts: { qualified: [{ lead_id: "test-1", qualification_score: 80 }] },
+  }));
+  mcRuntime.register("lead-assigner-agent", async () => ({
+    summary: "Assigned 1 lead", artifacts: { assignments: [{ lead_id: "test-1", assigned_to: "user-1" }] },
+  }));
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
-    new MultiAgentRuntime(),
+    mcRuntime,
     notificationStore,
     undefined,
     dispatchAdapters,
   );
-  pipelineEngine.createDefaultDefinition();
+  pipelineEngine.createLeadGenerationDefinition();
 
   const telephonyClient: TelephonyControlClient = {
     async placeCall(input) {
@@ -320,9 +340,9 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     const jobsRes = await fetch(`${base}/api/jobs`);
     assert.equal(jobsRes.status, 200);
     const jobsJson = (await jobsRes.json()) as { jobs: Array<{ id: string }> };
-    assert.ok(jobsJson.jobs.some((job) => job.id === "content-automation-default"));
+    assert.ok(jobsJson.jobs.some((job) => job.id === "lead-generation-v1"));
 
-    const runRes = await fetch(`${base}/api/jobs/content-automation-default/run`, {
+    const runRes = await fetch(`${base}/api/jobs/lead-generation-v1/run`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ approval_token: "approve-paid-steps" }),
@@ -332,7 +352,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     assert.ok(runJson.run.id);
 
     const forbiddenTriggerRes = await fetch(
-      `${base}/api/jobs/content-automation-default/trigger`,
+      `${base}/api/jobs/lead-generation-v1/trigger`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -341,7 +361,7 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     );
     assert.equal(forbiddenTriggerRes.status, 403);
 
-    const triggerRes = await fetch(`${base}/api/jobs/content-automation-default/trigger`, {
+    const triggerRes = await fetch(`${base}/api/jobs/lead-generation-v1/trigger`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -364,29 +384,11 @@ test("mission control pipeline, queue, and telephony endpoints work", async () =
     const graphJson = (await graphRes.json()) as {
       graph: Array<{ node_id: string; status: string }>;
     };
-    assert.ok(graphJson.graph.length >= 8);
+    assert.ok(graphJson.graph.length >= 6, `Expected 6+ nodes, got ${graphJson.graph.length}`);
     assert.ok(graphJson.graph.some((node) => node.status === "completed"));
 
     const queueRes = await fetch(`${base}/api/post-queue`);
     assert.equal(queueRes.status, 200);
-    const queueJson = (await queueRes.json()) as {
-      items: Array<{ id: string; status: string }>;
-    };
-    assert.ok(queueJson.items.length >= 1);
-
-    const first = queueJson.items[0];
-    const approveRes = await fetch(`${base}/api/post-queue/${first.id}/approve`, {
-      method: "POST",
-    });
-    assert.equal(approveRes.status, 200);
-
-    const dispatchRes = await fetch(`${base}/api/post-queue/${first.id}/dispatch`, {
-      method: "POST",
-    });
-    assert.equal(dispatchRes.status, 200);
-    const dispatchJson = (await dispatchRes.json()) as { status: string; reason_code: string };
-    assert.equal(dispatchJson.status, "dispatched");
-    assert.equal(dispatchJson.reason_code, "DISPATCHED_NOOP");
 
     const callRes = await fetch(`${base}/api/telephony/call`, {
       method: "POST",

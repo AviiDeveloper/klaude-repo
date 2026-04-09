@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { applyProductionPragmas } from "../lib/sqliteDefaults.js";
 import { Task } from "../types/task.js";
 import { TimelineEvent, TraceSideEffect, ExecutionTraceRecord } from "./types.js";
 import { TraceStore } from "./traceStore.js";
@@ -37,6 +38,7 @@ export class SQLiteTraceStore implements TraceStore {
   constructor(private readonly options: SQLiteTraceStoreOptions) {
     this.ensureParentDir(options.dbPath);
     this.db = new Database(options.dbPath);
+    applyProductionPragmas(this.db);
     this.createSchema();
   }
 
@@ -179,6 +181,10 @@ export class SQLiteTraceStore implements TraceStore {
     return this.db
       .prepare("SELECT * FROM traces WHERE task_id = ?")
       .get(taskId) as TraceRow | undefined;
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   private assertMutable(taskId: string): void {

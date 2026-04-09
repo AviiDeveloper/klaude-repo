@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { applyProductionPragmas } from "../lib/sqliteDefaults.js";
 import { Task } from "../types/task.js";
 import { TaskStore } from "./taskStore.js";
 
@@ -27,6 +28,7 @@ export class SQLiteTaskStore implements TaskStore {
   constructor(dbPath: string) {
     this.ensureParentDir(dbPath);
     this.db = new Database(dbPath);
+    applyProductionPragmas(this.db);
     this.createSchema();
   }
 
@@ -148,6 +150,10 @@ export class SQLiteTaskStore implements TaskStore {
       rollback_plan: row.rollback_plan,
       stop_conditions: JSON.parse(row.stop_conditions_json) as Task["stop_conditions"],
     };
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   private ensureParentDir(targetPath: string): void {

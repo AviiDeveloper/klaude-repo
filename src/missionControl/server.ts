@@ -1,5 +1,9 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { createLogger } from "../lib/logger.js";
+import { authenticateRequest } from "./authMiddleware.js";
+import { RateLimiter } from "../lib/rateLimiter.js";
+import { ValidationError } from "../lib/validate.js";
 import { InterfaceController } from "../interface/controller.js";
 import { LatencyTracker } from "../metrics/latencyTracker.js";
 import { TaskStore } from "../storage/taskStore.js";
@@ -17,6 +21,9 @@ import { PipelineDefinition } from "../pipeline/types.js";
 import { TelephonyControlClient } from "../telephony/controlClient.js";
 import { ClawdeckCompatStore } from "./clawdeckCompatStore.js";
 
+const log = createLogger("mission-control");
+const MAX_BODY_BYTES = 1_048_576; // 1MB
+
 interface MissionControlServerOptions {
   host: string;
   port: number;
@@ -24,6 +31,10 @@ interface MissionControlServerOptions {
 
 export class MissionControlServer {
   private server?: ReturnType<typeof createServer>;
+  private readonly rateLimiter = new RateLimiter();
+  private readonly apiToken = process.env.MISSION_CONTROL_API_TOKEN;
+  private readonly corsOrigin = process.env.MISSION_CONTROL_CORS_ORIGIN ?? "*";
+  private readonly startedAt = Date.now();
 
   constructor(
     private readonly taskStore: TaskStore,
@@ -44,15 +55,18 @@ export class MissionControlServer {
       try {
         await this.route(req, res);
       } catch (error) {
-        this.sendJson(res, 500, { error: String(error) });
+        if (error instanceof ValidationError) {
+          this.sendJson(res, error.statusCode, { error: error.message });
+        } else {
+          log.error("unhandled route error", { error: String(error), url: req.url });
+          this.sendJson(res, 500, { error: "Internal server error" });
+        }
       }
     });
 
     return new Promise((resolve) => {
       this.server?.listen(options.port, options.host, () => {
-        console.log(
-          `mission-control listening at http://${options.host}:${options.port}`,
-        );
+        log.info(`listening at http://${options.host}:${options.port}`);
         resolve();
       });
     });
@@ -80,8 +94,37 @@ export class MissionControlServer {
     const method = req.method ?? "GET";
     const url = new URL(req.url ?? "/", "http://localhost");
 
+    // ── CORS ──
+    res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    // ── Rate limiting ──
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+      ?? req.socket.remoteAddress ?? "unknown";
+    if (!this.rateLimiter.isAllowed(clientIp)) {
+      this.sendJson(res, 429, { error: "Too many requests" });
+      return;
+    }
+
+    // ── Auth ──
+    const auth = authenticateRequest(req, this.apiToken);
+    if (!auth.ok) {
+      this.sendJson(res, 401, { error: auth.error });
+      return;
+    }
+
     if (method === "GET" && url.pathname === "/api/health") {
-      this.sendJson(res, 200, { status: "ok" });
+      this.sendJson(res, 200, {
+        status: "ok",
+        uptime_seconds: Math.floor((Date.now() - this.startedAt) / 1000),
+        build_version: "0.1.0",
+      });
       return;
     }
 
@@ -1031,7 +1074,12 @@ export class MissionControlServer {
 
   private async readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
     const chunks: Buffer[] = [];
+    let totalBytes = 0;
     for await (const chunk of req) {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_BODY_BYTES) {
+        throw new ValidationError(`Request body exceeds ${MAX_BODY_BYTES} bytes`);
+      }
       chunks.push(Buffer.from(chunk));
     }
     if (chunks.length === 0) {

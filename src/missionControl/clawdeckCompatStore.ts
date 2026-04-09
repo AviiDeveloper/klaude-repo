@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { applyProductionPragmas } from "../lib/sqliteDefaults.js";
 
 type AgentStatus = "standby" | "working" | "offline";
 type TaskStatus =
@@ -78,6 +79,7 @@ export class ClawdeckCompatStore {
   constructor(dbPath: string) {
     this.ensureParentDir(dbPath);
     this.db = new Database(dbPath);
+    applyProductionPragmas(this.db);
     this.createSchema();
     this.ensureDefaultWorkspace();
   }

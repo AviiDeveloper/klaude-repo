@@ -10,9 +10,11 @@ import { AgentHandler } from "../../pipeline/agentRuntime.js";
 import {
   getManifest,
   extractDominantColours,
+  extractBrandPalette,
   listAssets,
   type AssetMetadata,
   type AssetCategory,
+  type BrandColourPalette,
 } from "../../lib/assetStore.js";
 import type { ProfileResult } from "./leadProfilerAgent.js";
 
@@ -26,7 +28,7 @@ export interface BrandColours {
   accent: string;
   background: string;
   text: string;
-  palette_source: "scraped_css" | "logo_dominant" | "vertical_default";
+  palette_source: "scraped_css" | "photo_analysis" | "logo_dominant" | "vertical_default";
 }
 
 export interface BrandFonts {
@@ -55,6 +57,8 @@ export interface BrandAnalysis {
   logo_path?: string;
   has_sufficient_assets: boolean;
   menu_items?: Array<{ name: string; price?: string; description?: string }>;
+  /** Colour palette extracted from ALL photos (not just CSS) */
+  photo_palette?: BrandColourPalette;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,12 +203,20 @@ export const brandAnalyserAgent: AgentHandler = async (input) => {
     const leadId = profile.lead_id ?? `lead-${Date.now()}`;
     const vertical = detectVertical(profile.business_type, profile.business_name);
 
-    // --- Colours ---
+    // --- Colours (4-tier: CSS → photo palette → logo → vertical defaults) ---
     let colours: BrandColours;
+
+    // Extract photo palette from ALL images (Google, Instagram, website)
+    const photoPalette = await extractBrandPalette(leadId, 15);
 
     // First try: CSS colours from profiler
     const scrapedColours = safeJsonParse<Record<string, string>>(profile.brand_colours_json, {});
-    if (scrapedColours.primary && scrapedColours.source !== "default") {
+    const hasCssColours = scrapedColours.primary
+      && scrapedColours.source !== "default"
+      && scrapedColours.primary !== "#000000"
+      && scrapedColours.primary !== "#ffffff";
+
+    if (hasCssColours) {
       colours = {
         primary: scrapedColours.primary,
         secondary: scrapedColours.secondary ?? scrapedColours.primary,
@@ -213,8 +225,18 @@ export const brandAnalyserAgent: AgentHandler = async (input) => {
         text: scrapedColours.text ?? "#1f2937",
         palette_source: "scraped_css",
       };
+    } else if (photoPalette && photoPalette.colours.length >= 2) {
+      // Second try: dominant colours from ALL photos
+      colours = {
+        primary: photoPalette.suggested.primary,
+        secondary: photoPalette.suggested.secondary,
+        accent: photoPalette.suggested.accent,
+        background: "#ffffff",
+        text: "#1f2937",
+        palette_source: "photo_analysis" as BrandColours["palette_source"],
+      };
     } else {
-      // Second try: dominant colours from logo
+      // Third try: dominant colours from logo
       const logoDominant = await extractDominantColours(leadId, "logo.png");
       if (logoDominant) {
         colours = {
@@ -277,6 +299,7 @@ export const brandAnalyserAgent: AgentHandler = async (input) => {
       logo_path: profile.logo_path,
       has_sufficient_assets: hasSufficientAssets,
       menu_items: menuItems,
+      photo_palette: photoPalette ?? undefined,
     });
   }
 

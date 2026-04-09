@@ -1,4 +1,6 @@
 import { AgentHandler } from "../../pipeline/agentRuntime.js";
+import { createLogger } from "../../lib/logger.js";
+import { pLimit } from "../../lib/concurrency.js";
 import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
 import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
@@ -6,7 +8,9 @@ import { generateSiteWithAI, type AIComposerAssets } from "./aiComposer.js";
 import type { BrandAnalysis } from "./brandAnalyser.js";
 import type { SiteBrief } from "./briefGenerator.js";
 
+const log = createLogger("site-composer");
 const AI_COMPOSER_ENABLED = (process.env.AI_COMPOSER_ENABLED ?? "true") !== "false";
+const COMPOSER_CONCURRENCY = Number(process.env.COMPOSER_CONCURRENCY ?? "3");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,8 +89,11 @@ export const siteComposerAgent: AgentHandler = async (input) => {
 
   const generatedSites: Array<Record<string, unknown>> = [];
   let totalCost = 0;
+  const run = pLimit(COMPOSER_CONCURRENCY);
 
-  for (const lead of targetLeads) {
+  log.info("starting site generation", { leads: targetLeads.length, concurrency: COMPOSER_CONCURRENCY, ai: AI_COMPOSER_ENABLED });
+
+  await Promise.all(targetLeads.map((lead) => run(async () => {
     const leadId = lead.lead_id ?? "";
     const vertical = resolveVertical(lead.business_type ?? "general");
     const templateId = config.template_id ?? `${vertical}-v1`;
@@ -200,9 +207,9 @@ export const siteComposerAgent: AgentHandler = async (input) => {
           ai_cost_usd: aiResult.costUsd,
         });
 
-        continue; // Skip template fallback
+        return; // Skip template fallback
       } catch (err) {
-        console.error(`[Composer] AI generation failed for ${businessName}, falling back to template:`, err);
+        log.warn(`AI generation failed for ${businessName}, falling back to template`, { error: String(err) });
         // Fall through to template path below
       }
     }
@@ -381,7 +388,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
       font_pairing: `${design.fonts.heading} / ${design.fonts.body}`,
       avoid_topics: brief?.avoidTopics ?? [],
     });
-  }
+  })));
 
   const withBrand = generatedSites.filter((s) => s.brand_source !== "vertical_default").length;
   const withBrief = generatedSites.filter((s) => s.brief_used).length;
@@ -394,6 +401,12 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     artifacts: {
       sites: generatedSites,
       generated_count: generatedSites.length,
+      _decision: {
+        reasoning: `Generated ${generatedSites.length} sites (${withAI} AI, ${generatedSites.length - withAI} template). ${withBrief} used briefs. ${withBrand} with scraped brand data. Cost: $${totalCost.toFixed(4)}`,
+        alternatives: ["Could use cheaper model for template-worthy leads", "Could generate multiple variants per lead for A/B testing"],
+        confidence: generatedSites.length > 0 ? 0.8 : 0.3,
+        tags: [`ai:${withAI}`, `template:${generatedSites.length - withAI}`],
+      },
     },
     cost_usd: totalCost,
   };

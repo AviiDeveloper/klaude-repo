@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
+import { applyProductionPragmas } from "../lib/sqliteDefaults.js";
 import {
   NotificationFilter,
   NotificationRecord,
@@ -29,7 +30,12 @@ export class SQLiteNotificationStore implements NotificationStore {
   constructor(dbPath: string) {
     this.ensureParentDir(dbPath);
     this.db = new Database(dbPath);
+    applyProductionPragmas(this.db);
     this.createSchema();
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   async append(

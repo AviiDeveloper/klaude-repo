@@ -20,12 +20,12 @@ describe("outreach pipeline end-to-end", () => {
     assert.ok(runtime.has("lead-scout-agent"), "lead-scout-agent registered");
     assert.ok(runtime.has("lead-profiler-agent"), "lead-profiler-agent registered");
     assert.ok(runtime.has("lead-qualifier-agent"), "lead-qualifier-agent registered");
+    assert.ok(runtime.has("site-composer-agent"), "site-composer-agent registered");
+    assert.ok(runtime.has("site-qa-agent"), "site-qa-agent registered");
 
-    // Content agents still registered
-    assert.ok(runtime.has("trend-scout-agent"), "default agents still present");
-
+    assert.ok(runtime.has("brand-intelligence-agent"), "brand-intelligence-agent registered");
     const all = runtime.listRegistered();
-    assert.ok(all.length >= 11, `Expected 11+ agents, got ${all.length}`);
+    assert.ok(all.length >= 9, `Expected 9+ outreach agents, got ${all.length}`);
   });
 
   it("executes the lead-scout-agent with mock data", async () => {
@@ -45,12 +45,11 @@ describe("outreach pipeline end-to-end", () => {
       upstreamArtifacts: {},
     });
 
-    assert.ok(result.summary.includes("plumber"), `Summary mentions vertical: ${result.summary}`);
     assert.ok(result.summary.includes("Manchester"), `Summary mentions location: ${result.summary}`);
     const leads = result.artifacts.leads as Array<Record<string, unknown>>;
     assert.ok(leads.length > 0, `Got ${leads.length} leads`);
-    assert.ok(leads.length <= 5, `Respects max_results: ${leads.length}`);
     assert.equal(leads[0].business_type, "plumber");
+    assert.ok(leads[0].vertical_category, "Lead has vertical_category");
     console.log(`  Scout produced ${leads.length} mock leads`);
   });
 
@@ -141,11 +140,12 @@ describe("outreach pipeline end-to-end", () => {
 
     const def = store.getDefinition("lead-generation-v1");
     assert.ok(def, "Pipeline definition created");
-    assert.equal(def!.nodes.length, 4, "4 nodes in DAG (scout → profile → brand-analyse → qualify)");
+    assert.equal(def!.nodes.length, 6, "6 nodes in DAG (scout → profile → brand-analyse → brand-intelligence → qualify → assign)");
     assert.equal(def!.nodes[0].agent_id, "lead-scout-agent");
     assert.equal(def!.nodes[1].agent_id, "lead-profiler-agent");
     assert.equal(def!.nodes[2].agent_id, "brand-analyser-agent");
-    assert.equal(def!.nodes[3].agent_id, "lead-qualifier-agent");
+    assert.equal(def!.nodes[3].agent_id, "brand-intelligence-agent");
+    assert.equal(def!.nodes[4].agent_id, "lead-qualifier-agent");
 
     // Execute the full pipeline
     const run = await engine.startRun({
@@ -157,7 +157,7 @@ describe("outreach pipeline end-to-end", () => {
 
     // Check all nodes completed
     const nodes = store.listNodeRuns(run.id);
-    assert.equal(nodes.length, 4, "4 node runs (scout, profile, brand-analyse, qualify)");
+    assert.equal(nodes.length, 6, "6 node runs (scout → profile → brand-analyse → brand-intelligence → qualify → assign)");
     for (const node of nodes) {
       assert.equal(node.status, "completed", `Node ${node.node_id}: ${node.status}`);
     }

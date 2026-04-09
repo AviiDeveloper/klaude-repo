@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { applyProductionPragmas } from "../lib/sqliteDefaults.js";
 import {
   SessionTranscriptEntry,
   SessionTranscriptSession,
@@ -31,7 +32,12 @@ export class SQLiteSessionTranscriptStore implements SessionTranscriptStore {
   constructor(dbPath: string) {
     this.ensureParentDir(dbPath);
     this.db = new Database(dbPath);
+    applyProductionPragmas(this.db);
     this.createSchema();
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   async append(entry: SessionTranscriptEntry): Promise<void> {

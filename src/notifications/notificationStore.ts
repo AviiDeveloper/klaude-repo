@@ -6,6 +6,7 @@ export type NotificationReason =
   | "task_failed"
   | "approval_denied"
   | "pipeline_blocked"
+  | "pipeline_recovery"
   | "budget_exceeded"
   | "approval_required";
 export type NotificationStatus = "pending" | "acknowledged";

@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { createLogger } from "./lib/logger.js";
+import { validateEnv } from "./lib/envValidator.js";
 import { CodeAgent } from "./agents/codeAgent.js";
 import { OpsAgent } from "./agents/opsAgent.js";
 import { CallerModel } from "./caller/callerModel.js";
-import { InMemoryEventBus } from "./events/bus.js";
+import { SQLiteEventBus } from "./events/sqliteBus.js";
 import { InterfaceController } from "./interface/controller.js";
 import { LatencyTracker } from "./metrics/latencyTracker.js";
 import { createModelProvider } from "./models/provider.js";
@@ -20,6 +22,8 @@ import { SQLiteSessionTranscriptStore } from "./transcript/sqliteSessionTranscri
 import { SQLiteNotificationStore } from "./notifications/sqliteNotificationStore.js";
 import { MultiAgentRuntime } from "./pipeline/agentRuntime.js";
 import { registerOutreachAgents } from "./agents/outreach/index.js";
+import { DecisionStore } from "./learning/decisionStore.js";
+import { withLearning } from "./learning/learningAgent.js";
 import { PipelineEngine } from "./pipeline/engine.js";
 import { NoopDispatchAdapter, WebhookDispatchAdapter } from "./pipeline/postDispatch.js";
 import { PipelineScheduler } from "./pipeline/scheduler.js";
@@ -27,24 +31,45 @@ import { SQLitePipelineStore } from "./pipeline/sqlitePipelineStore.js";
 import { TwilioTelephonyDialer } from "./telephony/twilioDialer.js";
 import { BridgeTelephonyControlClient } from "./telephony/controlClient.js";
 
+const log = createLogger("main");
+
+// Track all closeable resources for graceful shutdown
+const closeables: Array<{ close(): void }> = [];
+
 async function main(): Promise<void> {
+  const mode = process.env.INTERFACE_MODE ?? "local";
+  validateEnv(mode);
+
   const changelogChangeId =
     process.env.BUILD_CHANGE_ID ?? "2026-03-07_054_planner-auth-bootstrap-fix";
   const buildVersion = "0.1.0";
   const dbPath = process.env.DB_PATH ?? "data/mvp.sqlite";
-  const bus = new InMemoryEventBus();
+
+  // ── Persistent event bus ──
+  const bus = new SQLiteEventBus(dbPath);
+  closeables.push(bus);
+
   const latencyTracker = new LatencyTracker();
   const modelProvider = createModelProvider();
+
+  // ── Storage layer ──
   const taskStore = new SQLiteTaskStore(dbPath);
+  closeables.push(taskStore);
   const transcriptStore = new SQLiteSessionTranscriptStore(dbPath);
+  closeables.push(transcriptStore);
   const notificationStore = new SQLiteNotificationStore(dbPath);
+  closeables.push(notificationStore);
   const pipelineStore = new SQLitePipelineStore(dbPath);
+  closeables.push(pipelineStore);
   const compatStore = new ClawdeckCompatStore(dbPath);
   const traceStore = new SQLiteTraceStore({
     dbPath,
     buildVersion,
     changelogChangeId,
   });
+  closeables.push(traceStore);
+
+  // ── Orchestrator ──
   const orchestrator = new Orchestrator(
     taskStore,
     bus,
@@ -61,10 +86,13 @@ async function main(): Promise<void> {
   );
 
   bus.subscribe("task.created", (event) => {
-    console.log("event", event.name, event.payload);
+    log.info("task created", { task: event.payload });
   });
 
-  const mode = process.env.INTERFACE_MODE ?? "local";
+  // Replay any events from a previous interrupted run
+  await bus.replayUnprocessed();
+
+  // ── Optional integrations ──
   const realtimeSessionBroker =
     process.env.OPENAI_API_KEY && process.env.OPENAI_REALTIME_ENABLED === "true"
       ? new OpenAIRealtimeSessionBroker({
@@ -83,6 +111,8 @@ async function main(): Promise<void> {
   const telephonyPublicBaseUrl = process.env.TELEPHONY_PUBLIC_BASE_URL;
   const telephonyConversationMode =
     process.env.TELEPHONY_CONVERSATION_MODE === "stream" ? "stream" : "gather";
+
+  // ── Dispatch adapters ──
   const dispatchAdapters = new Map([
     [
       "tiktok",
@@ -115,8 +145,29 @@ async function main(): Promise<void> {
         : new NoopDispatchAdapter("shorts"),
     ],
   ]);
+
+  // ── Self-learning layer ──
+  const decisionStore = new DecisionStore(dbPath);
+  closeables.push(decisionStore);
+
+  // ── Pipeline engine ──
   const agentRuntime = new MultiAgentRuntime();
   registerOutreachAgents(agentRuntime);
+
+  // Wrap all registered agents with self-learning decision logging
+  for (const agentId of agentRuntime.listRegistered()) {
+    const original = agentRuntime.getHandler(agentId);
+    if (original) {
+      agentRuntime.register(
+        agentId,
+        withLearning(agentId, original, decisionStore),
+      );
+    }
+  }
+  log.info("agents registered with learning", {
+    agents: agentRuntime.listRegistered(),
+    count: agentRuntime.listRegistered().length,
+  });
   const pipelineEngine = new PipelineEngine(
     pipelineStore,
     agentRuntime,
@@ -124,15 +175,27 @@ async function main(): Promise<void> {
     undefined,
     dispatchAdapters,
   );
-  if (!pipelineStore.getDefinition("content-automation-default")) {
-    pipelineEngine.createDefaultDefinition();
+
+  // Auto-register pipeline definitions
+  if (!pipelineStore.getDefinition("lead-generation-v1")) {
+    pipelineEngine.createLeadGenerationDefinition();
+    log.info("registered pipeline: lead-generation-v1");
   }
+  if (!pipelineStore.getDefinition("site-generation-v1")) {
+    pipelineEngine.createSiteGenerationDefinition();
+    log.info("registered pipeline: site-generation-v1");
+  }
+
+  // Recover stale runs from previous crash
+  pipelineEngine.recoverStaleRuns();
+
   const pipelineScheduler = new PipelineScheduler(pipelineStore, pipelineEngine);
   const telephonyBridgeUrl =
     process.env.MISSION_CONTROL_BRIDGE_URL ??
     `http://127.0.0.1:${process.env.OPENCLAW_BRIDGE_PORT ?? "4318"}`;
   const telephonyClient = new BridgeTelephonyControlClient(telephonyBridgeUrl);
 
+  // ── Mode dispatch ──
   if (mode === "local") {
     await runLocalAdapter(controller);
     return;
@@ -155,29 +218,31 @@ async function main(): Promise<void> {
     };
 
     const result = await openClaw.handle(inbound);
-    console.log("mode openclaw");
-    console.log("outbound.events", result.outbound.length);
+    log.info("openclaw one-shot complete", {
+      outbound_count: result.outbound.length,
+    });
     for (const outbound of result.outbound) {
       if (
         outbound.event_type === "system.message_send" ||
         outbound.event_type === "system.voice_speak"
       ) {
-        console.log("outbound", outbound.event_type, outbound.payload.text);
+        log.info("outbound", {
+          type: outbound.event_type,
+          text: outbound.payload.text,
+        });
       } else if (outbound.event_type === "system.approval_request") {
-        console.log(
-          "outbound",
-          outbound.event_type,
-          `task=${outbound.payload.task_id}`,
-        );
+        log.info("outbound", {
+          type: outbound.event_type,
+          task: outbound.payload.task_id,
+        });
       } else if (
         outbound.event_type === "system.notify_user" ||
         outbound.event_type === "system.call_user"
       ) {
-        console.log(
-          "outbound",
-          outbound.event_type,
-          `reason=${outbound.payload.reason}`,
-        );
+        log.info("outbound", {
+          type: outbound.event_type,
+          reason: outbound.payload.reason,
+        });
       }
     }
     return;
@@ -208,9 +273,9 @@ async function main(): Promise<void> {
     const schedulerMode = process.env.SCHEDULER_MODE ?? "internal";
     if (schedulerMode === "internal") {
       pipelineScheduler.start();
-      console.log("scheduler mode: internal (setInterval tick enabled)");
+      log.info("scheduler started", { mode: "internal" });
     } else if (schedulerMode === "openclaw-cron") {
-      console.log("scheduler mode: openclaw-cron (internal tick disabled)");
+      log.info("scheduler started", { mode: "openclaw-cron" });
     } else {
       throw new Error(
         `Unsupported SCHEDULER_MODE: ${schedulerMode}. Use "internal" or "openclaw-cron".`,
@@ -232,6 +297,25 @@ async function main(): Promise<void> {
     const host = process.env.MISSION_CONTROL_HOST ?? "127.0.0.1";
     const port = Number(process.env.MISSION_CONTROL_PORT ?? "4317");
     await server.start({ host, port });
+
+    // ── Graceful shutdown ──
+    const shutdown = async (signal: string): Promise<void> => {
+      log.info(`received ${signal}, shutting down`);
+      pipelineScheduler.stop();
+      await server.stop();
+      for (const c of closeables) {
+        try {
+          c.close();
+        } catch {
+          // already closed
+        }
+      }
+      log.info("shutdown complete");
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
     return;
   }
 
@@ -239,6 +323,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
+  log.error("fatal startup error", { error: String(error) });
   process.exit(1);
 });

@@ -254,7 +254,8 @@ export const siteQaAgent: AgentHandler = async (input) => {
     score -= warningCount * 5;
     score = Math.max(0, Math.min(100, score));
 
-    const passed = errorCount === 0;
+    const QC_THRESHOLD = Number(process.env.QC_THRESHOLD ?? "70");
+    const passed = errorCount === 0 && score >= QC_THRESHOLD;
 
     results.push({
       lead_id: site.lead_id,
@@ -278,13 +279,33 @@ export const siteQaAgent: AgentHandler = async (input) => {
   );
 
   return {
-    summary: `QA completed: ${passCount}/${results.length} passed (avg score: ${avgScore}).`,
+    summary: `QA completed: ${passCount}/${results.length} passed (avg score: ${avgScore}, threshold: ${process.env.QC_THRESHOLD ?? "70"}).`,
     artifacts: {
       results,
       qa_count: results.length,
       pass_count: passCount,
       fail_count: results.length - passCount,
       avg_score: avgScore,
+      _decision: {
+        reasoning: `QA'd ${results.length} sites. ${passCount} passed (score ≥${process.env.QC_THRESHOLD ?? "70"} + no errors). Avg score: ${avgScore}. Common issues: ${getTopIssues(results as Array<{ issues: Array<{ category: string }> }>)}`,
+        alternatives: ["Could lower threshold for initial launch", "Could add visual regression testing"],
+        confidence: 0.9,
+        tags: [`pass_rate:${Math.round(passCount / Math.max(results.length, 1) * 100)}pct`, `avg_score:${avgScore}`],
+      },
     },
   };
 };
+
+function getTopIssues(results: Array<{ issues: Array<{ category: string }> }>): string {
+  const counts = new Map<string, number>();
+  for (const r of results) {
+    for (const issue of r.issues) {
+      counts.set(issue.category, (counts.get(issue.category) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([cat, n]) => `${cat}(${n})`)
+    .join(", ") || "none";
+}
