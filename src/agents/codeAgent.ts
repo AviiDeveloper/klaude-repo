@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use AgentCapabilityRegistry from src/runtime/agent-registry.ts instead.
+ * CodeAgent used hardcoded risk keyword detection. The unified engine handles
+ * approval requirements through capability metadata (requires_approval_for).
+ */
 import { AgentRequest, AgentResponse } from "../types/task.js";
 import { ModelProvider, createModelProvider } from "../models/provider.js";
 

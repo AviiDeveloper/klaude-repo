@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use AgentCapabilityRegistry from src/runtime/agent-registry.ts instead.
+ * OpsAgent was a minimal delegation stub. The unified engine routes to agents
+ * by capability rather than alternating between two hardcoded agent types.
+ */
 import { AgentRequest, AgentResponse } from "../types/task.js";
 import { ModelProvider, createModelProvider } from "../models/provider.js";
 

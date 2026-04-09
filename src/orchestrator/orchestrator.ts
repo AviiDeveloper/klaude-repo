@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use UnifiedPipelineEngine from src/runtime/pipeline-engine.ts instead.
+ * This file is retained for backward compatibility with InterfaceController and legacy tests.
+ * Scheduled for removal once InterfaceController is migrated to the unified engine.
+ */
 import { randomUUID } from "node:crypto";
 import { CodeAgent } from "../agents/codeAgent.js";
 import { OpsAgent } from "../agents/opsAgent.js";
