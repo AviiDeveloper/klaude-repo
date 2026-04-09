@@ -172,37 +172,135 @@ export const leadAssignerAgent: AgentHandler = async (input) => {
     if (Array.isArray(arr)) leads.push(...arr);
   }
 
-  // Enrich leads with data from upstream pipeline nodes
-  // Each upstream node stores its output keyed by node_id
-  const enrichmentSources = upstream as Record<string, Record<string, unknown>>;
+  // ── Enrich leads with data from upstream pipeline nodes ──
+  // Upstream artifacts contain arrays keyed by node type:
+  //   profiles: [{lead_id, services, opening_hours, ...}]
+  //   analyses: [{lead_id, colours: {primary, ...}, fonts, ...}]
+  //   intelligence: [{lead_id, tone, personality, usps, headline, ...}]
+  //   sites: [{lead_id, html, ...}]
+  //   results: [{lead_id, score, ...}]
+  // Build lookup maps by lead_id, then merge into each lead.
+
+  type AnyRecord = Record<string, unknown>;
+  const profileMap = new Map<string, AnyRecord>();
+  const brandMap = new Map<string, AnyRecord>();
+  const intelMap = new Map<string, AnyRecord>();
+  const siteMap = new Map<string, AnyRecord>();
+  const qaMap = new Map<string, AnyRecord>();
+
+  for (const nodeData of Object.values(upstream)) {
+    if (!nodeData || typeof nodeData !== "object") continue;
+    // Profiler: profiles array
+    const profiles = (nodeData as AnyRecord).profiles as AnyRecord[] | undefined;
+    if (Array.isArray(profiles)) {
+      for (const p of profiles) {
+        const id = (p.lead_id ?? p.business_name) as string;
+        if (id) profileMap.set(id, p);
+      }
+    }
+    // Brand analyser: analyses array
+    const analyses = (nodeData as AnyRecord).analyses as AnyRecord[] | undefined;
+    if (Array.isArray(analyses)) {
+      for (const a of analyses) {
+        const id = (a.lead_id ?? a.business_name) as string;
+        if (id) brandMap.set(id, a);
+      }
+    }
+    // Brand intelligence: intelligence array
+    const intelligence = (nodeData as AnyRecord).intelligence as AnyRecord[] | undefined;
+    if (Array.isArray(intelligence)) {
+      for (const i of intelligence) {
+        const id = (i.lead_id ?? i.business_name) as string;
+        if (id) intelMap.set(id, i);
+      }
+    }
+    // Site composer: sites array
+    const sites = (nodeData as AnyRecord).sites as AnyRecord[] | undefined;
+    if (Array.isArray(sites)) {
+      for (const s of sites) {
+        const id = (s.lead_id ?? s.business_name) as string;
+        if (id) siteMap.set(id, s);
+      }
+    }
+    // QA: results array
+    const results = (nodeData as AnyRecord).results as AnyRecord[] | undefined;
+    if (Array.isArray(results)) {
+      for (const r of results) {
+        const id = (r.lead_id ?? r.business_name) as string;
+        if (id) qaMap.set(id, r);
+      }
+    }
+  }
+
   for (const lead of leads) {
-    for (const [_nodeId, nodeData] of Object.entries(enrichmentSources)) {
-      if (!nodeData || typeof nodeData !== "object") continue;
-      // Brand analyser output
-      if (nodeData.brand_colours && !lead.brand_colours) lead.brand_colours = nodeData.brand_colours as string[];
-      if (nodeData.logo_filename && !lead.logo_filename) lead.logo_filename = nodeData.logo_filename as string;
-      if (nodeData.gallery_filenames && !lead.gallery_filenames) lead.gallery_filenames = nodeData.gallery_filenames as string[];
-      // Brand intelligence output
-      if (nodeData.brand_tone && !lead.brand_tone) lead.brand_tone = nodeData.brand_tone as string;
-      if (nodeData.brand_personality && !lead.brand_personality) lead.brand_personality = nodeData.brand_personality as string;
-      if (nodeData.usps && !lead.usps) lead.usps = nodeData.usps as string[];
-      if (nodeData.hero_headline && !lead.hero_headline) lead.hero_headline = nodeData.hero_headline as string;
-      if (nodeData.cta_text && !lead.cta_text) lead.cta_text = nodeData.cta_text as string;
-      // Profiler output
-      if (nodeData.opening_hours && !lead.opening_hours) lead.opening_hours = nodeData.opening_hours as string[];
-      if (nodeData.services && !lead.services) lead.services = nodeData.services as string[];
-      if (nodeData.best_reviews && !lead.best_reviews) lead.best_reviews = nodeData.best_reviews as Array<{ author?: string; rating?: number; text?: string }>;
-      if (nodeData.trust_badges && !lead.trust_badges) lead.trust_badges = nodeData.trust_badges as string[];
-      if (nodeData.avoid_topics && !lead.avoid_topics) lead.avoid_topics = nodeData.avoid_topics as string[];
-      if (nodeData.pain_points && !lead.pain_points) lead.pain_points = nodeData.pain_points as string[];
-      if (nodeData.instagram_handle && !lead.instagram_handle) lead.instagram_handle = nodeData.instagram_handle as string;
-      if (nodeData.instagram_followers && !lead.instagram_followers) lead.instagram_followers = nodeData.instagram_followers as number;
-      // Site composer output
-      if (nodeData.html && !lead.demo_site_html) lead.demo_site_html = nodeData.html as string;
-      if (nodeData.demo_site_domain && !lead.demo_site_domain) lead.demo_site_domain = nodeData.demo_site_domain as string;
-      // QA output
-      if (nodeData.score !== undefined && !lead.demo_site_qa_score) lead.demo_site_qa_score = nodeData.score as number;
-      if (nodeData.qa_score !== undefined && !lead.demo_site_qa_score) lead.demo_site_qa_score = nodeData.qa_score as number;
+    const id = lead.lead_id ?? lead.business_name;
+
+    // Merge profiler data — profiler uses _json suffix for serialised arrays
+    const profile = profileMap.get(id);
+    if (profile) {
+      const parseJsonField = (val: unknown): unknown[] | undefined => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === "string") { try { return JSON.parse(val); } catch { return undefined; } }
+        return undefined;
+      };
+      if (!lead.opening_hours) lead.opening_hours = parseJsonField(profile.opening_hours_json ?? profile.opening_hours) as string[] | undefined;
+      if (!lead.services) lead.services = parseJsonField(profile.services_extracted_json ?? profile.services) as string[] | undefined;
+      if (!lead.best_reviews) lead.best_reviews = parseJsonField(profile.reviews_json ?? profile.best_reviews) as Array<{ author?: string; rating?: number; text?: string }> | undefined;
+      if (!lead.pain_points) lead.pain_points = parseJsonField(profile.pain_points_json ?? profile.pain_points) as string[] | undefined;
+      if (!lead.trust_badges) lead.trust_badges = parseJsonField(profile.trust_badges) as string[] | undefined;
+      if (!lead.avoid_topics) lead.avoid_topics = parseJsonField(profile.avoid_topics) as string[] | undefined;
+      if (!lead.has_website && profile.has_website !== undefined) lead.has_website = !!profile.has_website;
+      if (!lead.description && profile.business_description_raw) lead.description = profile.business_description_raw as string;
+      if (!lead.description && profile.description) lead.description = profile.description as string;
+      // Social data
+      const socials = parseJsonField(profile.social_profiles_json ?? profile.social_links_json) as Array<string | { handle?: string; followers?: number; platform?: string }> | undefined;
+      if (socials) {
+        for (const s of socials) {
+          if (typeof s === "object" && s !== null) {
+            if (!lead.instagram_handle && s.handle) lead.instagram_handle = s.handle;
+            if (!lead.instagram_followers && s.followers) lead.instagram_followers = s.followers;
+          } else if (typeof s === "string" && s.includes("instagram.com")) {
+            const match = s.match(/instagram\.com\/([^/?]+)/);
+            if (match && !lead.instagram_handle) lead.instagram_handle = match[1];
+          }
+        }
+      }
+    }
+
+    // Merge brand analyser data
+    const brand = brandMap.get(id);
+    if (brand) {
+      const colours = brand.colours as AnyRecord | undefined;
+      if (colours && !lead.brand_colours) {
+        lead.brand_colours = [
+          colours.primary as string,
+          colours.secondary as string,
+          colours.accent as string,
+        ].filter(Boolean);
+      }
+    }
+
+    // Merge brand intelligence data
+    const intel = intelMap.get(id);
+    if (intel) {
+      if (!lead.brand_tone && intel.tone) lead.brand_tone = intel.tone as string;
+      if (!lead.brand_personality && intel.personality) lead.brand_personality = intel.personality as string;
+      if (!lead.usps && intel.usps) lead.usps = intel.usps as string[];
+      if (!lead.hero_headline && intel.headline) lead.hero_headline = intel.headline as string;
+      if (!lead.cta_text && intel.cta) lead.cta_text = intel.cta as string;
+    }
+
+    // Merge site composer data
+    const site = siteMap.get(id);
+    if (site) {
+      if (!lead.demo_site_html && site.html) lead.demo_site_html = site.html as string;
+      if (!lead.demo_site_domain && site.domain) lead.demo_site_domain = site.domain as string;
+    }
+
+    // Merge QA data
+    const qa = qaMap.get(id);
+    if (qa) {
+      if (!lead.demo_site_qa_score && qa.score !== undefined) lead.demo_site_qa_score = qa.score as number;
     }
   }
 

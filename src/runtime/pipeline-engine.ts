@@ -152,7 +152,10 @@ export class UnifiedPipelineEngine {
         { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
         { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
         // Phase 4: Assignment — salesperson receives lead WITH ready demo
-        { id: "assign", agent_id: "lead-assigner-agent", depends_on: ["qa"] },
+        // Depends on all upstream nodes to collect full enrichment data
+        { id: "assign", agent_id: "lead-assigner-agent", depends_on: [
+          "profile", "brand-analyse", "brand-intelligence", "qualify", "brief", "compose", "qa",
+        ] },
       ],
       config: {},
     });

@@ -80,7 +80,7 @@ const OPENROUTER_API_KEY =
 const OPENROUTER_BASE_URL =
   process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
 const CRITIC_MODEL =
-  process.env.CRITIC_MODEL ?? "anthropic/claude-sonnet-4-20250514";
+  process.env.CRITIC_MODEL ?? "anthropic/claude-sonnet-4";
 const CRITIC_TIMEOUT_MS =
   Number(process.env.CRITIC_TIMEOUT_MS ?? "60000");
 
@@ -256,7 +256,9 @@ export class LLMCritic implements CriticModel {
         (promptTokens / 1_000_000) * INPUT_COST_PER_M +
         (completionTokens / 1_000_000) * OUTPUT_COST_PER_M;
 
-      const parsed = JSON.parse(content) as {
+      // Strip markdown code fences if present (Claude sometimes wraps JSON in ```json ... ```)
+      const cleanContent = content.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "").trim();
+      const parsed = JSON.parse(cleanContent) as {
         score?: number;
         prediction?: string;
         confidence?: number;

@@ -34,7 +34,7 @@ export interface AIComposerResult {
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
 const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
-const AI_COMPOSER_MODEL = process.env.AI_COMPOSER_MODEL ?? "anthropic/claude-sonnet-4-20250514";
+const AI_COMPOSER_MODEL = process.env.AI_COMPOSER_MODEL ?? "anthropic/claude-sonnet-4";
 const AI_COMPOSER_TIMEOUT_MS = Number(process.env.AI_COMPOSER_TIMEOUT_MS ?? "120000");
 
 // Sonnet pricing via OpenRouter (approximate)

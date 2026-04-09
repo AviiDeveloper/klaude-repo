@@ -155,11 +155,13 @@ export const leadQualifierAgent: AgentHandler = async (input) => {
 // ---------------------------------------------------------------------------
 
 function scoreLead(lead: LeadWithProfile): { score: number; reasons: string[] } {
-  let score = 0;
+  let score = 10; // Base: every Google-listed business is a potential lead
   const reasons: string[] = [];
   const reviews = lead.google_review_count ?? 0;
 
   // ── WEBSITE OPPORTUNITY ──
+  // Every business is pitchable — our AI demo should outperform their current site.
+  // No website = best opportunity, bad website = great, good website = still worth a shot.
   if (!lead.has_website || lead.has_website === 0) {
     score += 40;
     reasons.push("No website — prime candidate");
@@ -167,11 +169,15 @@ function scoreLead(lead: LeadWithProfile): { score: number; reasons: string[] } 
     score += 30;
     reasons.push(`Poor website (quality ${lead.website_quality_score}/100)`);
   } else if (lead.website_quality_score != null && lead.website_quality_score < 60) {
-    score += 15;
-    reasons.push(`Below-average website (${lead.website_quality_score}/100)`);
+    score += 20;
+    reasons.push(`Below-average website (${lead.website_quality_score}/100) — demo will impress`);
   } else if (lead.website_quality_score != null && lead.website_quality_score >= 70) {
-    score -= 20;
-    reasons.push(`Good existing website (${lead.website_quality_score}/100)`);
+    score += 10;
+    reasons.push(`Has website (${lead.website_quality_score}/100) — demo shows what AI can do`);
+  } else {
+    // Has website but no quality score
+    score += 15;
+    reasons.push("Has website — demo shows upgrade potential");
   }
 
   // ── NEW BUSINESS SIGNALS (high priority) ──
