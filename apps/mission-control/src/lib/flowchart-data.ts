@@ -7,6 +7,9 @@
 export type NodeStatus = 'built' | 'partial' | 'not_built';
 export type NodeType = 'action' | 'decision' | 'agent' | 'system' | 'human' | 'external';
 
+/** Which apps this node connects to */
+export type AppConnection = 'sales-dashboard' | 'ios-app' | 'mobile-api' | 'pipeline-runtime' | 'supabase' | 'stripe';
+
 export interface FlowchartNode {
   id: string;
   label: string;
@@ -23,6 +26,10 @@ export interface FlowchartNode {
   todo: string[];
   /** Depends on these node IDs */
   depends_on: string[];
+  /** Which apps this node is wired to */
+  connectedTo?: AppConnection[];
+  /** Known wiring gaps — things that SHOULD be connected but aren't */
+  connectionIssues?: string[];
 }
 
 export interface FlowchartDefinition {
@@ -31,6 +38,16 @@ export interface FlowchartDefinition {
   description: string;
   nodes: FlowchartNode[];
 }
+
+// Short labels for app badges shown on nodes
+export const APP_LABELS: Record<AppConnection, { short: string; color: string }> = {
+  'sales-dashboard': { short: 'SD', color: '#58a6ff' },
+  'ios-app':         { short: 'iOS', color: '#30d158' },
+  'mobile-api':      { short: 'API', color: '#bf5af2' },
+  'pipeline-runtime':{ short: 'RT', color: '#ff9f0a' },
+  'supabase':        { short: 'SB', color: '#3ecf8e' },
+  'stripe':          { short: '$$', color: '#635bff' },
+};
 
 // ══════════════════════════════════════════════════════════════
 // FLOWCHART 1: Lead Generation Pipeline
@@ -60,6 +77,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Signup API (sales-dashboard)', 'Login API (sales-dashboard + mobile-api)', 'iOS auth flow'],
       todo: [],
       depends_on: [],
+      connectedTo: ['sales-dashboard', 'mobile-api', 'ios-app'],
     },
     {
       id: 'location-submitted',
@@ -72,6 +90,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['area_postcode stored in sales_users table'],
       todo: [],
       depends_on: ['sp-signup'],
+      connectedTo: ['sales-dashboard'],
     },
     {
       id: 'pipeline-triggers',
@@ -91,6 +110,11 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Manual pipeline trigger via API', 'Scheduler-based trigger', 'Test script trigger'],
       todo: ['Auto-trigger on SP signup', 'Webhook from signup → pipeline start'],
       depends_on: ['location-submitted'],
+      connectedTo: ['pipeline-runtime'],
+      connectionIssues: [
+        'No auto-trigger from SP signup — requires manual API call or scheduler',
+        'POST /api/jobs/:id/trigger endpoint referenced but does not exist in MC routes',
+      ],
     },
     {
       id: 'agent-scraper',
@@ -112,6 +136,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       ],
       todo: [],
       depends_on: ['pipeline-triggers'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'google-places',
@@ -124,6 +149,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Multi-vertical search', 'Place Details with photos/reviews/hours'],
       todo: [],
       depends_on: ['agent-scraper'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'apify-instagram',
@@ -136,6 +162,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Instagram profile scraping', 'Follower count extraction'],
       todo: [],
       depends_on: ['agent-scraper'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'business-profile',
@@ -151,6 +178,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Photo colour palette extraction', 'Font detection', 'AI brand tone analysis', 'USP generation', 'Headline generation'],
       todo: [],
       depends_on: ['agent-scraper'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'generation-cap',
@@ -163,6 +191,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Budget enforcement exists (cost-based)'],
       todo: ['Per-SP daily generation cap (count-based)', 'Cap enforcement in pipeline engine'],
       depends_on: ['business-profile'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'agent-generation',
@@ -179,6 +208,8 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Brief generator agent', 'AI composer (Claude → HTML/CSS)', 'Site composer agent wrapper'],
       todo: ['Composer using full brand data from working memory', 'Template system for consistent quality'],
       depends_on: ['generation-cap'],
+      connectedTo: ['pipeline-runtime'],
+      connectionIssues: ['Brand colours/tone from profiler not fully wired into composer prompt'],
     },
     {
       id: 'claude-demo',
@@ -191,6 +222,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['HTML/CSS generation from brief', 'Responsive design'],
       todo: ['Use brand colours/tone from working memory'],
       depends_on: ['agent-generation'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'agent-qc',
@@ -207,6 +239,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Site QA agent', 'LLM Critic (Claude evaluates sales effectiveness)', 'Reflection loop with critique→retry', 'Force-accept with human review flag'],
       todo: [],
       depends_on: ['claude-demo'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'qc-decision',
@@ -219,6 +252,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Threshold check', 'Max 3 retries', 'Force-accept with flag'],
       todo: [],
       depends_on: ['agent-qc'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'screenshot-r2',
@@ -231,6 +265,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Puppeteer/Playwright screenshot of generated HTML', 'R2 upload', 'Store R2 URL in lead data'],
       depends_on: ['qc-decision'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'demo-supabase',
@@ -243,6 +278,11 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Supabase client in pipeline', 'demo_records table schema', 'Write demo HTML + metadata after QC pass'],
       depends_on: ['screenshot-r2'],
+      connectionIssues: [
+        'CRITICAL: Generated HTML stays in local generated_sites SQLite table — never pushed to Supabase',
+        'Sales dashboard reads demo sites from Supabase Storage, but pipeline writes to local SQLite',
+        'Manual admin upload is the only bridge (POST /api/admin/upload)',
+      ],
     },
     {
       id: 'lead-sp-queue',
@@ -257,6 +297,11 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Postcode proximity matching', 'Lead assignment with enriched notes JSON', 'Idempotent assignment'],
       todo: ['Push notification to SP app'],
       depends_on: ['demo-supabase'],
+      connectedTo: ['pipeline-runtime', 'sales-dashboard'],
+      connectionIssues: [
+        'Writes to lead_assignments but WITHOUT demo_site_domain — SP sees lead but no demo',
+        'No push notification when lead assigned — SP only sees on next app open/sync',
+      ],
     },
     {
       id: 'sp-onboarding',
@@ -272,6 +317,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Dashboard lead list', 'iOS lead list', 'Lead detail views'],
       todo: ['Onboarding tutorial flow', 'First-lead celebration'],
       depends_on: ['lead-sp-queue'],
+      connectedTo: ['sales-dashboard', 'ios-app'],
     },
     {
       id: 'dashboard-unlocks',
@@ -287,6 +333,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: ['Map view (sales dashboard)', 'Map view (iOS with MapKit)', 'Route planning'],
       todo: [],
       depends_on: ['sp-onboarding'],
+      connectedTo: ['sales-dashboard', 'ios-app'],
     },
     {
       id: 'lead-available',
@@ -299,6 +346,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Lead availability check', 'Real-time availability status'],
       depends_on: ['dashboard-unlocks'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'sp-claims-lead',
@@ -311,6 +359,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Claim API endpoint', 'Optimistic lock to prevent double-claim', 'iOS claim UI'],
       depends_on: ['lead-available'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'lead-transfer',
@@ -323,6 +372,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Transfer request API', 'Transfer approval flow', 'In-app lead search'],
       depends_on: ['lead-available'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
   ],
 };
@@ -353,6 +403,8 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['Visit tracking UI (iOS)', 'Visit session API'],
       todo: ['GPS validation (200m radius)', 'Dwell time enforcement (2 min minimum)'],
       depends_on: [],
+      connectedTo: ['ios-app', 'mobile-api'],
+      connectionIssues: ['GPS validation logic not implemented — visits accepted without location check'],
     },
     {
       id: 'demo-shown',
@@ -368,6 +420,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['Full-screen client presentation mode', 'Demo site caching for offline', 'Share button'],
       todo: [],
       depends_on: ['sp-visits'],
+      connectedTo: ['ios-app'],
     },
     {
       id: 'owner-response',
@@ -380,6 +433,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Outcome capture UI in iOS app', 'Interested/Rejected flow branching'],
       depends_on: ['demo-shown'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'qr-capture',
@@ -404,6 +458,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['SMS sending (Twilio)', 'Email sending', 'Demo link with tracking', 'Payment link inclusion'],
       depends_on: ['qr-capture'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'payment-received',
@@ -416,6 +471,8 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['Stripe Connect setup in sales dashboard'],
       todo: ['Payment link generation', 'Webhook handler', 'Payment status tracking'],
       depends_on: ['link-sent'],
+      connectedTo: ['stripe'],
+      connectionIssues: ['Stripe Connect configured but no webhook handler or payment link generation'],
     },
     {
       id: 'client-wizard',
@@ -428,6 +485,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Client-facing wizard UI', 'Photo upload', 'Preference form', 'Notes field'],
       depends_on: ['payment-received'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'stripe-payment-link',
@@ -440,6 +498,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Payment link generation', 'SMS/email delivery'],
       depends_on: ['payment-received'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'fulfilment-pipeline',
@@ -452,6 +511,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Fulfilment pipeline definition', 'Wizard data → Claude API', 'Full site generation using demo + preferences'],
       depends_on: ['client-wizard'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'full-site-gen',
@@ -464,6 +524,8 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['AI composer exists for demos'],
       todo: ['Production-quality generation mode', 'Wizard data integration', 'Multi-page support'],
       depends_on: ['fulfilment-pipeline'],
+      connectedTo: ['pipeline-runtime'],
+      connectionIssues: ['aiComposer.ts only does demo-quality single page — production mode not implemented'],
     },
     {
       id: 'vercel-deploy',
@@ -476,6 +538,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Vercel MCP integration', 'Automatic deployment from pipeline', 'Subdomain assignment'],
       depends_on: ['full-site-gen'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'domain-porkbun',
@@ -488,6 +551,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Porkbun API integration', 'Domain availability check', 'DNS configuration'],
       depends_on: ['vercel-deploy'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'ssl-provision',
@@ -500,6 +564,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Automatic SSL via Vercel'],
       depends_on: ['domain-porkbun'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'stripe-invoice',
@@ -512,6 +577,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Invoice generation', 'Auto-send to client email'],
       depends_on: ['ssl-provision'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'confirmation-email',
@@ -524,6 +590,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Email template', 'Send via transactional email service'],
       depends_on: ['stripe-invoice'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'sp-commission',
@@ -536,6 +603,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Commission calculation logic', 'Pitch-count based tiers', 'Payout tracking'],
       depends_on: ['confirmation-email'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'queue-replenish',
@@ -548,6 +616,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Auto-trigger pipeline on sale', 'Replenishment logic'],
       depends_on: ['sp-commission'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'client-portal',
@@ -560,6 +629,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Client portal app', 'Login system', 'Site management UI'],
       depends_on: ['queue-replenish'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'tier2-changes',
@@ -572,6 +642,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Change request form', 'Claude-powered edit generation', 'Monthly quota tracking'],
       depends_on: ['client-portal'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'tier1-selfservice',
@@ -584,6 +655,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Local AI setup', 'Self-service editing UI', 'Mac Mini deployment'],
       depends_on: ['client-portal'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     // Rejection path
     {
@@ -597,6 +669,8 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['Episodic memory records outcomes', 'Status update API'],
       todo: ['iOS outcome capture UI with structured data'],
       depends_on: ['owner-response'],
+      connectedTo: ['pipeline-runtime', 'mobile-api'],
+      connectionIssues: ['mobile-api has status endpoint but iOS app has no structured outcome capture UI'],
     },
     {
       id: 'voice-memo',
@@ -609,6 +683,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Voice recording in iOS', 'Upload to API', 'Transcription'],
       depends_on: ['pitch-outcome-logged'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'gps-dwell-validate',
@@ -621,6 +696,8 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: ['Visit session tracking exists'],
       todo: ['GPS radius validation (200m)', 'Dwell time check (2 min)', 'Anti-fraud'],
       depends_on: ['pitch-outcome-logged'],
+      connectedTo: ['mobile-api'],
+      connectionIssues: ['Visit session API exists but GPS radius + dwell time validation not implemented'],
     },
     {
       id: 'rejection-captured',
@@ -633,6 +710,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Rejection reason dropdown', 'Store in episodes', 'Feed to strategy learner'],
       depends_on: ['gps-dwell-validate'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'commission-enhancement',
@@ -645,6 +723,7 @@ export const PITCH_FULFIL_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Enhancement calculation', 'Commission tier adjustment'],
       depends_on: ['rejection-captured'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
   ],
 };
@@ -669,6 +748,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['Agent execution via registry', 'Output stored as artifacts'],
       todo: [],
       depends_on: [],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'critic-evaluates',
@@ -681,6 +761,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['LLM Critic with structured output', 'Score + prediction + critique', 'Heuristic fallback'],
       todo: [],
       depends_on: ['agent-produces-output'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'score-threshold',
@@ -693,6 +774,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['Threshold check', 'Configurable via CRITIC_THRESHOLD env'],
       todo: [],
       depends_on: ['critic-evaluates'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'critique-injected',
@@ -705,6 +787,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['Critique feedback as _criticFeedback in upstream artifacts', 'Strengths preserved, weaknesses addressed'],
       todo: [],
       depends_on: ['score-threshold'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'agent-retries',
@@ -717,6 +800,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['Max 3 retries', 'Force-accept best after exhaustion', 'Human review flag'],
       todo: [],
       depends_on: ['critique-injected'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'episode-recorded',
@@ -729,6 +813,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['Episode creation on run start', 'Critic scores stored per iteration', 'Working memory snapshot', 'Cost tracking'],
       todo: [],
       depends_on: ['agent-retries'],
+      connectedTo: ['pipeline-runtime'],
     },
     {
       id: 'outcome-attached',
@@ -741,6 +826,8 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['recordOutcome() method', 'closed/rejected/no_show + amount + salesperson'],
       todo: ['API endpoint to receive outcomes from iOS app'],
       depends_on: ['episode-recorded'],
+      connectedTo: ['pipeline-runtime'],
+      connectionIssues: ['recordOutcome() exists but no API endpoint exposes it — iOS app cannot send outcomes back to the learning loop'],
     },
     {
       id: 'attribution-engine',
@@ -753,6 +840,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Attribution calculation', 'Agent-level credit scoring', 'Store in episode'],
       depends_on: ['outcome-attached'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'strategy-ranker',
@@ -765,6 +853,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['Nightly batch job', 'Group by vertical + design parameters', 'Statistical significance check', 'Strategy promotion lifecycle'],
       depends_on: ['attribution-engine'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'strategic-memory',
@@ -777,6 +866,7 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: [],
       todo: ['strategies table', 'Strategy CRUD', 'Lifecycle: new → testing → active → champion → deprecated'],
       depends_on: ['strategy-ranker'],
+      connectionIssues: ['No code exists — entire node is a stub'],
     },
     {
       id: 'strategy-injected',
@@ -789,6 +879,8 @@ export const LEARNING_LOOP_FLOWCHART: FlowchartDefinition = {
       done: ['StrategyProvider interface', 'Strategy injection into working memory', 'strategyContext field on agent input'],
       todo: ['Connect to strategic memory store', 'Populate from real data'],
       depends_on: ['strategic-memory'],
+      connectedTo: ['pipeline-runtime'],
+      connectionIssues: ['StrategyProvider interface exists but reads from empty store — no real strategies flow through yet'],
     },
   ],
 };

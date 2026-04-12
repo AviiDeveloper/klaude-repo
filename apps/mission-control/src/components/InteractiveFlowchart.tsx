@@ -4,8 +4,10 @@ import { useState, useMemo } from 'react';
 import {
   CheckCircle, AlertTriangle, XCircle,
   ChevronDown, ChevronRight, FileCode, Link2, AlertCircle,
+  Unplug, Plug,
 } from 'lucide-react';
-import type { FlowchartDefinition, FlowchartNode, NodeStatus, NodeType } from '@/lib/flowchart-data';
+import type { FlowchartDefinition, FlowchartNode, NodeStatus, NodeType, AppConnection } from '@/lib/flowchart-data';
+import { APP_LABELS } from '@/lib/flowchart-data';
 import { LAYOUTS, type FlowchartLayout, type LayoutEdge, type NodePosition } from '@/lib/flowchart-layout';
 
 // ── Constants ──
@@ -157,6 +159,68 @@ function FlowEdge({
   );
 }
 
+// ── Connection badges (small coloured pills under each node) ──
+
+function ConnectionBadges({
+  node, pos,
+}: {
+  node: FlowchartNode;
+  pos: NodePosition;
+}) {
+  const apps = node.connectedTo ?? [];
+  const hasIssues = (node.connectionIssues ?? []).length > 0;
+  if (apps.length === 0 && !hasIssues) return null;
+
+  const isDiamond = node.type === 'decision';
+  const baseY = isDiamond ? pos.y + DIAMOND_SIZE / 2 + 4 : pos.y + NODE_H / 2 + 4;
+  const badgeW = 20;
+  const badgeH = 10;
+  const gap = 2;
+
+  // Show warning triangle if there are connection issues
+  const allBadges: Array<{ short: string; color: string }> = apps.map((app) => APP_LABELS[app]);
+  if (hasIssues) {
+    allBadges.push({ short: '!', color: '#f85149' });
+  }
+
+  const totalW = allBadges.length * (badgeW + gap) - gap;
+  const startX = pos.x - totalW / 2;
+
+  return (
+    <g>
+      {allBadges.map((badge, i) => {
+        const bx = startX + i * (badgeW + gap);
+        return (
+          <g key={i}>
+            <rect
+              x={bx}
+              y={baseY}
+              width={badgeW}
+              height={badgeH}
+              rx={3}
+              fill={badge.color}
+              opacity={0.25}
+              stroke={badge.color}
+              strokeWidth={0.5}
+            />
+            <text
+              x={bx + badgeW / 2}
+              y={baseY + badgeH / 2 + 3}
+              textAnchor="middle"
+              fill={badge.color}
+              fontSize={6.5}
+              fontWeight="bold"
+              fontFamily="'JetBrains Mono', monospace"
+            >
+              {badge.short}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 // ── Node component ──
 
 function FlowNode({
@@ -172,6 +236,7 @@ function FlowNode({
   const lines = node.label.split('\n');
   const stroke = isSelected ? '#58a6ff' : sc.stroke;
   const sw = isSelected ? 2.5 : 1.5;
+  const hasIssues = (node.connectionIssues ?? []).length > 0;
 
   if (node.type === 'decision') {
     const h = DIAMOND_SIZE / 2;
@@ -184,6 +249,7 @@ function FlowNode({
           fill={sc.fill}
           stroke={stroke}
           strokeWidth={sw}
+          strokeDasharray={hasIssues && node.status === 'not_built' ? '4 2' : undefined}
         />
         <text
           textAnchor="middle"
@@ -198,6 +264,7 @@ function FlowNode({
             </tspan>
           ))}
         </text>
+        <ConnectionBadges node={node} pos={pos} />
       </g>
     );
   }
@@ -217,6 +284,7 @@ function FlowNode({
         fill={sc.fill}
         stroke={stroke}
         strokeWidth={sw}
+        strokeDasharray={hasIssues && node.status !== 'built' ? '4 2' : undefined}
       />
       {/* Type indicator bar (left edge) */}
       <rect
@@ -235,6 +303,26 @@ function FlowNode({
         r={3.5}
         fill={sc.stroke}
       />
+      {/* Warning indicator (top-left) for connection issues */}
+      {hasIssues && (
+        <g>
+          <polygon
+            points={`${pos.x - NODE_W / 2 + 12},${pos.y - NODE_H / 2 + 5} ${pos.x - NODE_W / 2 + 17},${pos.y - NODE_H / 2 + 14} ${pos.x - NODE_W / 2 + 7},${pos.y - NODE_H / 2 + 14}`}
+            fill="#f85149"
+            opacity={0.9}
+          />
+          <text
+            x={pos.x - NODE_W / 2 + 12}
+            y={pos.y - NODE_H / 2 + 13}
+            textAnchor="middle"
+            fill="#0d1117"
+            fontSize={6}
+            fontWeight="bold"
+          >
+            !
+          </text>
+        </g>
+      )}
       {/* Label */}
       <text
         textAnchor="middle"
@@ -249,6 +337,8 @@ function FlowNode({
           </tspan>
         ))}
       </text>
+      {/* Connection badges below node */}
+      <ConnectionBadges node={node} pos={pos} />
     </g>
   );
 }
@@ -261,6 +351,7 @@ function ProgressBar({ nodes }: { nodes: FlowchartNode[] }) {
   const total = nodes.length;
   const pctBuilt = (built / total) * 100;
   const pctPartial = (partial / total) * 100;
+  const issueCount = nodes.filter((n) => (n.connectionIssues ?? []).length > 0).length;
 
   return (
     <div className="px-4 py-2 border-b border-mc-border bg-mc-bg-secondary flex items-center gap-4">
@@ -278,6 +369,11 @@ function ProgressBar({ nodes }: { nodes: FlowchartNode[] }) {
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-mc-accent-red" /> {total - built - partial} needed
         </span>
+        {issueCount > 0 && (
+          <span className="flex items-center gap-1 text-mc-accent-red font-bold">
+            <Unplug className="w-3 h-3" /> {issueCount} disconnected
+          </span>
+        )}
       </div>
     </div>
   );
@@ -296,7 +392,7 @@ const TYPE_LABELS: Array<{ type: NodeType; label: string }> = [
 
 function TypeLegend() {
   return (
-    <div className="px-4 py-1.5 border-b border-mc-border bg-mc-bg flex items-center gap-4">
+    <div className="px-4 py-1.5 border-b border-mc-border bg-mc-bg flex items-center gap-4 flex-wrap">
       <span className="text-[9px] text-mc-text-secondary uppercase tracking-wider font-bold">Types:</span>
       {TYPE_LABELS.map(({ type, label }) => (
         <span key={type} className="flex items-center gap-1 text-[9px] text-mc-text-secondary">
@@ -304,6 +400,17 @@ function TypeLegend() {
           {label}
         </span>
       ))}
+      <span className="text-[9px] text-mc-text-secondary">|</span>
+      <span className="text-[9px] text-mc-text-secondary uppercase tracking-wider font-bold">Apps:</span>
+      {(Object.entries(APP_LABELS) as Array<[AppConnection, { short: string; color: string }]>).map(([key, { short, color }]) => (
+        <span key={key} className="flex items-center gap-1 text-[9px]" style={{ color }}>
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: color, opacity: 0.5 }} />
+          {short}
+        </span>
+      ))}
+      <span className="flex items-center gap-1 text-[9px] text-mc-accent-red">
+        <AlertTriangle className="w-2.5 h-2.5" /> = wiring issue
+      </span>
     </div>
   );
 }
@@ -332,12 +439,14 @@ function NodeDetailPanel({ node }: { node: FlowchartNode }) {
   const [showFiles, setShowFiles] = useState(true);
   const [showEndpoints, setShowEndpoints] = useState(true);
   const st = STATUS_CFG[node.status];
+  const apps = node.connectedTo ?? [];
+  const issues = node.connectionIssues ?? [];
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${st.bg} ${st.text} border ${st.border}`}>
             {st.label}
           </span>
@@ -346,6 +455,49 @@ function NodeDetailPanel({ node }: { node: FlowchartNode }) {
         <h3 className="text-lg font-bold text-mc-text">{node.label}</h3>
         <p className="text-xs text-mc-text-secondary mt-1 leading-relaxed">{node.description}</p>
       </div>
+
+      {/* Connected apps */}
+      {apps.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-mc-text-secondary uppercase mb-2">
+            <Plug className="w-3.5 h-3.5" />
+            Connected to
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {apps.map((app) => {
+              const { short, color } = APP_LABELS[app];
+              return (
+                <span
+                  key={app}
+                  className="px-2 py-0.5 text-[10px] font-bold rounded border"
+                  style={{
+                    color,
+                    backgroundColor: `${color}15`,
+                    borderColor: `${color}40`,
+                  }}
+                >
+                  {short} {app}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Connection issues */}
+      {issues.length > 0 && (
+        <div className="rounded border border-mc-accent-red/30 bg-mc-accent-red/5 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-mc-accent-red uppercase mb-2">
+            <Unplug className="w-3.5 h-3.5" />
+            Wiring Issues ({issues.length})
+          </div>
+          {issues.map((issue, i) => (
+            <p key={i} className="text-[11px] text-mc-accent-red/90 mb-1 leading-relaxed">
+              {issue}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* Files */}
       {node.files.length > 0 && (
@@ -441,6 +593,9 @@ export function InteractiveFlowchart({ flowchart }: { flowchart: FlowchartDefini
     return <div className="p-8 text-mc-text-secondary">No layout defined for {flowchart.id}</div>;
   }
 
+  // Expand canvas height to fit connection badges below nodes
+  const expandedHeight = layout.canvasHeight + 30;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <ProgressBar nodes={flowchart.nodes} />
@@ -451,10 +606,10 @@ export function InteractiveFlowchart({ flowchart }: { flowchart: FlowchartDefini
         <div className="flex-1 overflow-auto" style={{ background: '#0d1117' }}>
           <svg
             width={layout.canvasWidth}
-            height={layout.canvasHeight}
-            viewBox={`0 0 ${layout.canvasWidth} ${layout.canvasHeight}`}
+            height={expandedHeight}
+            viewBox={`0 0 ${layout.canvasWidth} ${expandedHeight}`}
             className="mx-auto block"
-            style={{ minWidth: layout.canvasWidth, minHeight: layout.canvasHeight }}
+            style={{ minWidth: layout.canvasWidth, minHeight: expandedHeight }}
           >
             <style>{`
               .fc-node { cursor: pointer; transition: filter 0.15s ease; }
@@ -505,7 +660,7 @@ export function InteractiveFlowchart({ flowchart }: { flowchart: FlowchartDefini
           ) : (
             <div className="h-full flex items-center justify-center text-mc-text-secondary p-4">
               <p className="text-xs text-center">
-                Click a step to see files, endpoints, and build status
+                Click a step to see files, endpoints, connections, and build status
               </p>
             </div>
           )}
