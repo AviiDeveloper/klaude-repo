@@ -84,45 +84,61 @@ function formatDuration(startedAt?: string, endedAt?: string): string {
 
 // ── Layout: compute x,y positions for DAG ──
 
+/**
+ * Layout pipeline nodes in a strict left-to-right flow.
+ * Uses a predefined order matching the pipeline's logical sequence
+ * rather than computing depth from dependencies (which breaks for
+ * nodes like assigner that depend on many earlier nodes).
+ */
 function layoutNodes(nodes: PipelineNode[]): Map<string, { x: number; y: number; col: number }> {
   const positions = new Map<string, { x: number; y: number; col: number }>();
-  const placed = new Set<string>();
-  const nodeMap = new Map(nodes.map((n) => [n.node_id, n]));
 
-  // Topological sort by dependency depth
-  function getDepth(id: string, visited = new Set<string>()): number {
-    if (visited.has(id)) return 0;
-    visited.add(id);
-    const node = nodeMap.get(id);
-    if (!node || node.depends_on.length === 0) return 0;
-    return 1 + Math.max(...node.depends_on.map((d) => getDepth(d, visited)));
-  }
-
-  const sorted = [...nodes].sort((a, b) => getDepth(a.node_id) - getDepth(b.node_id));
-
-  // Place nodes in columns by depth
-  const columns = new Map<number, string[]>();
-  for (const node of sorted) {
-    const col = getDepth(node.node_id);
-    if (!columns.has(col)) columns.set(col, []);
-    columns.get(col)!.push(node.node_id);
-  }
+  // Define the canonical pipeline order — each group is a column
+  const PIPELINE_ORDER: string[][] = [
+    ['scout'],
+    ['profile'],
+    ['brand-analyse'],
+    ['brand-intelligence'],
+    ['qualify'],
+    ['brief'],
+    ['compose'],
+    ['qa'],
+    ['assign'],
+  ];
 
   const NODE_W = 160;
-  const NODE_H = 90;
-  const GAP_X = 40;
-  const GAP_Y = 20;
+  const NODE_H = 80;
+  const GAP_X = 32;
+  const GAP_Y = 16;
+  const PADDING = 24;
 
-  for (const [col, ids] of Array.from(columns.entries())) {
+  // Place nodes that match the canonical order
+  const placed = new Set<string>();
+  for (let col = 0; col < PIPELINE_ORDER.length; col++) {
+    const ids = PIPELINE_ORDER[col].filter((id) => nodes.some((n) => n.node_id === id));
     const totalH = ids.length * NODE_H + (ids.length - 1) * GAP_Y;
-    const startY = Math.max(0, (400 - totalH) / 2);
+    const startY = Math.max(PADDING, (300 - totalH) / 2);
     ids.forEach((id, row) => {
       positions.set(id, {
-        x: col * (NODE_W + GAP_X) + 20,
+        x: col * (NODE_W + GAP_X) + PADDING,
         y: startY + row * (NODE_H + GAP_Y),
         col,
       });
+      placed.add(id);
     });
+  }
+
+  // Place any remaining nodes not in the canonical order
+  let extraCol = PIPELINE_ORDER.length;
+  for (const node of nodes) {
+    if (!placed.has(node.node_id)) {
+      positions.set(node.node_id, {
+        x: extraCol * (NODE_W + GAP_X) + PADDING,
+        y: PADDING,
+        col: extraCol,
+      });
+      extraCol++;
+    }
   }
 
   return positions;
@@ -148,9 +164,13 @@ export function PipelineGraph({ nodes, selectedNodeId, onSelectNode }: Props) {
         height={Math.max(maxY, 300)}
         className="select-none"
       >
-        {/* Edges */}
-        {nodes.map((node) =>
-          node.depends_on.map((dep) => {
+        {/* Edges — only draw to the primary (last) dependency to avoid spaghetti */}
+        {nodes.map((node) => {
+          // For nodes with multiple deps, only draw from the one directly before in the pipeline
+          const primaryDeps = node.depends_on.length <= 1
+            ? node.depends_on
+            : [node.depends_on[node.depends_on.length - 1]];
+          return primaryDeps.map((dep) => {
             const from = positions.get(dep);
             const to = positions.get(node.node_id);
             if (!from || !to) return null;
@@ -165,7 +185,7 @@ export function PipelineGraph({ nodes, selectedNodeId, onSelectNode }: Props) {
               depNode?.status === 'completed' ? '#3fb950' :
               depNode?.status === 'running' ? '#58a6ff' :
               depNode?.status === 'failed' ? '#f85149' :
-              '#30363d';
+              '#8b949e';
 
             return (
               <path
@@ -173,12 +193,12 @@ export function PipelineGraph({ nodes, selectedNodeId, onSelectNode }: Props) {
                 d={`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`}
                 fill="none"
                 stroke={edgeColour}
-                strokeWidth={2}
-                opacity={0.6}
+                strokeWidth={2.5}
+                opacity={0.8}
               />
             );
-          })
-        )}
+          });
+        })}
 
         {/* Nodes */}
         {nodes.map((node) => {
