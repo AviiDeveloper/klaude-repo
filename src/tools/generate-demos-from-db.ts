@@ -147,6 +147,11 @@ async function generateDemo(lead: LeadSelection, idx: number, total: number) {
       },
     },
   });
+  const briefData = briefResult.artifacts as any;
+  const generatedBrief = briefData?.briefs?.[0];
+  if (generatedBrief) {
+    console.log(`${tag} Brief: headline="${generatedBrief.heroHeadline}" tone=${generatedBrief.brandTone ?? "none"} position=${generatedBrief.marketPosition ?? "none"}`);
+  }
   console.log(`${tag} Brief done (${((Date.now() - t0) / 1000).toFixed(1)}s) — ${briefResult.summary}`);
 
   // Compose
