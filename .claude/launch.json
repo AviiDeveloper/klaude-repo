@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "apps/sales-dashboard", "run", "dev"],
       "port": 4300
+    },
+    {
+      "name": "demo-viewer",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "DB_PATH=/tmp/pi-mvp.sqlite npx tsx src/tools/generate-demos-from-db.ts --serve"],
+      "port": 4200
     }
   ]
 }
