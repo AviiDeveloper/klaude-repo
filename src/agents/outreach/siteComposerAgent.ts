@@ -4,7 +4,7 @@ import { pLimit } from "../../lib/concurrency.js";
 import { siteTemplates, resolveVertical, processConditionals } from "../../templates/siteTemplates.js";
 import { buildAssetUrl } from "../../lib/assetStore.js";
 import { makeDesignDecision, generateCss, type DesignInput } from "./designSystem.js";
-import { generateSiteWithAI, type AIComposerAssets } from "./aiComposer.js";
+import { generateSiteWithAI, type AIComposerAssets, type InstagramData } from "./aiComposer.js";
 import type { BrandAnalysis } from "./brandAnalyser.js";
 import type { SiteBrief } from "./briefGenerator.js";
 
@@ -33,6 +33,7 @@ interface LeadData {
   lat?: number;
   lng?: number;
   social_profiles_json?: string;
+  instagram_json?: string;
   business_description_raw?: string;
 }
 
@@ -165,8 +166,15 @@ export const siteComposerAgent: AgentHandler = async (input) => {
     // ─────────────────────────────────────────────────────────────
     if (AI_COMPOSER_ENABLED && brief) {
       try {
-        const aiAssets: AIComposerAssets = { logoUrl, heroUrl: heroImageUrl, galleryUrls: galleryUrlList };
-        const aiResult = await generateSiteWithAI(brief, design, aiAssets, leadId);
+        const aiAssets: AIComposerAssets = { leadId, logoUrl, heroUrl: heroImageUrl, galleryUrls: galleryUrlList };
+
+        // Parse Instagram data from the lead profile
+        let instagramData: InstagramData | undefined;
+        if (lead.instagram_json) {
+          try { instagramData = JSON.parse(lead.instagram_json) as InstagramData; } catch { /* ignore */ }
+        }
+
+        const aiResult = await generateSiteWithAI(brief, design, aiAssets, leadId, instagramData);
 
         const domain = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
         const siteName = `${businessName} — ${businessType.charAt(0).toUpperCase() + businessType.slice(1)}`;
@@ -205,6 +213,7 @@ export const siteComposerAgent: AgentHandler = async (input) => {
           ai_generated: true,
           ai_tokens_used: aiResult.tokensUsed,
           ai_cost_usd: aiResult.costUsd,
+          ai_images_used: aiResult.imagesUsed,
         });
 
         return; // Skip template fallback

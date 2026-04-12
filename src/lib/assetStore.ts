@@ -421,6 +421,160 @@ export async function extractBrandPalette(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Vision API helpers — prepare images as base64 for Claude vision input
+// ---------------------------------------------------------------------------
+
+export interface VisionImage {
+  role: string;
+  base64: string;
+  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+  filename: string;
+  assetUrl: string;
+  width?: number;
+  height?: number;
+  sizeBytes: number;
+}
+
+/**
+ * Read an asset, resize it for vision input, return base64 + metadata.
+ * Returns null if the file doesn't exist or can't be processed.
+ *
+ * For screenshots, crops to the top `cropHeight` pixels (above-the-fold).
+ */
+export async function prepareImageForVision(
+  leadId: string,
+  filename: string,
+  maxWidth = 800,
+  opts?: { cropHeight?: number; format?: "jpeg" | "png" },
+): Promise<VisionImage | null> {
+  const buffer = getAssetBuffer(leadId, filename);
+  if (!buffer || buffer.length < 200) return null;
+
+  const isPng = filename.endsWith(".png");
+  const format = opts?.format ?? (isPng ? "png" : "jpeg");
+  const mediaType = format === "png" ? "image/png" : "image/jpeg";
+
+  const sharp = await getSharp();
+  if (!sharp) {
+    // No sharp available — return raw buffer (may be large)
+    const b64 = buffer.toString("base64");
+    return {
+      role: "",
+      base64: b64,
+      mediaType: isPng ? "image/png" : "image/jpeg",
+      filename,
+      assetUrl: buildAssetUrl(leadId, filename),
+      sizeBytes: buffer.length,
+    };
+  }
+
+  try {
+    let img = sharp(buffer);
+    const meta = await img.metadata();
+
+    // Crop tall images (screenshots) to top portion
+    if (opts?.cropHeight && meta.height && meta.height > opts.cropHeight) {
+      img = img.extract({ left: 0, top: 0, width: meta.width!, height: opts.cropHeight });
+    }
+
+    // Resize if wider than maxWidth
+    if (meta.width && meta.width > maxWidth) {
+      img = img.resize(maxWidth);
+    }
+
+    const output = format === "png"
+      ? await img.png().toBuffer()
+      : await img.jpeg({ quality: 75 }).toBuffer();
+
+    const outMeta = await sharp(output).metadata();
+
+    return {
+      role: "",
+      base64: output.toString("base64"),
+      mediaType,
+      filename,
+      assetUrl: buildAssetUrl(leadId, filename),
+      width: outMeta.width,
+      height: outMeta.height,
+      sizeBytes: output.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Select and prepare up to `maxImages` images for vision input.
+ * Follows priority: screenshot → logo → hero → social → gallery.
+ * Caps total payload at `maxBytes`.
+ */
+export async function selectImagesForVision(
+  leadId: string,
+  maxImages = 7,
+  maxBytes = 4 * 1024 * 1024,
+): Promise<VisionImage[]> {
+  const manifest = getManifest(leadId);
+  const assets = manifest.assets;
+  if (assets.length === 0) return [];
+
+  const selected: VisionImage[] = [];
+  let totalBytes = 0;
+
+  // Helper to add an image if within budget
+  async function tryAdd(
+    filename: string,
+    role: string,
+    maxWidth: number,
+    opts?: { cropHeight?: number; format?: "jpeg" | "png" },
+  ): Promise<boolean> {
+    if (selected.length >= maxImages) return false;
+    const img = await prepareImageForVision(leadId, filename, maxWidth, opts);
+    if (!img) return false;
+    if (totalBytes + img.sizeBytes > maxBytes) return false;
+    img.role = role;
+    selected.push(img);
+    totalBytes += img.sizeBytes;
+    return true;
+  }
+
+  // 1. Screenshot (existing website) — crop to above-the-fold
+  const screenshot = assets.find((a) => a.category === "screenshot" && a.filename === "screenshot.png");
+  if (screenshot) {
+    await tryAdd(screenshot.filename, "screenshot", 800, { cropHeight: 1200, format: "png" });
+  }
+
+  // 2. Logo
+  const logo = assets.find((a) => a.category === "logo");
+  if (logo) {
+    await tryAdd(logo.filename, "logo", 400, { format: "png" });
+  }
+
+  // 3. Best hero candidate
+  const hero = assets.find((a) => a.category === "hero")
+    ?? assets.find((a) => a.filename === "google_photo_1.jpg");
+  if (hero) {
+    await tryAdd(hero.filename, "hero", 1000);
+  }
+
+  // 4-5. Instagram posts (social category)
+  const socials = assets.filter((a) => a.category === "social" && a.filename.startsWith("instagram_post"));
+  for (const s of socials.slice(0, 2)) {
+    await tryAdd(s.filename, "instagram", 600);
+  }
+
+  // 6-7. Gallery / Google photos (fill remaining slots)
+  const gallery = assets.filter((a) =>
+    (a.category === "gallery" || a.filename.startsWith("google_photo"))
+    && !selected.some((s) => s.filename === a.filename),
+  );
+  for (const g of gallery.slice(0, maxImages - selected.length)) {
+    await tryAdd(g.filename, "gallery", 600);
+  }
+
+  return selected;
+}
+
 /**
  * Extract dominant colours from a logo image.
  * Resizes to 50x50, samples raw pixels, clusters by frequency.

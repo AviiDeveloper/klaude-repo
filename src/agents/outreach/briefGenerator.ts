@@ -50,6 +50,15 @@ export interface SiteBrief {
   galleryImageCount: number;
   brandColourSource: string;
 
+  // Brand personality (from brand-intelligence agent)
+  brandTone?: string;
+  brandPersonality?: string;
+  marketPosition?: string;
+  uniqueSellingPoints?: string[];
+  trustSignals?: string[];
+  voiceExamples?: string[];
+  heroStyle?: string;
+
   // Copy directives — what the site SHOULD say
   heroHeadline: string;
   heroSubtext: string;
@@ -431,6 +440,7 @@ export function buildBrief(
   },
   brand: BrandAnalysis | undefined,
   vertical: string,
+  intelligence?: BrandIntelligence,
 ): SiteBrief {
   const businessType = lead.business_type ?? "business";
   const profile = getBusinessProfile(businessType);
@@ -485,8 +495,8 @@ export function buildBrief(
     description = `${businessName} is your local ${businessType}.${locationBit} customers across the area with care and professionalism.${ratingBit}`;
   }
 
-  // --- Hero copy ---
-  const heroHeadline = generateSmartHeadline(businessName, businessType, profile, lead.google_rating);
+  // --- Hero copy (prefer intelligence suggestions) ---
+  const heroHeadline = intelligence?.suggested_headline ?? generateSmartHeadline(businessName, businessType, profile, lead.google_rating);
   const heroSubtext = generateSmartSubtext(businessName, businessType, description, lead, profile);
 
   // --- CTA ---
@@ -552,12 +562,21 @@ export function buildBrief(
     hasHeroImage: !!(brand?.photo_inventory?.some((p) => p.usable_for.includes("hero"))),
     galleryImageCount: brand?.photo_inventory?.filter((p) => p.usable_for.includes("gallery")).length ?? 0,
     brandColourSource: brand?.colours?.palette_source ?? "vertical_default",
+    brandTone: intelligence?.tone,
+    brandPersonality: intelligence?.personality,
+    marketPosition: intelligence?.market_position,
+    uniqueSellingPoints: intelligence?.unique_selling_points,
+    trustSignals: intelligence?.trust_signals,
+    voiceExamples: intelligence?.voice_examples,
+    heroStyle: intelligence?.hero_style ?? profile.heroStyle,
     heroHeadline,
     heroSubtext,
     ctaPrimary,
     ctaSecondary,
     aboutCopy,
-    trustBadges: profile.trustBadges,
+    trustBadges: intelligence?.trust_signals && intelligence.trust_signals.length > 0
+      ? intelligence.trust_signals
+      : profile.trustBadges,
     sectionOrder,
     avoidTopics: profile.avoidTopics,
     menuItems: brand?.menu_items,
@@ -746,26 +765,45 @@ function generateMarkdown(brief: SiteBrief): string {
 // Brief Generator Agent
 // ---------------------------------------------------------------------------
 
+export interface BrandIntelligence {
+  lead_id: string;
+  tone?: string;
+  personality?: string;
+  market_position?: string;
+  unique_selling_points?: string[];
+  trust_signals?: string[];
+  voice_examples?: string[];
+  suggested_headline?: string;
+  suggested_tagline?: string;
+  hero_style?: string;
+}
+
 export const briefGeneratorAgent: AgentHandler = async (input) => {
   const upstream = input.upstreamArtifacts as Record<string, {
     profiles?: Array<Record<string, unknown>>;
     analyses?: BrandAnalysis[];
+    intelligence?: BrandIntelligence[];
   }>;
 
   // Support _upstream_inject from config (used when brief is the first pipeline node)
   const injected = (input.config as Record<string, unknown> | undefined)?._upstream_inject as {
     profiles?: Array<Record<string, unknown>>;
     analyses?: BrandAnalysis[];
+    intelligence?: BrandIntelligence[];
   } | undefined;
 
   const profiles: Array<Record<string, unknown>> = [];
   const brandAnalyses = new Map<string, BrandAnalysis>();
+  const intelligenceMap = new Map<string, BrandIntelligence>();
 
   // Merge upstream artifacts
   for (const nodeOutput of Object.values(upstream)) {
     if (nodeOutput?.profiles) profiles.push(...nodeOutput.profiles);
     if (nodeOutput?.analyses) {
       for (const a of nodeOutput.analyses) brandAnalyses.set(a.lead_id, a);
+    }
+    if (nodeOutput?.intelligence) {
+      for (const i of nodeOutput.intelligence) intelligenceMap.set(i.lead_id, i);
     }
   }
 
@@ -774,6 +812,9 @@ export const briefGeneratorAgent: AgentHandler = async (input) => {
   if (injected?.analyses) {
     for (const a of injected.analyses) brandAnalyses.set(a.lead_id, a);
   }
+  if (injected?.intelligence) {
+    for (const i of injected.intelligence) intelligenceMap.set(i.lead_id, i);
+  }
 
   const briefs: SiteBrief[] = [];
 
@@ -781,11 +822,13 @@ export const briefGeneratorAgent: AgentHandler = async (input) => {
     const leadId = (profile.lead_id as string) ?? `lead-${Date.now()}`;
     const vertical = resolveVertical((profile.business_type as string) ?? "general");
     const brand = brandAnalyses.get(leadId);
+    const intelligence = intelligenceMap.get(leadId);
 
     const brief = buildBrief(
       profile as Parameters<typeof buildBrief>[0],
       brand,
       vertical,
+      intelligence,
     );
 
     // Save the markdown brief to the asset directory

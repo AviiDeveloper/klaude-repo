@@ -1,9 +1,9 @@
 /**
  * AI Composer — generates unique, professional HTML+CSS using Claude via OpenRouter.
  *
- * Replaces the deterministic template-filling approach with genuine AI creativity.
- * Takes the structured brief + design decisions + asset URLs and sends them to
- * Claude Sonnet, which generates a complete single-page website from scratch.
+ * Uses VISION: sends actual business photos as base64 image blocks so Claude can
+ * SEE the business and design around what it sees. This is the key difference from
+ * text-only prompting — Claude designs with its eyes open.
  *
  * Each generated site is genuinely unique — different layouts, visual approaches,
  * and copy — tailored specifically to the business.
@@ -11,12 +11,20 @@
 
 import type { SiteBrief } from "./briefGenerator.js";
 import type { DesignDecision } from "./designSystem.js";
+import {
+  selectImagesForVision,
+  buildAssetUrl,
+  getManifest,
+  listAssets,
+  type VisionImage,
+} from "../../lib/assetStore.js";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface AIComposerAssets {
+  leadId: string;
   logoUrl: string;
   heroUrl: string;
   galleryUrls: string[];
@@ -26,6 +34,23 @@ export interface AIComposerResult {
   html: string;
   tokensUsed: number;
   costUsd: number;
+  imagesUsed: number;
+}
+
+export interface InstagramData {
+  username?: string;
+  bio?: string;
+  followers?: number;
+  category?: string;
+  posts?: Array<{
+    caption?: string;
+    likes?: number;
+    comments?: number;
+    hashtags?: string[];
+    url?: string;
+  }>;
+  topHashtags?: Array<{ tag: string; count: number }>;
+  avgEngagement?: { likes?: number; comments?: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -35,189 +60,309 @@ export interface AIComposerResult {
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
 const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
 const AI_COMPOSER_MODEL = process.env.AI_COMPOSER_MODEL ?? "anthropic/claude-sonnet-4-20250514";
-const AI_COMPOSER_TIMEOUT_MS = Number(process.env.AI_COMPOSER_TIMEOUT_MS ?? "120000");
+const AI_COMPOSER_TIMEOUT_MS = Number(process.env.AI_COMPOSER_TIMEOUT_MS ?? "180000");
 
 // Sonnet pricing via OpenRouter (approximate)
 const INPUT_COST_PER_M = 3.0;
 const OUTPUT_COST_PER_M = 15.0;
 
 // ---------------------------------------------------------------------------
-// System prompt builder
+// System prompt — short, creative freedom
 // ---------------------------------------------------------------------------
 
-function buildSystemPrompt(
-  brief: SiteBrief,
-  design: DesignDecision,
-  assets: AIComposerAssets,
-): string {
-  const { colours, fonts, hero, componentStyle } = design;
+function buildSystemPrompt(): string {
+  return `You are a world-class web designer who can SEE businesses through their photos. You design bespoke single-page websites that feel hand-crafted for each specific business.
 
-  const googleFontsUrl = `https://fonts.googleapis.com/css2?family=${fonts.headingImport}&family=${fonts.bodyImport}&display=swap`;
+You will receive:
+- Photos of the actual business (website screenshots, logo, interior/exterior, Instagram posts)
+- Business details, services, reviews, and contact info
+- A colour palette extracted from their branding (use as a starting point, adjust based on what you see)
+- Image URLs to use in the HTML output
 
-  const assetLines: string[] = [];
-  if (assets.logoUrl) assetLines.push(`- Logo image: ${assets.logoUrl}`);
-  if (assets.heroUrl) assetLines.push(`- Hero/banner image: ${assets.heroUrl}`);
-  if (assets.galleryUrls.length > 0) {
-    assetLines.push(`- Gallery images (use all of these):`);
-    assets.galleryUrls.forEach((url, i) => assetLines.push(`  ${i + 1}. ${url}`));
-  }
+CRITICAL RULES:
+1. Return ONLY the complete HTML document. No markdown fences, no explanations. Start with <!DOCTYPE html> and end with </html>.
+2. Output a SINGLE HTML file with all CSS in a <style> tag.
+3. Use ONLY the image URLs provided — do NOT invent filenames or URLs.
+4. All contact details (phone, email, address) must be accurate — use exactly what's provided.
+5. Customer reviews are REAL — use them verbatim, don't paraphrase.
+6. Mobile-first responsive design with clean breakpoints.
+7. Semantic HTML (header, nav, main, section, footer).
 
-  const reviewLines = brief.bestReviews.length > 0
-    ? brief.bestReviews.map((r) =>
-        `  - "${r.text.slice(0, 200)}" — ${r.author} (${r.rating}★)`
-      ).join("\n")
-    : "  None available";
-
-  const serviceLines = brief.services
-    .map((s) => `  - ${s.name}: ${s.description}`)
-    .join("\n");
-
-  const hoursLines = brief.openingHours.length > 0
-    ? brief.openingHours.map((h) => `  - ${h}`).join("\n")
-    : "";
-
-  const menuLines = brief.menuItems && brief.menuItems.length > 0
-    ? brief.menuItems.slice(0, 20).map((m) =>
-        `  - ${m.name}${m.price ? ` — ${m.price}` : ""}${m.description ? ` (${m.description})` : ""}`
-      ).join("\n")
-    : "";
-
-  return `You are a world-class web designer creating a professional, modern, single-page website. Your output quality should match the best agency-built small business websites — the kind that win design awards.
-
-CRITICAL: Return ONLY the complete HTML document. No markdown fences, no explanations, no commentary. Start with <!DOCTYPE html> and end with </html>.
-
-═══════════════════════════════════════════════════
-BUSINESS IDENTITY
-═══════════════════════════════════════════════════
-Name: ${brief.businessName}
-Type: ${brief.businessType} (${brief.vertical} vertical)
-Category: ${brief.specificCategory}
-Description: ${brief.description}
-
-Phone: ${brief.phone}
-Email: ${brief.email}
-Address: ${brief.address}
-${brief.googleRating ? `Google Rating: ${brief.googleRating}★ from ${brief.googleReviewCount} reviews` : ""}
-
-═══════════════════════════════════════════════════
-SERVICES
-═══════════════════════════════════════════════════
-${serviceLines}
-
-═══════════════════════════════════════════════════
-CUSTOMER REVIEWS
-═══════════════════════════════════════════════════
-${reviewLines}
-
-${hoursLines ? `═══════════════════════════════════════════════════
-OPENING HOURS
-═══════════════════════════════════════════════════
-${hoursLines}` : ""}
-
-${menuLines ? `═══════════════════════════════════════════════════
-MENU ITEMS
-═══════════════════════════════════════════════════
-${menuLines}` : ""}
-
-═══════════════════════════════════════════════════
-DESIGN SYSTEM (USE THESE EXACT VALUES)
-═══════════════════════════════════════════════════
-Primary colour: ${colours.primary}
-Primary dark: ${colours.primaryDark}
-Primary light: ${colours.primaryLight}
-Secondary: ${colours.secondary}
-Accent: ${colours.accent}
-Background: ${colours.background}
-Surface: ${colours.surface}
-Text: ${colours.text}
-Text muted: ${colours.textMuted}
-Text on primary: ${colours.textOnPrimary}
-Gradient: ${colours.gradient}
-
-Heading font: '${fonts.heading}' (weight: ${fonts.headingWeight})
-Body font: '${fonts.body}' (weight: ${fonts.bodyWeight})
-Google Fonts import: ${googleFontsUrl}
-
-Component style: ${componentStyle}
-Hero variant: ${hero.variant}
-Hero text alignment: ${hero.textAlign}
-Corner radius approach: ${design.layout.cornerRadius}
-Shadow depth: ${design.layout.shadowDepth}
-Section spacing: ${design.layout.sectionSpacing}
-
-═══════════════════════════════════════════════════
-ASSETS TO EMBED
-═══════════════════════════════════════════════════
-${assetLines.length > 0 ? assetLines.join("\n") : "No images available — use colour/gradient backgrounds instead"}
-
-═══════════════════════════════════════════════════
-COPY & CTA DIRECTIVES
-═══════════════════════════════════════════════════
-Hero headline: ${brief.heroHeadline}
-Hero subtext: ${brief.heroSubtext}
-
-Primary CTA: "${brief.ctaPrimary.text}" → action: ${brief.ctaPrimary.action}, target: ${brief.ctaPrimary.target}
-  Rationale: ${brief.ctaPrimary.why}
-${brief.ctaSecondary ? `Secondary CTA: "${brief.ctaSecondary.text}" → action: ${brief.ctaSecondary.action}, target: ${brief.ctaSecondary.target}` : ""}
-
-Trust badges: ${brief.trustBadges.join(" · ")}
-
-About copy: ${brief.aboutCopy}
-
-═══════════════════════════════════════════════════
-SECTION ORDER (follow this sequence)
-═══════════════════════════════════════════════════
-${brief.sectionOrder.map((s, i) => `${i + 1}. ${s}`).join("\n")}
-
-═══════════════════════════════════════════════════
-AVOID TOPICS (DO NOT mention any of these)
-═══════════════════════════════════════════════════
-${brief.avoidTopics.join(", ")}
-
-═══════════════════════════════════════════════════
-REQUIREMENTS
-═══════════════════════════════════════════════════
-1. Output a SINGLE complete HTML file with all CSS in a <style> tag
-2. Use the exact colours and fonts specified above — import Google Fonts
-3. Mobile-first responsive design with clean breakpoints
-4. Modern, sophisticated aesthetic — not generic or template-looking
-5. Smooth scroll behaviour, subtle CSS animations (fade-in, hover effects)
-6. Sticky/transparent header with logo + nav links
-7. If a hero image is provided, use it as a full-width background with overlay
-8. If no hero image, create a compelling gradient/pattern hero
-9. Service cards with good visual hierarchy
-10. If reviews exist, show them as testimonial cards with star ratings
-11. If gallery images exist, use a modern grid layout
-12. If menu items exist, show them in an elegant menu layout with prices
-13. If opening hours exist, display them in a clean table/grid
-14. ${brief.mapsEmbedUrl ? `Include a Google Maps embed using this URL: ${brief.mapsEmbedUrl}` : "Include a contact section with address details"}
-15. Footer with business name, contact info, and copyright year
-16. Use semantic HTML (header, nav, main, section, footer)
-17. All CTA buttons should use the specified action types (tel: links for phone, mailto: for email, etc.)
-18. Make the design UNIQUE — vary layouts, use creative spacing, asymmetric grids where appropriate
-19. The site should look like it costs £2000+ to build, not £50
-
-REMEMBER: Return ONLY the HTML. No markdown, no explanation. Start with <!DOCTYPE html>.`;
+DESIGN PHILOSOPHY:
+- Let the photos guide your design. The images tell you more about the brand than any hex code.
+- The site should look like it costs £2000+ to build — premium, polished, unique.
+- Bold use of brand colours — NOT grey, NOT plain white backgrounds.
+- Hero section: dramatic, at least 70vh tall. Use hero/main photo as full-width background with gradient overlay.
+- Gallery images: attractive grid with hover effects. Display ALL provided gallery images prominently.
+- Use object-fit: cover, proper aspect ratios — never stretch or distort images.
+- Smooth scroll, subtle CSS animations (fade-in, hover effects).
+- Sticky header, CTA buttons with hover effects, alternating section backgrounds.
+- Write copy that matches the brand's personality — not generic corporate speak.`;
 }
 
 // ---------------------------------------------------------------------------
-// Main composer function
+// Instagram context builder
+// ---------------------------------------------------------------------------
+
+function buildInstagramContext(ig: InstagramData): string {
+  if (!ig || (!ig.username && !ig.bio)) return "";
+
+  const lines: string[] = [];
+  if (ig.username) lines.push(`Instagram: @${ig.username}`);
+  if (ig.bio) lines.push(`Bio: "${ig.bio}"`);
+
+  const meta: string[] = [];
+  if (ig.followers) meta.push(`${ig.followers.toLocaleString()} followers`);
+  if (ig.category) meta.push(ig.category);
+  if (meta.length) lines.push(meta.join(" | "));
+
+  if (ig.posts && ig.posts.length > 0) {
+    lines.push("\nRecent posts (top by engagement):");
+    for (const post of ig.posts.slice(0, 5)) {
+      const caption = post.caption?.slice(0, 120) ?? "(no caption)";
+      const engagement: string[] = [];
+      if (post.likes) engagement.push(`${post.likes} likes`);
+      if (post.comments) engagement.push(`${post.comments} comments`);
+      const tags = post.hashtags?.slice(0, 5).map((t) => `#${t}`).join(" ") ?? "";
+      lines.push(`  - "${caption}" — ${engagement.join(", ")}${tags ? `\n    ${tags}` : ""}`);
+    }
+  }
+
+  if (ig.topHashtags && ig.topHashtags.length > 0) {
+    lines.push(`\nTop hashtags: ${ig.topHashtags.slice(0, 8).map((h) => `#${h.tag} (${h.count})`).join(", ")}`);
+  }
+
+  if (ig.avgEngagement) {
+    const parts: string[] = [];
+    if (ig.avgEngagement.likes) parts.push(`${ig.avgEngagement.likes} likes`);
+    if (ig.avgEngagement.comments) parts.push(`${ig.avgEngagement.comments} comments`);
+    if (parts.length) lines.push(`Avg engagement: ${parts.join(", ")} per post`);
+  }
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Build multipart user content (text + vision images interleaved)
+// ---------------------------------------------------------------------------
+
+type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+function buildUserContent(
+  brief: SiteBrief,
+  design: DesignDecision,
+  images: VisionImage[],
+  assets: AIComposerAssets,
+  instagramContext: string,
+): ContentBlock[] {
+  const blocks: ContentBlock[] = [];
+  const text = (t: string) => blocks.push({ type: "text", text: t });
+  const image = (img: VisionImage) => blocks.push({
+    type: "image_url",
+    image_url: { url: `data:${img.mediaType};base64,${img.base64}` },
+  });
+
+  // --- Website screenshot ---
+  const screenshotImg = images.find((i) => i.role === "screenshot");
+  if (screenshotImg) {
+    text("=== THEIR EXISTING WEBSITE (screenshot of current site) ===\nStudy their current design: colours, layout, typography, brand feel. Design something BETTER that keeps their identity.");
+    image(screenshotImg);
+  }
+
+  // --- Logo ---
+  const logoImg = images.find((i) => i.role === "logo");
+  if (logoImg) {
+    text("=== LOGO ===\nThis is their actual logo. Match your design to complement it.");
+    image(logoImg);
+  }
+
+  // --- Hero photo ---
+  const heroImg = images.find((i) => i.role === "hero");
+  if (heroImg) {
+    text("=== HERO PHOTO — use as full-width hero background ===\nThis is the main photo of the business. Use it as a dramatic full-width hero with a dark gradient overlay for text readability.");
+    image(heroImg);
+  }
+
+  // --- Instagram ---
+  const igImages = images.filter((i) => i.role === "instagram");
+  if (igImages.length > 0 || instagramContext) {
+    text(`=== INSTAGRAM — this is how they present themselves ===\n${instagramContext || "Instagram photos showing their visual style and personality:"}`);
+    for (const img of igImages) {
+      image(img);
+    }
+  }
+
+  // --- Gallery photos ---
+  const galleryImages = images.filter((i) => i.role === "gallery");
+  if (galleryImages.length > 0) {
+    text("=== GALLERY PHOTOS — use these in a gallery/showcase section ===\nReal photos of the business, products, or services:");
+    for (const img of galleryImages) {
+      image(img);
+    }
+  }
+
+  // --- Business details ---
+  const details: string[] = [
+    `=== BUSINESS DETAILS ===`,
+    `Name: ${brief.businessName}`,
+    `Type: ${brief.businessType} (${brief.vertical})`,
+    `Category: ${brief.specificCategory}`,
+    `Description: ${brief.description}`,
+    ``,
+    `Phone: ${brief.phone}`,
+    `Email: ${brief.email}`,
+    `Address: ${brief.address}`,
+  ];
+  if (brief.googleRating) {
+    details.push(`Google Rating: ${brief.googleRating}★ from ${brief.googleReviewCount} reviews`);
+  }
+
+  // Services
+  details.push(`\n=== SERVICES ===`);
+  for (const s of brief.services) {
+    details.push(`- ${s.name}: ${s.description}`);
+  }
+
+  // Reviews
+  if (brief.bestReviews.length > 0) {
+    details.push(`\n=== CUSTOMER REVIEWS (REAL — use verbatim) ===`);
+    for (const r of brief.bestReviews) {
+      details.push(`- "${r.text.slice(0, 250)}" — ${r.author} (${r.rating}★)`);
+    }
+  }
+
+  // Hours
+  if (brief.openingHours.length > 0) {
+    details.push(`\n=== OPENING HOURS ===`);
+    for (const h of brief.openingHours) details.push(`- ${h}`);
+  }
+
+  // Menu
+  if (brief.menuItems && brief.menuItems.length > 0) {
+    details.push(`\n=== MENU ITEMS ===`);
+    for (const m of brief.menuItems.slice(0, 20)) {
+      details.push(`- ${m.name}${m.price ? ` — ${m.price}` : ""}${m.description ? ` (${m.description})` : ""}`);
+    }
+  }
+
+  text(details.join("\n"));
+
+  // --- Brand personality (from brand-intelligence) ---
+  const personalityLines: string[] = ["=== BRAND PERSONALITY ==="];
+  if (brief.brandTone) personalityLines.push(`Voice tone: ${brief.brandTone}`);
+  if (brief.heroStyle) personalityLines.push(`Visual aesthetic: ${brief.heroStyle}`);
+  if (brief.marketPosition) personalityLines.push(`Market position: ${brief.marketPosition}`);
+  if (brief.uniqueSellingPoints && brief.uniqueSellingPoints.length > 0) {
+    personalityLines.push(`What makes them special:`);
+    brief.uniqueSellingPoints.forEach((u) => personalityLines.push(`  - ${u}`));
+  }
+  if (brief.voiceExamples && brief.voiceExamples.length > 0) {
+    personalityLines.push(`Example copy in their voice:`);
+    brief.voiceExamples.forEach((v) => personalityLines.push(`  "${v}"`));
+  }
+  if (personalityLines.length > 1) {
+    text(personalityLines.join("\n"));
+  }
+
+  // --- Colour palette (suggestions, not rigid) ---
+  const { colours, fonts } = design;
+  const googleFontsUrl = `https://fonts.googleapis.com/css2?family=${fonts.headingImport}&family=${fonts.bodyImport}&display=swap`;
+  text(`=== COLOUR PALETTE (from their brand — adjust based on what you see in the photos) ===
+Primary: ${colours.primary} ← hero backgrounds, CTA buttons
+Primary dark: ${colours.primaryDark} ← hover states, footer
+Primary light: ${colours.primaryLight} ← section backgrounds
+Secondary: ${colours.secondary} ← accent elements
+Accent: ${colours.accent} ← highlights, badges
+Background: ${colours.background}
+Surface: ${colours.surface} ← card backgrounds
+Text: ${colours.text}
+Gradient: ${colours.gradient}
+
+Typography:
+Heading: '${fonts.heading}' (${fonts.headingWeight})
+Body: '${fonts.body}' (${fonts.bodyWeight})
+Google Fonts: ${googleFontsUrl}
+
+The primary colour MUST be visible above the fold. Do NOT default to grey.`);
+
+  // --- Available image URLs for HTML output ---
+  const urlLines: string[] = ["=== AVAILABLE IMAGE URLs FOR HTML (use ONLY these — do not invent URLs) ==="];
+  const allAssets = listAssets(assets.leadId);
+
+  // Map vision images to their asset URLs
+  for (const img of images) {
+    const label = img.role === "screenshot" ? "Website screenshot (for reference only, don't embed)"
+      : img.role === "logo" ? "Logo"
+      : img.role === "hero" ? "Hero/main photo — use as hero background"
+      : img.role === "instagram" ? "Instagram post — use in gallery or showcase"
+      : "Gallery photo";
+    urlLines.push(`${label}: src="${img.assetUrl}"`);
+  }
+
+  // Also include gallery images that weren't sent as vision (still usable in HTML)
+  const sentFilenames = new Set(images.map((i) => i.filename));
+  const extraGallery = allAssets.filter((a) =>
+    !sentFilenames.has(a.filename)
+    && (a.category === "gallery" || a.category === "social" || a.category === "hero")
+    && /\.(jpg|jpeg|png|webp)$/i.test(a.filename),
+  );
+  for (const a of extraGallery.slice(0, 12)) {
+    urlLines.push(`Additional photo: src="${buildAssetUrl(assets.leadId, a.filename)}"`);
+  }
+
+  text(urlLines.join("\n"));
+
+  // --- Copy directives ---
+  text(`=== COPY & CTA ===
+Hero headline: ${brief.heroHeadline}
+Hero subtext: ${brief.heroSubtext}
+Primary CTA: "${brief.ctaPrimary.text}" → ${brief.ctaPrimary.action}: ${brief.ctaPrimary.target}
+${brief.ctaSecondary ? `Secondary CTA: "${brief.ctaSecondary.text}" → ${brief.ctaSecondary.action}: ${brief.ctaSecondary.target}` : ""}
+Trust badges: ${brief.trustBadges.join(" · ")}
+About: ${brief.aboutCopy}
+${brief.mapsEmbedUrl ? `Google Maps: ${brief.mapsEmbedUrl}` : ""}
+
+Section order: ${brief.sectionOrder.join(" → ")}
+DO NOT mention: ${brief.avoidTopics.join(", ")}
+
+Footer: business info + copyright 2026`);
+
+  return blocks;
+}
+
+// ---------------------------------------------------------------------------
+// Main composer function — vision-powered
 // ---------------------------------------------------------------------------
 
 export async function generateSiteWithAI(
   brief: SiteBrief,
   design: DesignDecision,
   assets: AIComposerAssets,
-  _leadId: string,
+  leadId: string,
+  instagramData?: InstagramData,
 ): Promise<AIComposerResult> {
   if (!OPENROUTER_API_KEY) {
     throw new Error("AI Composer requires OPENROUTER_API_KEY (or OPENAI_API_KEY) to be set");
   }
 
-  const systemPrompt = buildSystemPrompt(brief, design, assets);
-  const userPrompt = `Generate the complete website for ${brief.businessName} (${brief.businessType}). Follow all the design constraints and copy directives exactly. Make it look premium, professional, and unique.`;
+  // Select and prepare images for vision
+  const images = await selectImagesForVision(leadId, 7, 4 * 1024 * 1024);
+  const totalImageBytes = images.reduce((sum, i) => sum + i.sizeBytes, 0);
+  console.log(`[AI Composer] Prepared ${images.length} images (${(totalImageBytes / 1024).toFixed(0)}KB) for ${brief.businessName}`);
+  for (const img of images) {
+    console.log(`  ${img.role}: ${img.filename} (${img.width}×${img.height}, ${(img.sizeBytes / 1024).toFixed(0)}KB)`);
+  }
 
-  console.log(`[AI Composer] Calling ${AI_COMPOSER_MODEL} for ${brief.businessName}...`);
+  // Build Instagram context
+  const igContext = instagramData ? buildInstagramContext(instagramData) : "";
+
+  // Build messages
+  const systemPrompt = buildSystemPrompt();
+  const userContent = buildUserContent(brief, design, images, assets, igContext);
+
+  console.log(`[AI Composer] Calling ${AI_COMPOSER_MODEL} for ${brief.businessName} (${images.length} images)...`);
   const t0 = Date.now();
 
   const controller = new AbortController();
@@ -238,7 +383,7 @@ export async function generateSiteWithAI(
         temperature: 0.7,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: "user", content: userContent },
         ],
       }),
       signal: controller.signal,
@@ -267,7 +412,7 @@ export async function generateSiteWithAI(
                   + (completionTokens / 1_000_000) * OUTPUT_COST_PER_M;
 
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-    console.log(`[AI Composer] Done in ${elapsed}s — ${totalTokens} tokens, $${costUsd.toFixed(4)}`);
+    console.log(`[AI Composer] Done in ${elapsed}s — ${totalTokens} tokens (${promptTokens} in, ${completionTokens} out), $${costUsd.toFixed(4)}, ${images.length} images`);
 
     // Extract HTML from response (strip any markdown fences if model adds them)
     let html = content.trim();
@@ -293,6 +438,7 @@ export async function generateSiteWithAI(
       html,
       tokensUsed: totalTokens,
       costUsd,
+      imagesUsed: images.length,
     };
   } finally {
     clearTimeout(timeout);
