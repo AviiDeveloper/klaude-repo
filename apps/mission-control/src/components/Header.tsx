@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Settings, ChevronLeft, LayoutGrid, Crown, Brain, DollarSign } from 'lucide-react';
+import { Zap, Settings, ChevronLeft, LayoutGrid, Crown, Brain, DollarSign, Activity } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { format } from 'date-fns';
 import type { Workspace } from '@/lib/types';
@@ -125,6 +125,18 @@ export function Header({ workspace }: HeaderProps) {
         </span>
         {workspace ? (
           <>
+            <Link
+              href={`/workspace/${workspace.slug}/pipeline`}
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded border text-sm font-medium ${
+                pathname?.includes('/pipeline')
+                  ? 'border-mc-accent-purple text-mc-accent-purple bg-mc-accent-purple/15'
+                  : 'border-mc-border text-mc-text-secondary hover:bg-mc-bg-tertiary'
+              }`}
+              title="Open Pipeline Runner"
+            >
+              <Activity className="w-4 h-4" />
+              Pipeline
+            </Link>
             <Link
               href={`/workspace/${workspace.slug}/learning`}
               className={`inline-flex items-center gap-2 px-3 py-1 rounded border text-sm font-medium ${
