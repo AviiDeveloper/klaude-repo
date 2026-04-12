@@ -148,7 +148,7 @@ export class UnifiedPipelineEngine {
         // Phase 2: Qualification
         { id: "qualify", agent_id: "lead-qualifier-agent", depends_on: ["brand-intelligence"] },
         // Phase 3: Demo site generation (shown to business owner as the pitch)
-        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify"] },
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify", "brand-intelligence"] },
         { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
         { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
         // Phase 4: Assignment — salesperson receives lead WITH ready demo

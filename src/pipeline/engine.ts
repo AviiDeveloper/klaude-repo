@@ -37,7 +37,7 @@ export class PipelineEngine {
         { id: "brand-analyse", agent_id: "brand-analyser-agent", depends_on: ["profile"] },
         { id: "brand-intelligence", agent_id: "brand-intelligence-agent", depends_on: ["brand-analyse"] },
         { id: "qualify", agent_id: "lead-qualifier-agent", depends_on: ["brand-intelligence"] },
-        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify"] },
+        { id: "brief", agent_id: "brief-generator-agent", depends_on: ["qualify", "brand-intelligence"] },
         { id: "compose", agent_id: "site-composer-agent", depends_on: ["brief"] },
         { id: "qa", agent_id: "site-qa-agent", depends_on: ["compose"] },
         { id: "assign", agent_id: "lead-assigner-agent", depends_on: ["qa"] },
