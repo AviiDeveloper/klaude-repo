@@ -42,7 +42,10 @@ export function usePipelineArtifacts(pipelineNodeIds: string[] | undefined) {
 
     try {
       const runsRes = await fetch(`${MC_API}/api/job-runs`, { signal: AbortSignal.timeout(5000) });
-      if (!runsRes.ok) throw new Error(`Runtime returned ${runsRes.status}`);
+      if (!runsRes.ok) {
+        if (runsRes.status === 429) throw new Error('Runtime is rate-limited — wait a moment and retry');
+        throw new Error(`Runtime returned ${runsRes.status}`);
+      }
       const { runs } = await runsRes.json();
 
       const sorted = (runs ?? []).sort(
