@@ -30,6 +30,8 @@ export interface FlowchartNode {
   connectedTo?: AppConnection[];
   /** Known wiring gaps — things that SHOULD be connected but aren't */
   connectionIssues?: string[];
+  /** Maps to pipeline runtime node_id(s) for fetching agent output artifacts */
+  pipelineNodeIds?: string[];
 }
 
 export interface FlowchartDefinition {
@@ -137,6 +139,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       todo: [],
       depends_on: ['pipeline-triggers'],
       connectedTo: ['pipeline-runtime'],
+      pipelineNodeIds: ['scout'],
     },
     {
       id: 'google-places',
@@ -179,6 +182,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       todo: [],
       depends_on: ['agent-scraper'],
       connectedTo: ['pipeline-runtime'],
+      pipelineNodeIds: ['profile', 'brand-analyse', 'brand-intelligence'],
     },
     {
       id: 'generation-cap',
@@ -210,6 +214,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       depends_on: ['generation-cap'],
       connectedTo: ['pipeline-runtime'],
       connectionIssues: ['Brand colours/tone from profiler not fully wired into composer prompt'],
+      pipelineNodeIds: ['brief', 'compose'],
     },
     {
       id: 'claude-demo',
@@ -240,6 +245,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       todo: [],
       depends_on: ['claude-demo'],
       connectedTo: ['pipeline-runtime'],
+      pipelineNodeIds: ['qa'],
     },
     {
       id: 'qc-decision',
@@ -253,6 +259,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       todo: [],
       depends_on: ['agent-qc'],
       connectedTo: ['pipeline-runtime'],
+      pipelineNodeIds: ['qa'],
     },
     {
       id: 'screenshot-r2',
@@ -298,6 +305,7 @@ export const LEAD_GEN_FLOWCHART: FlowchartDefinition = {
       todo: ['Push notification to SP app'],
       depends_on: ['demo-supabase'],
       connectedTo: ['pipeline-runtime', 'sales-dashboard'],
+      pipelineNodeIds: ['qualify', 'assign'],
       connectionIssues: [
         'Writes to lead_assignments but WITHOUT demo_site_domain — SP sees lead but no demo',
         'No push notification when lead assigned — SP only sees on next app open/sync',

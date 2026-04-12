@@ -4,11 +4,14 @@ import { useState, useMemo } from 'react';
 import {
   CheckCircle, AlertTriangle, XCircle,
   ChevronDown, ChevronRight, FileCode, Link2, AlertCircle,
-  Unplug, Plug,
+  Unplug, Plug, Database, Loader2, RefreshCw, WifiOff,
 } from 'lucide-react';
 import type { FlowchartDefinition, FlowchartNode, NodeStatus, NodeType, AppConnection } from '@/lib/flowchart-data';
 import { APP_LABELS } from '@/lib/flowchart-data';
 import { LAYOUTS, type FlowchartLayout, type LayoutEdge, type NodePosition } from '@/lib/flowchart-layout';
+import { usePipelineArtifacts } from '@/hooks/usePipelineArtifacts';
+import { ArtifactRouter, nodeLabel } from './ArtifactViewer';
+import { CopyForClaude } from './CopyForClaude';
 
 // ── Constants ──
 
@@ -303,6 +306,30 @@ function FlowNode({
         r={3.5}
         fill={sc.stroke}
       />
+      {/* "Has output" indicator (bottom-right) */}
+      {node.pipelineNodeIds && node.pipelineNodeIds.length > 0 && (
+        <g>
+          <rect
+            x={pos.x + NODE_W / 2 - 18}
+            y={pos.y + NODE_H / 2 - 12}
+            width={14}
+            height={9}
+            rx={2}
+            fill="#a371f7"
+            opacity={0.3}
+          />
+          <text
+            x={pos.x + NODE_W / 2 - 11}
+            y={pos.y + NODE_H / 2 - 4.5}
+            textAnchor="middle"
+            fill="#a371f7"
+            fontSize={6}
+            fontWeight="bold"
+          >
+            OUT
+          </text>
+        </g>
+      )}
       {/* Warning indicator (top-left) for connection issues */}
       {hasIssues && (
         <g>
@@ -435,27 +462,14 @@ const STATUS_CFG: Record<
   },
 };
 
-function NodeDetailPanel({ node }: { node: FlowchartNode }) {
+function NodeInfoTab({ node }: { node: FlowchartNode }) {
   const [showFiles, setShowFiles] = useState(true);
   const [showEndpoints, setShowEndpoints] = useState(true);
-  const st = STATUS_CFG[node.status];
   const apps = node.connectedTo ?? [];
   const issues = node.connectionIssues ?? [];
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${st.bg} ${st.text} border ${st.border}`}>
-            {st.label}
-          </span>
-          <span className="text-[10px] text-mc-text-secondary uppercase">{node.type}</span>
-        </div>
-        <h3 className="text-lg font-bold text-mc-text">{node.label}</h3>
-        <p className="text-xs text-mc-text-secondary mt-1 leading-relaxed">{node.description}</p>
-      </div>
-
+    <div className="space-y-4">
       {/* Connected apps */}
       {apps.length > 0 && (
         <div>
@@ -577,6 +591,149 @@ function NodeDetailPanel({ node }: { node: FlowchartNode }) {
           Depends on: {node.depends_on.join(', ')}
         </div>
       )}
+    </div>
+  );
+}
+
+function NodeOutputTab({ node }: { node: FlowchartNode }) {
+  const { artifacts, latestRun, loading, error, refresh } = usePipelineArtifacts(node.pipelineNodeIds);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8 text-mc-text-secondary">
+        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+        <span className="text-xs">Loading agent output...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-4 space-y-2">
+        <div className="flex items-center gap-2 text-mc-accent-red text-xs">
+          <WifiOff className="w-4 h-4" />
+          {error}
+        </div>
+        <button
+          onClick={refresh}
+          className="flex items-center gap-1 px-2 py-1 text-[10px] text-mc-text-secondary hover:text-mc-text border border-mc-border rounded"
+        >
+          <RefreshCw className="w-3 h-3" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!latestRun || artifacts.length === 0) {
+    return (
+      <div className="py-4 space-y-2">
+        <p className="text-xs text-mc-text-secondary">
+          No pipeline output found. Run the pipeline from the Live Runner tab to see agent results here.
+        </p>
+        <button
+          onClick={refresh}
+          className="flex items-center gap-1 px-2 py-1 text-[10px] text-mc-text-secondary hover:text-mc-text border border-mc-border rounded"
+        >
+          <RefreshCw className="w-3 h-3" /> Refresh
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Run info */}
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-mc-text-secondary">
+          Run <span className="font-mono">{latestRun.id.slice(0, 8)}</span>
+          {' — '}
+          {new Date(latestRun.started_at).toLocaleString()}
+          {' — '}
+          <span className={latestRun.status === 'completed' ? 'text-mc-accent-green' : 'text-mc-accent-yellow'}>
+            {latestRun.status}
+          </span>
+        </div>
+        <button
+          onClick={refresh}
+          className="p-1 text-mc-text-secondary hover:text-mc-text"
+          title="Refresh"
+        >
+          <RefreshCw className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Artifact viewers */}
+      {artifacts.map((artifact) => (
+        <div key={artifact.id} className="space-y-2">
+          <div className="text-[10px] font-bold text-mc-accent-purple uppercase">
+            {nodeLabel(artifact.node_id)}
+          </div>
+          <ArtifactRouter nodeId={artifact.node_id} artifact={artifact} />
+        </div>
+      ))}
+
+      {/* Copy for Claude Code */}
+      <div className="pt-2 border-t border-mc-border">
+        <CopyForClaude node={node} artifacts={artifacts} latestRun={latestRun} />
+      </div>
+    </div>
+  );
+}
+
+function NodeDetailPanel({ node }: { node: FlowchartNode }) {
+  const hasOutput = !!node.pipelineNodeIds && node.pipelineNodeIds.length > 0;
+  const [activeTab, setActiveTab] = useState<'info' | 'output'>(hasOutput ? 'output' : 'info');
+  const st = STATUS_CFG[node.status];
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header (always visible) */}
+      <div className="p-4 pb-2 flex-shrink-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${st.bg} ${st.text} border ${st.border}`}>
+            {st.label}
+          </span>
+          <span className="text-[10px] text-mc-text-secondary uppercase">{node.type}</span>
+        </div>
+        <h3 className="text-lg font-bold text-mc-text">{node.label}</h3>
+        <p className="text-xs text-mc-text-secondary mt-1 leading-relaxed">{node.description}</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="px-4 flex-shrink-0 flex items-center gap-1 border-b border-mc-border">
+        <button
+          onClick={() => setActiveTab('info')}
+          className={`px-3 py-1.5 text-[11px] font-bold uppercase border-b-2 transition-colors ${
+            activeTab === 'info'
+              ? 'border-mc-accent text-mc-accent'
+              : 'border-transparent text-mc-text-secondary hover:text-mc-text'
+          }`}
+        >
+          Info
+        </button>
+        {hasOutput && (
+          <button
+            onClick={() => setActiveTab('output')}
+            className={`px-3 py-1.5 text-[11px] font-bold uppercase border-b-2 transition-colors flex items-center gap-1 ${
+              activeTab === 'output'
+                ? 'border-mc-accent-purple text-mc-accent-purple'
+                : 'border-transparent text-mc-text-secondary hover:text-mc-text'
+            }`}
+          >
+            <Database className="w-3 h-3" />
+            Output
+          </button>
+        )}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'info' ? (
+          <NodeInfoTab node={node} />
+        ) : (
+          <NodeOutputTab node={node} />
+        )}
+      </div>
     </div>
   );
 }
