@@ -509,13 +509,67 @@ export async function prepareImageForVision(
  * Follows priority: screenshot → logo → hero → social → gallery.
  * Caps total payload at `maxBytes`.
  */
+/**
+ * Check if an image meets minimum quality standards for use in generated sites.
+ * Filters out: tiny images, Google Maps screenshots, icons, favicons.
+ */
+function isUsablePhoto(asset: AssetMetadata): boolean {
+  // Skip Google Maps screenshots and page screenshots (not the main site screenshot)
+  if (asset.filename.startsWith("google_maps") || asset.filename.startsWith("page_")) return false;
+  if (asset.filename === "favicon.ico" || asset.category === "favicon") return false;
+
+  // Skip very small files (likely icons or broken downloads)
+  if (asset.size_bytes !== undefined && asset.size_bytes < 5000) return false;
+
+  // Skip very small dimensions (likely icons, not photos)
+  if (asset.width && asset.height) {
+    const minDim = Math.min(asset.width, asset.height);
+    if (minDim < 100) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Score a photo for quality — higher is better.
+ * Prefers: larger images, landscape orientation, reasonable aspect ratios.
+ */
+function scorePhotoQuality(asset: AssetMetadata): number {
+  let score = 0;
+  const w = asset.width ?? 0;
+  const h = asset.height ?? 0;
+
+  // Resolution bonus
+  if (w >= 800 && h >= 600) score += 3;
+  else if (w >= 600 && h >= 400) score += 2;
+  else if (w >= 400) score += 1;
+
+  // Landscape photos work better for hero/gallery
+  if (w > h) score += 1;
+
+  // Penalise extreme aspect ratios (very tall/narrow = probably not a great photo)
+  if (w > 0 && h > 0) {
+    const ratio = Math.max(w, h) / Math.min(w, h);
+    if (ratio > 3) score -= 2;
+  }
+
+  // Instagram posts tend to be higher quality (curated by the business)
+  if (asset.filename.startsWith("instagram_post")) score += 2;
+
+  // File size as quality proxy (larger = more detail, usually better quality)
+  if (asset.size_bytes && asset.size_bytes > 100000) score += 1;
+  if (asset.size_bytes && asset.size_bytes > 300000) score += 1;
+
+  return score;
+}
+
 export async function selectImagesForVision(
   leadId: string,
   maxImages = 7,
   maxBytes = 4 * 1024 * 1024,
 ): Promise<VisionImage[]> {
   const manifest = getManifest(leadId);
-  const assets = manifest.assets;
+  const assets = manifest.assets.filter(isUsablePhoto);
   if (assets.length === 0) return [];
 
   const selected: VisionImage[] = [];
@@ -539,35 +593,40 @@ export async function selectImagesForVision(
   }
 
   // 1. Screenshot (existing website) — crop to above-the-fold
-  const screenshot = assets.find((a) => a.category === "screenshot" && a.filename === "screenshot.png");
+  const screenshot = manifest.assets.find((a) => a.category === "screenshot" && a.filename === "screenshot.png");
   if (screenshot) {
     await tryAdd(screenshot.filename, "screenshot", 800, { cropHeight: 1200, format: "png" });
   }
 
   // 2. Logo
-  const logo = assets.find((a) => a.category === "logo");
+  const logo = manifest.assets.find((a) => a.category === "logo");
   if (logo) {
     await tryAdd(logo.filename, "logo", 400, { format: "png" });
   }
 
-  // 3. Best hero candidate
-  const hero = assets.find((a) => a.category === "hero")
-    ?? assets.find((a) => a.filename === "google_photo_1.jpg");
-  if (hero) {
-    await tryAdd(hero.filename, "hero", 1000);
+  // 3. Best hero candidate — prefer Instagram or high-quality gallery over Google Street View
+  const heroCandidates = assets
+    .filter((a) => a.category === "hero" || a.category === "gallery" || a.category === "social")
+    .sort((a, b) => scorePhotoQuality(b) - scorePhotoQuality(a));
+  if (heroCandidates.length > 0) {
+    await tryAdd(heroCandidates[0].filename, "hero", 1000);
   }
 
-  // 4-5. Instagram posts (social category)
-  const socials = assets.filter((a) => a.category === "social" && a.filename.startsWith("instagram_post"));
-  for (const s of socials.slice(0, 2)) {
+  // 4-5. Instagram posts (curated by the business — highest quality social content)
+  const igPosts = assets
+    .filter((a) => a.filename.startsWith("instagram_post") && !selected.some((s) => s.filename === a.filename))
+    .sort((a, b) => scorePhotoQuality(b) - scorePhotoQuality(a));
+  for (const s of igPosts.slice(0, 3)) {
     await tryAdd(s.filename, "instagram", 600);
   }
 
-  // 6-7. Gallery / Google photos (fill remaining slots)
-  const gallery = assets.filter((a) =>
-    (a.category === "gallery" || a.filename.startsWith("google_photo"))
-    && !selected.some((s) => s.filename === a.filename),
-  );
+  // 6-7+. Gallery / Google photos (fill remaining slots, quality-sorted)
+  const gallery = assets
+    .filter((a) =>
+      (a.category === "gallery" || a.category === "social")
+      && !selected.some((s) => s.filename === a.filename),
+    )
+    .sort((a, b) => scorePhotoQuality(b) - scorePhotoQuality(a));
   for (const g of gallery.slice(0, maxImages - selected.length)) {
     await tryAdd(g.filename, "gallery", 600);
   }
