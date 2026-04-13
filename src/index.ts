@@ -270,16 +270,16 @@ async function main(): Promise<void> {
   }
 
   if (mode === "mission-control") {
-    const schedulerMode = process.env.SCHEDULER_MODE ?? "internal";
+    const schedulerMode = process.env.SCHEDULER_MODE ?? "disabled";
     if (schedulerMode === "internal") {
       pipelineScheduler.start();
       log.info("scheduler started", { mode: "internal" });
     } else if (schedulerMode === "openclaw-cron") {
       log.info("scheduler started", { mode: "openclaw-cron" });
+    } else if (schedulerMode === "disabled" || schedulerMode === "off" || schedulerMode === "none") {
+      log.info("scheduler disabled — pipelines will only run on manual trigger");
     } else {
-      throw new Error(
-        `Unsupported SCHEDULER_MODE: ${schedulerMode}. Use "internal" or "openclaw-cron".`,
-      );
+      log.warn(`Unknown SCHEDULER_MODE: ${schedulerMode}, defaulting to disabled`);
     }
     const server = new MissionControlServer(
       taskStore,

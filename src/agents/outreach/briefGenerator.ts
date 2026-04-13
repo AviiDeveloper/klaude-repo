@@ -799,6 +799,10 @@ export const briefGeneratorAgent: AgentHandler = async (input) => {
   // Merge upstream artifacts
   for (const nodeOutput of Object.values(upstream)) {
     if (nodeOutput?.profiles) profiles.push(...nodeOutput.profiles);
+    // The qualifier outputs qualified leads under "qualified", not "profiles"
+    if ((nodeOutput as Record<string, unknown>)?.qualified) {
+      profiles.push(...((nodeOutput as Record<string, unknown>).qualified as Array<Record<string, unknown>>));
+    }
     if (nodeOutput?.analyses) {
       for (const a of nodeOutput.analyses) brandAnalyses.set(a.lead_id, a);
     }
