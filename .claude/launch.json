@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "apps/sales-dashboard", "run", "dev"],
       "port": 4300
+    },
+    {
+      "name": "workbench",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "tools/workbench/server.ts"],
+      "port": 3456
     }
   ]
 }
